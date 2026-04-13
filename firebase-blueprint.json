@@ -1,0 +1,401 @@
+{
+  "entities": {
+    "Recommendation": {
+      "title": "Recommendation",
+      "description": "A book, movie, or media recommendation.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the work" },
+        "author": { "type": "string", "description": "Author, director, or creator" },
+        "category": { "type": "string", "enum": ["Books", "Movies & Shows", "Video & Media", "Apps"], "description": "Type of recommendation" },
+        "description": { "type": "string", "description": "Personal note or summary" },
+        "link": { "type": "string", "format": "uri", "description": "Optional link to the work" },
+        "imageUrl": { "type": "string", "format": "uri", "description": "Optional image URL" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "author", "category"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile and role information.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "role": { "type": "string", "enum": ["admin", "client"] },
+        "displayName": { "type": "string" },
+        "approved": { "type": "boolean", "description": "Whether the user is approved to access the health dashboard." },
+        "canViewAdminHealth": { "type": "boolean", "description": "Whether the user can view the admin's health data." },
+        "hasKiaplayAccess": { "type": "boolean", "description": "Whether the user has access to KIAPLAY." }
+      },
+      "required": ["email", "role"]
+    },
+    "CVSection": {
+      "title": "CVSection",
+      "description": "A section of the CV (e.g., Education, Experience).",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Section title" },
+        "order": { "type": "integer", "description": "Display order" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "subtitle": { "type": "string" },
+              "date": { "type": "string" },
+              "description": { "type": "string" },
+              "link": { "type": "string", "format": "uri", "description": "Optional link to project or more info" },
+              "logoUrl": { "type": "string", "format": "uri", "description": "Optional logo URL for the institution or company" }
+            },
+            "required": ["title", "subtitle"]
+          }
+        }
+      },
+      "required": ["title", "order", "items"]
+    },
+    "Profile": {
+      "title": "Profile",
+      "description": "Personal information for the CV sidebar.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "format": "email" },
+        "location": { "type": "string" },
+        "website": { "type": "string" },
+        "phone": { "type": "string" },
+        "linkedin": { "type": "string" }
+      }
+    },
+    "Social": {
+      "title": "Social",
+      "description": "A social media link.",
+      "type": "object",
+      "properties": {
+        "label": { "type": "string", "description": "Name of the platform (e.g., LinkedIn)" },
+        "href": { "type": "string", "format": "uri", "description": "URL to the profile" },
+        "icon": { "type": "string", "enum": ["linkedin", "twitter", "github", "mail", "instagram", "facebook", "youtube", "bluesky"], "description": "Icon identifier" },
+        "order": { "type": "integer", "description": "Display order" }
+      },
+      "required": ["label", "href", "icon", "order"]
+    },
+    "File": {
+      "title": "File",
+      "description": "A file or image uploaded to storage.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "type": { "type": "string" },
+        "size": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "url", "type", "size"]
+    },
+    "Config": {
+      "title": "Config",
+      "description": "System configuration and tokens.",
+      "type": "object",
+      "properties": {
+        "tokens": { "type": "object", "description": "OAuth tokens" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "HealthLog": {
+      "title": "HealthLog",
+      "description": "Daily weight and calorie logs.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "weight": { "type": "number" },
+        "calories": { "type": "integer" },
+        "protein": { "type": "integer" },
+        "carbs": { "type": "integer" },
+        "fats": { "type": "integer" },
+        "water": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "weight"]
+    },
+    "Milestone": {
+      "title": "Milestone",
+      "description": "Weight loss milestones and rewards.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "name": { "type": "string", "description": "The name of the milestone" },
+        "targetWeight": { "type": "number" },
+        "reward": { "type": "string" },
+        "achieved": { "type": "boolean" },
+        "achievedAt": { "type": "string", "format": "date-time" },
+        "targetDate": { "type": "string", "format": "date" },
+        "order": { "type": "integer" }
+      },
+      "required": ["userId", "name", "targetWeight"]
+    },
+    "ClinicalEvent": {
+      "title": "ClinicalEvent",
+      "description": "Professional health measurements.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["DEXA Scan", "Clinic Visit", "Doctor Weigh-in", "Other"] },
+        "value": { "type": "string" },
+        "notes": { "type": "string" },
+        "date": { "type": "string", "format": "date" }
+      },
+      "required": ["userId", "type", "value", "date"]
+    },
+    "HealthConfig": {
+      "title": "HealthConfig",
+      "description": "User-specific health settings and TDEE.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "height": { "type": "number" },
+        "age": { "type": "integer" },
+        "gender": { "type": "string", "enum": ["male", "female"] },
+        "activityLevel": { "type": "number" },
+        "targetWeeklyLoss": { "type": "number" },
+        "startingWeight": { "type": "number" },
+        "tdee": { "type": "number" }
+      },
+      "required": ["userId"]
+    },
+    "WaterLog": {
+      "title": "WaterLog",
+      "description": "Daily water intake logs.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "amount": { "type": "number", "description": "Amount of water in ml or oz" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "amount"]
+    },
+    "WaterConfig": {
+      "title": "WaterConfig",
+      "description": "User-specific hydration goals.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "dailyGoal": { "type": "number", "description": "Target daily water intake" },
+        "unit": { "type": "string", "enum": ["ml", "oz"], "description": "Preferred unit" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "dailyGoal"]
+    },
+    "FoodLog": {
+      "title": "FoodLog",
+      "description": "Individual food items logged by the user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "name": { "type": "string" },
+        "calories": { "type": "integer" },
+        "protein": { "type": "integer" },
+        "carbs": { "type": "integer" },
+        "fats": { "type": "integer" },
+        "mealType": { "type": "string", "enum": ["Breakfast", "Lunch", "Dinner", "Snack"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "date", "name", "calories"]
+    },
+    "FoodConfig": {
+      "title": "FoodConfig",
+      "description": "User-specific nutritional goals.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "dailyCalorieGoal": { "type": "integer" },
+        "proteinGoal": { "type": "integer" },
+        "carbsGoal": { "type": "integer" },
+        "fatsGoal": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "dailyCalorieGoal"]
+    },
+    "Book": {
+      "title": "Book",
+      "description": "A book in the library system.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "author": { "type": "string", "description": "Legacy single author field" },
+        "authors": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "firstName": { "type": "string" },
+              "lastName": { "type": "string" }
+            },
+            "required": ["firstName", "lastName"]
+          }
+        },
+        "isbn": { "type": "string" },
+        "genre": { "type": "string" },
+        "description": { "type": "string" },
+        "coverUrl": { "type": "string", "format": "uri" },
+        "publisher": { "type": "string" },
+        "year": { "type": "string" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "room": { "type": "string" },
+            "bookshelf": { "type": "string" },
+            "shelfLevel": { "type": "integer" },
+            "position": { "type": "integer" }
+          },
+          "required": ["room", "bookshelf", "shelfLevel", "position"]
+        },
+        "nfcTagId": { "type": "string" },
+        "readingStatus": { "type": "string", "enum": ["To Read", "Currently Reading", "Finished"] },
+        "spineColor": { "type": "string" },
+        "borrowedBy": { "type": "string", "description": "User ID of the person who borrowed the book" },
+        "borrowedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "author", "location"]
+    },
+    "UserPage": {
+      "title": "UserPage",
+      "description": "Personalized content for a specific user.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "movieRecommendations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "title": { "type": "string" },
+              "description": { "type": "string" },
+              "link": { "type": "string", "format": "uri" },
+              "imageUrl": { "type": "string", "format": "uri" }
+            },
+            "required": ["title"]
+          }
+        },
+        "meetings": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "date": { "type": "string", "format": "date-time" },
+              "notes": { "type": "string" },
+              "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+              "suggestedBy": { "type": "string" },
+              "updatedAt": { "type": "string", "format": "date-time" }
+            },
+            "required": ["id", "title", "date", "status", "suggestedBy"]
+          }
+        },
+        "contactInfo": {
+          "type": "object",
+          "properties": {
+            "email": { "type": "string", "format": "email" },
+            "phone": { "type": "string" },
+            "address": { "type": "string" },
+            "bio": { "type": "string" }
+          }
+        },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId"]
+    },
+    "BorrowHistory": {
+      "title": "BorrowHistory",
+      "description": "A record of a book being borrowed and returned.",
+      "type": "object",
+      "properties": {
+        "bookId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "borrowedAt": { "type": "string", "format": "date-time" },
+        "returnedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["bookId", "userId", "userName", "borrowedAt"]
+    }
+  },
+  "firestore": {
+    "/recommendations/{recommendationId}": {
+      "schema": "Recommendation",
+      "description": "Public recommendations list."
+    },
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User roles and metadata."
+    },
+    "/cv/{sectionId}": {
+      "schema": "CVSection",
+      "description": "CV sections and items."
+    },
+    "/profile/{profileId}": {
+      "schema": "Profile",
+      "description": "Personal profile information."
+    },
+    "/socials/{socialId}": {
+      "schema": "Social",
+      "description": "Social media links for the home page."
+    },
+    "/files/{fileId}": {
+      "schema": "File",
+      "description": "Uploaded files metadata."
+    },
+    "/config/{configId}": {
+      "schema": "Config",
+      "description": "Internal configuration documents."
+    },
+    "/health_logs/{logId}": {
+      "schema": "HealthLog",
+      "description": "User health logs."
+    },
+    "/milestones/{milestoneId}": {
+      "schema": "Milestone",
+      "description": "User milestones."
+    },
+    "/clinical_events/{eventId}": {
+      "schema": "ClinicalEvent",
+      "description": "Clinical health events."
+    },
+    "/health_configs/{configId}": {
+      "schema": "HealthConfig",
+      "description": "User health configuration."
+    },
+    "/user_pages/{userId}": {
+      "schema": "UserPage",
+      "description": "Personalized user pages."
+    },
+    "/water_logs/{logId}": {
+      "schema": "WaterLog",
+      "description": "User water intake logs."
+    },
+    "/water_configs/{userId}": {
+      "schema": "WaterConfig",
+      "description": "User hydration goals."
+    },
+    "/food_logs/{logId}": {
+      "schema": "FoodLog",
+      "description": "Individual food logs."
+    },
+    "/food_configs/{userId}": {
+      "schema": "FoodConfig",
+      "description": "User nutritional goals."
+    },
+    "/books/{bookId}": {
+      "schema": "Book",
+      "description": "Books in the library."
+    },
+    "/borrow_history/{historyId}": {
+      "schema": "BorrowHistory",
+      "description": "History of book borrowings."
+    }
+  }
+}

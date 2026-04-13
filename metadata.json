@@ -1,0 +1,7 @@
+{
+  "name": "Kianosh F. Solheim",
+  "description": "A visual, interactive 3D library management system with ISBN/NFC scanning and spatial navigation.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

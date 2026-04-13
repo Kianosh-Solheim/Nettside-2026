@@ -1,0 +1,449 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: recommendations
+    // Fields:
+    //   - title: string (required)
+    //   - author: string (required)
+    //   - category: string (required, enum: Books, Movies & Shows, Videos/Media, YouTube)
+    //   - description: string (optional)
+    //   - link: string (optional, URL)
+    //   - imageUrl: string (optional, URL)
+    //   - createdAt: timestamp
+    //   - updatedAt: timestamp
+    //
+    // Collection: users
+    // Fields:
+    //   - email: string (required, email)
+    //   - role: string (required, enum: admin, client)
+    //   - displayName: string (optional)
+    //   - approved: bool (optional)
+    //   - canViewAdminHealth: bool (optional)
+    //
+    // Collection: cv
+    // Fields:
+    //   - title: string (required)
+    //   - order: int (required)
+    //   - items: list (required, objects with title, subtitle, date, description, link, logoUrl)
+    //
+    // Collection: profile
+    // Fields:
+    //   - email: string (required, email)
+    //   - location: string (optional)
+    //   - website: string (optional)
+    //   - phone: string (optional)
+    //   - linkedin: string (optional)
+    //
+    // Collection: socials
+    // Fields:
+    //   - label: string (required)
+    //   - href: string (required, URL)
+    //   - icon: string (required, enum)
+    //   - order: int (required)
+    //
+    // Collection: files
+    // Fields:
+    //   - name: string (required)
+    //   - url: string (required, URL)
+    //   - type: string (required)
+    //   - size: int (required)
+    //   - createdAt: timestamp
+    //
+    // Collection: messages
+    // Fields:
+    //   - name: string (required)
+    //   - email: string (required, email)
+    //   - message: string (required)
+    //   - read: bool (optional)
+    //   - createdAt: timestamp
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        ((request.auth.token.email == "kianoshsolheim@gmail.com" && request.auth.token.email_verified == true) ||
+         (request.auth.token.email == "kianosh@solheim.online" && request.auth.token.email_verified == true) ||
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
+    }
+
+    function isApproved() {
+      return isAuthenticated() &&
+        (isAdmin() || 
+         (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'client'] &&
+          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.approved == true));
+    }
+
+    function canViewAdminHealth(userId) {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/users/$(userId)) &&
+        get(/databases/$(database)/documents/users/$(userId)).data.canViewAdminHealth == true;
+    }
+
+    function isAdminOwned(userId) {
+      return exists(/databases/$(database)/documents/users/$(userId)) &&
+        (get(/databases/$(database)/documents/users/$(userId)).data.role == 'admin' ||
+         get(/databases/$(database)/documents/users/$(userId)).data.email in ["kianoshsolheim@gmail.com", "kianosh@solheim.online"]);
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidHealthLog(data) {
+      return data.keys().hasAll(['userId', 'date', 'weight']) &&
+             data.userId is string &&
+             data.date is string &&
+             data.weight is number &&
+             (!('calories' in data) || data.calories is number) &&
+             (!('protein' in data) || data.protein is number) &&
+             (!('carbs' in data) || data.carbs is number) &&
+             (!('fats' in data) || data.fats is number) &&
+             (!('water' in data) || data.water is number) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    function isValidMilestone(data) {
+      return data.keys().hasAll(['userId', 'name', 'targetWeight']) &&
+             data.userId is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.targetWeight is number &&
+             (!('reward' in data) || data.reward is string) &&
+             (!('achieved' in data) || data.achieved is bool) &&
+             (!('achievedAt' in data) || (data.achievedAt is string || data.achievedAt is timestamp)) &&
+             (!('targetDate' in data) || data.targetDate is string) &&
+             (!('order' in data) || data.order is int);
+    }
+
+    function isValidHealthConfig(data) {
+      return data.keys().hasAll(['userId']) &&
+             data.userId is string &&
+             (!('height' in data) || data.height is number) &&
+             (!('age' in data) || data.age is int) &&
+             (!('gender' in data) || data.gender in ['male', 'female']) &&
+             (!('activityLevel' in data) || data.activityLevel is number) &&
+             (!('targetWeeklyLoss' in data) || data.targetWeeklyLoss is number) &&
+             (!('startingWeight' in data) || data.startingWeight is number) &&
+             (!('tdee' in data) || data.tdee is number);
+    }
+
+    function isValidRecommendation(data) {
+      return data.keys().hasAll(['title', 'author', 'category']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
+             data.author is string && data.author.size() > 0 && data.author.size() < 200 &&
+             data.category in ['Books', 'Movies & Shows', 'Video & Media', 'Apps'] &&
+             (!('description' in data) || (data.description is string && data.description.size() < 5000)) &&
+             (!('link' in data) || (data.link == "" || isValidUrl(data.link))) &&
+             (!('imageUrl' in data) || (data.imageUrl == "" || isValidUrl(data.imageUrl))) &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['email', 'role']) &&
+             isValidEmail(data.email) &&
+             data.role in ['admin', 'client'] &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('approved' in data) || data.approved is bool) &&
+             (!('canViewAdminHealth' in data) || data.canViewAdminHealth is bool) &&
+             (!('hasKiaplayAccess' in data) || data.hasKiaplayAccess is bool);
+    }
+
+    function isValidCVSection(data) {
+      return data.keys().hasAll(['title', 'order', 'items']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 100 &&
+             data.order is int &&
+             data.items is list && data.items.size() < 50;
+    }
+
+    function isValidProfile(data) {
+      return data.keys().hasAll(['email']) &&
+             isValidEmail(data.email) &&
+             (!('location' in data) || (data.location is string && data.location.size() < 200)) &&
+             (!('website' in data) || (data.website is string && data.website.size() < 200)) &&
+             (!('phone' in data) || (data.phone is string && data.phone.size() < 50)) &&
+             (!('linkedin' in data) || (data.linkedin is string && data.linkedin.size() < 200));
+    }
+
+    function isValidSocial(data) {
+      return data.keys().hasAll(['label', 'href', 'icon', 'order']) &&
+             data.label is string && data.label.size() > 0 && data.label.size() < 50 &&
+             isValidUrl(data.href) &&
+             data.icon is string &&
+             data.order is int;
+    }
+
+    function isValidFile(data) {
+      return data.keys().hasAll(['name', 'url', 'type', 'size']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 500 &&
+             isValidUrl(data.url) &&
+             data.type is string &&
+             data.size is int;
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['name', 'email', 'message']) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             isValidEmail(data.email) &&
+             data.message is string && data.message.size() > 0 && data.message.size() < 5000 &&
+             (!('read' in data) || data.read is bool) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    function isValidBorrowHistory(data) {
+      return data.keys().hasAll(['bookId', 'userId', 'userName', 'borrowedAt']) &&
+             data.bookId is string &&
+             data.userId is string &&
+             data.userName is string &&
+             data.borrowedAt is timestamp &&
+             (!('returnedAt' in data) || data.returnedAt == null || data.returnedAt is timestamp);
+    }
+
+    function isValidConfig(data) {
+      return (!('tokens' in data) || data.tokens is map) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidUserPage(data) {
+      return data.keys().hasAll(['userId']) &&
+             data.userId is string &&
+             (!('movieRecommendations' in data) || data.movieRecommendations is list) &&
+             (!('meetings' in data) || data.meetings is list) &&
+             (!('contactInfo' in data) || data.contactInfo is map) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidWaterLog(data) {
+      return data.keys().hasAll(['userId', 'date', 'amount']) &&
+             data.userId is string &&
+             data.date is string &&
+             data.amount is number &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    function isValidWaterConfig(data) {
+      return data.keys().hasAll(['userId', 'dailyGoal']) &&
+             data.userId is string &&
+             data.dailyGoal is number &&
+             (!('unit' in data) || data.unit in ['ml', 'oz']) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidFoodLog(data) {
+      return data.keys().hasAll(['userId', 'date', 'name', 'calories']) &&
+             data.userId is string &&
+             data.date is string &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 500 &&
+             data.calories is int &&
+             (!('protein' in data) || data.protein is int) &&
+             (!('carbs' in data) || data.carbs is int) &&
+             (!('fats' in data) || data.fats is int) &&
+             (!('mealType' in data) || data.mealType in ["Breakfast", "Lunch", "Dinner", "Snack"]) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    function isValidFoodConfig(data) {
+      return data.keys().hasAll(['userId', 'dailyCalorieGoal']) &&
+             data.userId is string &&
+             data.dailyCalorieGoal is int &&
+             (!('proteinGoal' in data) || data.proteinGoal is int) &&
+             (!('carbsGoal' in data) || data.carbsGoal is int) &&
+             (!('fatsGoal' in data) || data.fatsGoal is int) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidBook(data) {
+      let allowedFields = [
+        'title', 'subtitle', 'author', 'authors', 'location', 'isbn', 'genre', 'description', 
+        'coverUrl', 'publisher', 'year', 'nfcTagId', 'readingStatus', 
+        'spineColor', 'borrowedBy', 'borrowedAt', 'userId', 'createdAt'
+      ];
+      return data.keys().hasAll(['title', 'location']) &&
+             data.keys().hasOnly(allowedFields) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
+             (!('subtitle' in data) || (data.subtitle is string && data.subtitle.size() < 500)) &&
+             (!('author' in data) || (data.author is string && data.author.size() < 200)) &&
+             (!('authors' in data) || (data.authors is list && data.authors.size() < 20)) &&
+             data.location is map &&
+             data.location.keys().hasAll(['room', 'bookshelf', 'shelfLevel', 'position']) &&
+             data.location.keys().hasOnly(['room', 'bookshelf', 'shelfLevel', 'position']) &&
+             data.location.room is string && data.location.room.size() < 100 &&
+             data.location.bookshelf is string && data.location.bookshelf.size() < 100 &&
+             data.location.shelfLevel is int &&
+             data.location.position is int &&
+             (!('isbn' in data) || (data.isbn is string && data.isbn.size() < 50)) &&
+             (!('genre' in data) || (data.genre is string && data.genre.size() < 100)) &&
+             (!('description' in data) || (data.description is string && data.description.size() < 5000)) &&
+             (!('coverUrl' in data) || (data.coverUrl == "" || (isValidUrl(data.coverUrl) && data.coverUrl.size() < 1000))) &&
+             (!('publisher' in data) || (data.publisher is string && data.publisher.size() < 200)) &&
+             (!('year' in data) || (data.year is string && data.year.size() < 20)) &&
+             (!('nfcTagId' in data) || (data.nfcTagId is string && data.nfcTagId.size() < 100)) &&
+             (!('readingStatus' in data) || data.readingStatus in ['To Read', 'Currently Reading', 'Finished']) &&
+             (!('spineColor' in data) || (data.spineColor is string && data.spineColor.size() < 20)) &&
+             (!('borrowedBy' in data) || data.borrowedBy == null || (data.borrowedBy is string && data.borrowedBy.size() < 100)) &&
+             (!('borrowedAt' in data) || data.borrowedAt == null || data.borrowedAt is timestamp) &&
+             (!('userId' in data) || (data.userId is string && data.userId.size() < 100)) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /health_logs/{logId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin() || (canViewAdminHealth(request.auth.uid) && isAdminOwned(resource.data.userId));
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /milestones/{milestoneId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin() || (canViewAdminHealth(request.auth.uid) && isAdminOwned(resource.data.userId));
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /health_configs/{configId} {
+      allow read: if isOwner(resource.data.userId) || isAdmin() || (canViewAdminHealth(request.auth.uid) && isAdminOwned(resource.data.userId));
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /user_pages/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isAdmin() || (isOwner(userId) && isValidUserPage(request.resource.data));
+      allow update: if isAdmin() || (
+        isOwner(userId) && 
+        isValidUserPage(request.resource.data) &&
+        // Users can update their own contact info and meetings
+        // We allow them to update movieRecommendations too if they want, 
+        // but typically these are managed by admin. 
+        // For now, let's just allow full owner update as long as it's valid.
+        request.resource.data.userId == userId
+      );
+      allow delete: if isAdmin();
+    }
+
+    match /water_logs/{logId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /water_configs/{uid} {
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /food_logs/{logId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.userId || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /food_configs/{uid} {
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /books/{bookId} {
+      allow read: if isApproved();
+      allow create: if isApproved() && isValidBook(request.resource.data);
+      allow update: if isApproved() && isValidBook(request.resource.data);
+      allow delete: if isAdmin();
+    }
+    
+    match /borrow_history/{historyId} {
+      allow read: if isApproved();
+      allow create: if isAuthenticated() && isValidBorrowHistory(request.resource.data);
+      allow update: if isAuthenticated() && isValidBorrowHistory(request.resource.data) && 
+                      (isAdmin() || isOwner(resource.data.userId));
+      allow delete: if isAdmin();
+    }
+
+    match /recommendations/{recommendationId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidRecommendation(request.resource.data);
+      allow update: if isAdmin() && isValidRecommendation(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin() || 
+                    resource.data.role == 'admin' || 
+                    resource.data.email in ["kianoshsolheim@gmail.com", "kianosh@solheim.online"];
+      allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.role == 'client' && request.resource.data.approved == false;
+      allow update: if isAuthenticated() && (
+                      (isOwner(userId) && isValidUser(request.resource.data) && 
+                       request.resource.data.role == resource.data.role && 
+                       request.resource.data.approved == resource.data.approved) ||
+                      (isAdmin() && isValidUser(request.resource.data))
+                    );
+      allow delete: if isAdmin();
+    }
+
+    match /cv/{sectionId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidCVSection(request.resource.data);
+      allow update: if isAdmin() && isValidCVSection(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /profile/{profileId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidProfile(request.resource.data);
+      allow update: if isAdmin() && isValidProfile(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /socials/{socialId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidSocial(request.resource.data);
+      allow update: if isAdmin() && isValidSocial(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /files/{fileId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidFile(request.resource.data);
+      allow update: if isAdmin() && isValidFile(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /messages/{messageId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if isValidMessage(request.resource.data);
+    }
+
+    match /config/{configId} {
+      allow read: if isAdmin();
+      allow write: if isAdmin() && isValidConfig(request.resource.data);
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}
