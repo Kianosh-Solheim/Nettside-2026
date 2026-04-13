@@ -1050,6 +1050,18 @@ export default function Admin({ user }: { user: any }) {
     }
   };
 
+  const toggleApproval = async (userId: string, currentStatus: boolean) => {
+    try {
+      await updateDoc(doc(db, 'users', userId), { approved: !currentStatus })
+        .catch(error => handleFirestoreError(error, OperationType.UPDATE, `users/${userId}`));
+      setStatus({ type: 'success', message: `User ${!currentStatus ? 'approved' : 'unapproved'}` });
+      setTimeout(() => setStatus(null), 3000);
+    } catch (error) {
+      console.error(error);
+      setStatus({ type: 'error', message: 'Failed to update user' });
+    }
+  };
+
   const toggleKiaplayAccess = async (userId: string, currentAccess: boolean) => {
     try {
       await updateDoc(doc(db, 'users', userId), { hasKiaplayAccess: !currentAccess })
@@ -2593,6 +2605,18 @@ export default function Admin({ user }: { user: any }) {
                       />
                       
                       <div className="flex flex-col items-end gap-3">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-[10px] uppercase tracking-widest text-ink/40 font-bold">Approved (Library)</span>
+                          <Button
+                            onClick={() => toggleApproval(u.id, u.approved)}
+                            variant="ghost"
+                            size="sm"
+                            magnetic={true}
+                            className={u.approved ? 'text-accent' : 'text-ink/20'}
+                            icon={u.approved ? Check : X}
+                            title={u.approved ? 'Revoke Approval' : 'Approve User'}
+                          />
+                        </div>
                         <div className="flex items-center space-x-3">
                           <span className="text-[10px] uppercase tracking-widest text-ink/40 font-bold">Admin Health</span>
                           <Button
