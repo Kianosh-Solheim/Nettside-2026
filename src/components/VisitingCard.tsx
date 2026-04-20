@@ -1,14 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Mail, Globe, MapPin, Phone, Smartphone, Linkedin, Github, Download, QrCode, Lock, ArrowLeft, X, Nfc, Share2, MoreHorizontal } from 'lucide-react';
-import { useProfile } from '../App';
+import { Mail, Globe, MapPin, Phone, Smartphone, Linkedin, Github, Download, QrCode, Lock, ArrowLeft, X, Nfc, Share2, MoreHorizontal, Twitter, Instagram, Facebook, Youtube, Cloud } from 'lucide-react';
+import { BlueskyIcon } from './Icons';
+import { useProfile, useSocials } from '../App';
 import Button from './ui/Button';
 import { auth } from '../firebase';
 import { QRCodeSVG } from 'qrcode.react';
 
 export default function VisitingCard() {
   const profile = useProfile();
+  const socials = useSocials();
   const location = useLocation();
   const [showQR, setShowQR] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
@@ -54,7 +56,7 @@ VERSION:3.0
 FN:${profile.name}
 EMAIL:${profile.email}
 TEL;TYPE=CELL:${profile.mobile || ''}
-TEL;TYPE=WORK,VOICE:${profile.landline || ''}
+TEL;TYPE=HOME,VOICE:${profile.landline || ''}
 TEL;TYPE=VOICE:${profile.phone || ''}
 ADR:;;${profile.location || ''}
 URL:${profile.website || ''}
@@ -108,6 +110,20 @@ END:VCARD`;
       // Fallback: Copy to clipboard
       navigator.clipboard.writeText(currentUrl);
       alert('Link copied to clipboard!');
+    }
+  };
+
+  const getSocialIcon = (iconName: string, size = 20) => {
+    switch (iconName) {
+      case 'linkedin': return <Linkedin size={size} />;
+      case 'twitter': return <Twitter size={size} />;
+      case 'github': return <Github size={size} />;
+      case 'mail': return <Mail size={size} />;
+      case 'instagram': return <Instagram size={size} />;
+      case 'facebook': return <Facebook size={size} />;
+      case 'youtube': return <Youtube size={size} />;
+      case 'bluesky': return <BlueskyIcon size={size} />;
+      default: return <Mail size={size} />;
     }
   };
 
@@ -199,8 +215,13 @@ END:VCARD`;
                 </Button>
                 
                 <div className="flex gap-3">
-                  <SocialButton icon={<Linkedin size={20} />} href="https://linkedin.com" />
-                  <SocialButton icon={<Github size={20} />} href="https://github.com" />
+                  {socials.map((social) => (
+                    <SocialButton 
+                      key={social.id} 
+                      icon={getSocialIcon(social.icon)} 
+                      href={social.href} 
+                    />
+                  ))}
                   <div className="flex-1" />
                   <div className="relative">
                     <button 

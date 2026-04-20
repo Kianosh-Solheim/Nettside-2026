@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2 } from 'lucide-react';
+import { ArrowRight, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Cloud } from 'lucide-react';
+import { BlueskyIcon } from './Icons';
 import { useProfile, useSocials } from '../App';
 import Button from './ui/Button';
 
@@ -16,7 +17,7 @@ export default function Home() {
       case 'instagram': return <Instagram size={size} strokeWidth={1.5} />;
       case 'facebook': return <Facebook size={size} strokeWidth={1.5} />;
       case 'youtube': return <Youtube size={size} strokeWidth={1.5} />;
-      case 'bluesky': return <Share2 size={size} strokeWidth={1.5} />;
+      case 'bluesky': return <BlueskyIcon size={size} />;
       default: return <Mail size={size} strokeWidth={1.5} />;
     }
   };

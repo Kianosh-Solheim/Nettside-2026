@@ -2,7 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { useState, useEffect, createContext, useContext, useRef } from 'react';
 import { auth, onAuthStateChanged, signOut, signInWithPopup, googleProvider, db, collection, onSnapshot, query, orderBy, where, doc, getDocFromServer, setDoc, serverTimestamp, handleFirestoreError, OperationType } from './firebase';
 import { motion, AnimatePresence, useMotionValue, useSpring, useMotionTemplate, useScroll } from 'framer-motion';
-import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User } from 'lucide-react';
+import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar } from 'lucide-react';
+import { BlueskyIcon } from './components/Icons';
 import Home from './components/Home';
 import Recommendations from './components/Recommendations';
 import CV from './components/CV';
@@ -16,8 +17,9 @@ import Library from './components/Library';
 import VisitingCard from './components/VisitingCard';
 import ErrorBoundary from './components/ErrorBoundary';
 import Button from './components/ui/Button';
+import Availability from './components/Availability';
 
-const ThemeContext = createContext({ theme: 'light', toggleTheme: () => {} });
+export const ThemeContext = createContext({ theme: 'light', toggleTheme: () => {} });
 
 interface Profile {
   name: string;
@@ -89,9 +91,10 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
 
   const navLinks = [
     { name: 'Home', path: '/', icon: <HomeIcon size={18} /> },
+    { name: 'CV', path: '/cv', icon: <FileText size={18} /> },
     ...(user ? [{ name: 'Library', path: '/library', icon: <Book size={18} /> }] : []),
     { name: 'Recommendations', path: '/recommendations', icon: <Film size={18} /> },
-    { name: 'CV', path: '/cv', icon: <FileText size={18} /> },
+    { name: 'Availability', path: '/availability', icon: <Calendar size={18} /> },
   ];
 
   return (
@@ -432,7 +435,7 @@ const Footer = ({ socials }: { socials: Social[] }) => {
       case 'instagram': return <Instagram size={size} />;
       case 'facebook': return <Facebook size={size} />;
       case 'youtube': return <Youtube size={size} />;
-      case 'bluesky': return <Share2 size={size} />;
+      case 'bluesky': return <BlueskyIcon size={size} />;
       default: return <Mail size={size} />;
     }
   };
@@ -571,6 +574,7 @@ const AnimatedRoutes = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid }
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
         <Route path="/recommendations" element={<PageWrapper><Recommendations /></PageWrapper>} />
+        <Route path="/availability" element={<PageWrapper><Availability /></PageWrapper>} />
         <Route path="/cv" element={<PageWrapper><CV /></PageWrapper>} />
         <Route path="/library" element={<PageWrapper><Library /></PageWrapper>} />
         <Route path="/admin" element={<PageWrapper><Admin user={user} /></PageWrapper>} />

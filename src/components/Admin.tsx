@@ -93,6 +93,7 @@ export default function Admin({ user }: { user: any }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [messageFilter, setMessageFilter] = useState<'all' | 'unread' | 'read'>('all');
   const [users, setUsers] = useState<any[]>([]);
+  const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userPages, setUserPages] = useState<Record<string, any>>({});
   const [allMeetings, setAllMeetings] = useState<any[]>([]);
   const [isUploading, setIsUploading] = useState(false);
@@ -2556,18 +2557,39 @@ export default function Admin({ user }: { user: any }) {
               <h2 className="text-4xl font-serif mb-2">User Directory</h2>
               <p className="text-[10px] uppercase tracking-[0.2em] font-black text-ink/40">Manage access and permissions</p>
             </div>
+            
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/20" size={16} />
+              <input
+                type="text"
+                placeholder="Search users..."
+                className="w-full bg-surface border border-ink/5 rounded-2xl py-3 pl-12 pr-4 text-sm focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all text-ink"
+                value={userSearchQuery}
+                onChange={(e) => setUserSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
 
           <div className="grid gap-8">
-            {users.length === 0 ? (
+            {users.filter(u => 
+              (u.displayName || '').toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+              (u.email || '').toLowerCase().includes(userSearchQuery.toLowerCase())
+            ).length === 0 ? (
               <div className="py-32 text-center border-2 border-dashed border-ink/5 rounded-[48px] bg-ink/[0.01]">
                 <div className="p-6 bg-ink/5 rounded-3xl w-20 h-20 mx-auto mb-6 flex items-center justify-center text-ink/20">
                   <Users size={40} />
                 </div>
-                <p className="text-ink/30 text-[10px] uppercase tracking-[0.3em] font-black">No users found in the system.</p>
+                <p className="text-ink/30 text-[10px] uppercase tracking-[0.3em] font-black">
+                  {userSearchQuery ? `No users found matching "${userSearchQuery}"` : "No users found in the system."}
+                </p>
               </div>
             ) : (
-              users.map((u) => (
+              users
+                .filter(u => 
+                  (u.displayName || '').toLowerCase().includes(userSearchQuery.toLowerCase()) ||
+                  (u.email || '').toLowerCase().includes(userSearchQuery.toLowerCase())
+                )
+                .map((u) => (
                 <motion.div
                   key={u.id}
                   layout
