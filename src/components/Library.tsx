@@ -56,8 +56,35 @@ export default function Library() {
 
   if (loading) {
     return (
-      <div className="h-screen flex items-center justify-center bg-paper">
-        <div className="text-accent animate-pulse font-bold tracking-widest uppercase">Loading Library...</div>
+      <div className="min-h-[80vh] flex flex-col items-center justify-center bg-paper">
+        <motion.div
+           animate={{ 
+             scale: [1, 1.1, 1],
+             rotate: [0, 90, 180, 270, 360],
+             borderRadius: ["24% 76% 35% 65% / 27% 32% 68% 73%", "54% 46% 38% 62% / 49% 70% 30% 51%", "24% 76% 35% 65% / 27% 32% 68% 73%"]
+           }}
+           transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
+           className="w-20 h-20 bg-accent/10 flex items-center justify-center mb-10 relative overflow-hidden"
+        >
+           <motion.div
+             animate={{ height: ["0%", "100%", "0%"] }}
+             transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+             className="absolute inset-0 w-full bg-accent/5"
+           />
+           <div className="w-10 h-10 border-t-2 border-accent rounded-full animate-spin" />
+        </motion.div>
+        <div className="flex flex-col items-center gap-2">
+          <div className="text-accent/60 font-black tracking-[0.4em] uppercase text-[10px] animate-pulse">
+            Opening Archive
+          </div>
+          <div className="w-32 h-[1px] bg-accent/10 relative overflow-hidden">
+            <motion.div
+              animate={{ x: ["-100%", "200%"] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: "linear" }}
+              className="absolute inset-0 w-1/2 bg-accent/30"
+            />
+          </div>
+        </div>
       </div>
     );
   }

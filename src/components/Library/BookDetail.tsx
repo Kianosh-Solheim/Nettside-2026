@@ -209,7 +209,7 @@ export default function BookDetail({ book: initialBook, onClose, onLocate, onEdi
             </AnimatePresence>
           </div>
 
-          <div className="p-8 md:p-12 flex flex-col justify-between">
+          <div className="p-8 md:p-12 flex flex-col justify-start overflow-y-auto max-h-[85vh] custom-scrollbar">
             <div className="space-y-8">
               <div className="space-y-2">
                 <div className="flex items-center gap-2 text-accent font-bold text-sm uppercase tracking-widest">
@@ -271,7 +271,7 @@ export default function BookDetail({ book: initialBook, onClose, onLocate, onEdi
                 <div className="flex items-center gap-2 text-ink/40 text-xs font-bold uppercase tracking-widest">
                   Description
                 </div>
-                <p className="text-ink/80 leading-relaxed text-lg line-clamp-6">
+                <p className="text-ink/80 leading-relaxed text-lg">
                   {book.description || 'No description available for this book.'}
                 </p>
               </div>

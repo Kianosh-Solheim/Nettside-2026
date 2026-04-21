@@ -355,66 +355,16 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
   );
 };
 
-const CustomCursor = () => {
-  const mouseX = useMotionValue(0);
-  const mouseY = useMotionValue(0);
-  const cursorSize = useMotionValue(8);
-  const ringSize = useMotionValue(40);
-  
-  const springConfig = { damping: 30, stiffness: 250 };
-  const size = useSpring(cursorSize, springConfig);
-  const rSize = useSpring(ringSize, springConfig);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      mouseX.set(e.clientX);
-      mouseY.set(e.clientY);
-      
-      const target = e.target as HTMLElement;
-      const isInteractive = target.closest('button, a, input, textarea');
-      cursorSize.set(isInteractive ? 12 : 8);
-      ringSize.set(isInteractive ? 60 : 40);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    return () => window.removeEventListener('mousemove', handleMouseMove);
-  }, [mouseX, mouseY, cursorSize, ringSize]);
-
-  return (
-    <>
-      <motion.div
-        className="fixed top-0 left-0 bg-accent rounded-full pointer-events-none z-[9999] hidden md:block mix-blend-difference print:hidden"
-        style={{
-          x: mouseX,
-          y: mouseY,
-          width: size,
-          height: size,
-          translateX: "-50%",
-          translateY: "-50%",
-        }}
-      />
-      <motion.div
-        className="fixed top-0 left-0 border border-accent/20 rounded-full pointer-events-none z-[9998] hidden md:block print:hidden"
-        style={{
-          x: mouseX,
-          y: mouseY,
-          width: rSize,
-          height: rSize,
-          translateX: "-50%",
-          translateY: "-50%",
-        }}
-      />
-    </>
-  );
-};
-
 const PageWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, y: 15, filter: "blur(8px)" }}
+      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+      exit={{ opacity: 0, y: -15, filter: "blur(8px)" }}
+      transition={{ 
+        duration: 0.6, 
+        ease: [0.22, 1, 0.36, 1] 
+      }}
     >
       {children}
     </motion.div>
@@ -590,6 +540,123 @@ const AnimatedRoutes = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid }
   );
 };
 
+const LoadingScreen = ({ theme }: { theme: string }) => {
+  const isDark = theme === 'dark';
+  return (
+    <div className={isDark ? 'dark' : ''}>
+      <div 
+        className={`fixed inset-0 z-[10000] flex flex-col items-center justify-center transition-colors duration-500 ${isDark ? 'bg-[#121212] text-[#e5e5e5]' : 'bg-[#f5f2ed] text-[#1a1a1a]'}`}
+      >
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center max-w-sm w-full px-8 text-center"
+        >
+          <div className="relative mb-16">
+            <motion.div
+              animate={{ 
+                rotate: 360,
+                scale: [1, 1.1, 1],
+                borderRadius: ["30% 70% 70% 30% / 30% 30% 70% 70%", "50% 50% 20% 80% / 25% 80% 20% 75%", "38% 62% 63% 37% / 41% 44% 56% 59%"]
+              }}
+              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+              className="w-32 h-32 bg-accent/10 blur-3xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
+            />
+            
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+              className="relative z-10 w-20 h-20 rounded-[2.5rem] bg-accent flex items-center justify-center shadow-2xl shadow-accent/30 overflow-hidden"
+            >
+              <motion.div 
+                 animate={{ y: [0, -5, 0], rotate: [0, -2, 2, 0] }}
+                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                 className="text-white font-serif text-4xl font-black italic select-none"
+              >
+                K
+              </motion.div>
+              
+              <motion.div
+                animate={{ x: ["-100%", "200%"] }}
+                transition={{ repeat: Infinity, duration: 2.5, ease: "linear", delay: 1 }}
+                className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -rotate-45"
+              />
+            </motion.div>
+          </div>
+
+          <div className="space-y-6 w-full relative">
+            <div className="space-y-2">
+              <motion.h1
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3, duration: 0.8 }}
+                className={`text-2xl font-serif font-medium tracking-tight ${isDark ? 'text-[#e5e5e5]' : 'text-[#1a1a1a]'}`}
+              >
+                Kianosh F. Solheim
+              </motion.h1>
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 0.5 }}
+                transition={{ delay: 0.6 }}
+                className="flex items-center justify-center gap-2"
+              >
+                <span className="w-8 h-[1px] bg-accent/40" />
+                <p className={`text-[9px] uppercase tracking-[0.4em] font-black ${isDark ? 'text-white/40' : 'text-black/40'}`}>
+                  Catalogue Portfolio
+                </p>
+                <span className="w-8 h-[1px] bg-accent/40" />
+              </motion.div>
+            </div>
+
+            <div className={`relative h-[2px] w-48 mx-auto rounded-full overflow-hidden ${isDark ? 'bg-white/5' : 'bg-black/5'}`}>
+              <motion.div
+                initial={{ x: "-100%" }}
+                animate={{ x: "0%" }}
+                transition={{ duration: 2.5, ease: [0.65, 0, 0.35, 1] }}
+                className="absolute inset-0 bg-accent w-full"
+              />
+              <motion.div
+                animate={{ x: ["-100%", "200%"] }}
+                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                className="absolute inset-0 w-1/2 bg-white/30"
+              />
+            </div>
+            
+            <motion.div
+               initial={{ opacity: 0 }}
+               animate={{ opacity: 1 }}
+               transition={{ delay: 1.5 }}
+               className="flex items-center justify-center gap-3"
+            >
+              <div className="flex gap-1.5">
+                {[0, 1, 2].map(i => (
+                  <motion.div
+                    key={i}
+                    animate={{ scale: [1, 1.4, 1], opacity: [0.2, 1, 0.2] }}
+                    transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.2 }}
+                    className="w-1 h-1 rounded-full bg-accent"
+                  />
+                ))}
+              </div>
+              <span className="text-[9px] uppercase tracking-[0.2em] font-black text-accent/80 animate-pulse">
+                Initializing Experience
+              </span>
+            </motion.div>
+          </div>
+        </motion.div>
+        
+        <div className="fixed inset-0 pointer-events-none border-[40px] border-transparent">
+          <div className={`absolute top-0 left-0 w-16 h-16 border-t-2 border-l-2 ${isDark ? 'border-white/5' : 'border-black/5'}`} />
+          <div className={`absolute top-0 right-0 w-16 h-16 border-t-2 border-r-2 ${isDark ? 'border-white/5' : 'border-black/5'}`} />
+          <div className={`absolute bottom-0 left-0 w-16 h-16 border-b-2 border-l-2 ${isDark ? 'border-white/5' : 'border-black/5'}`} />
+          <div className={`absolute bottom-0 right-0 w-16 h-16 border-b-2 border-r-2 ${isDark ? 'border-white/5' : 'border-black/5'}`} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [canViewAdminHealth, setCanViewAdminHealth] = useState(false);
@@ -609,7 +676,11 @@ export default function App() {
   });
   const [theme, setTheme] = useState(() => {
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('theme') || 'light';
+      const saved = localStorage.getItem('theme');
+      if (saved) return saved;
+      
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      return prefersDark ? 'dark' : 'light';
     }
     return 'light';
   });
@@ -751,13 +822,7 @@ export default function App() {
   };
 
   if (loading) {
-    return (
-      <div className={`h-screen w-screen flex items-center justify-center ${theme === 'dark' ? 'bg-[#121212]' : 'bg-paper'}`}>
-        <div className="text-xs uppercase tracking-[0.3em] animate-pulse text-ink/40">
-          Loading...
-        </div>
-      </div>
-    );
+    return <LoadingScreen theme={theme} />;
   }
 
   return (
@@ -765,7 +830,6 @@ export default function App() {
       <ThemeContext.Provider value={{ theme, toggleTheme }}>
         <ProfileContext.Provider value={profile}>
           <SocialsContext.Provider value={socials}>
-            <CustomCursor />
             <Router>
               <MainLayout 
                 user={user} 
