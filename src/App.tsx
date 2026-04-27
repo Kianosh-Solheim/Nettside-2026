@@ -513,6 +513,18 @@ const MainLayout = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid, show
       
       <div className="relative z-10 flex flex-col min-h-screen">
         {!isKiaplayPage && <Navbar user={user} canViewAdminHealth={canViewAdminHealth} hasKiaplayAccess={hasKiaplayAccess} />}
+        <style>{`
+          .dashboard-fullscreen-active nav,
+          .dashboard-fullscreen-active footer {
+            display: none !important;
+          }
+          .dashboard-fullscreen-active main {
+            padding-top: 0 !important;
+          }
+          .dashboard-fullscreen-active [style*="radial-gradient"] {
+            display: none !important;
+          }
+        `}</style>
         <main className={`flex-grow ${isPrintPage || isKiaplayPage ? '' : 'pt-16'}`}>
           <AnimatedRoutes user={user} canViewAdminHealth={canViewAdminHealth} hasKiaplayAccess={hasKiaplayAccess} adminUid={adminUid} />
         </main>

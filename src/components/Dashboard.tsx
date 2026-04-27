@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, Trash2, CheckSquare, Clock, Calendar, 
@@ -34,6 +34,45 @@ export default function Dashboard() {
   const [isAdding, setIsAdding] = useState(false);
   const [editingItem, setEditingItem] = useState<DashboardItem | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [timetableKey, setTimetableKey] = useState(0);
+  const [lastTimetableUpdate, setLastTimetableUpdate] = useState(new Date());
+  const dashboardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      const isFull = !!document.fullscreenElement;
+      setIsFullscreen(isFull);
+      if (isFull) {
+        document.documentElement.classList.add('dashboard-fullscreen-active');
+      } else {
+        document.documentElement.classList.remove('dashboard-fullscreen-active');
+      }
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.documentElement.classList.remove('dashboard-fullscreen-active');
+    };
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      if (dashboardRef.current?.requestFullscreen) {
+        dashboardRef.current.requestFullscreen().catch(() => {
+          setIsFullscreen(true);
+          document.documentElement.classList.add('dashboard-fullscreen-active');
+        });
+      } else {
+        setIsFullscreen(true);
+        document.documentElement.classList.add('dashboard-fullscreen-active');
+      }
+    } else {
+      document.exitFullscreen().catch(() => {
+        setIsFullscreen(false);
+        document.documentElement.classList.remove('dashboard-fullscreen-active');
+      });
+    }
+  };
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [fetchingWeather, setFetchingWeather] = useState(false);
 
@@ -79,6 +118,18 @@ export default function Dashboard() {
   useEffect(() => {
     const clockTimer = setInterval(() => setNow(new Date()), 1000);
     return () => clearInterval(clockTimer);
+  }, []);
+
+  // Timetable Update Logic (Every 30 seconds)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const currentTime = new Date();
+      if (currentTime.getSeconds() % 30 === 0) {
+        setTimetableKey(k => k + 1);
+        setLastTimetableUpdate(currentTime);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Timer Logic
@@ -241,7 +292,10 @@ export default function Dashboard() {
   }
 
   return (
-    <div className={`transition-all duration-500 ease-in-out ${isFullscreen ? 'fixed inset-0 z-[100] bg-paper overflow-auto p-8 md:p-20' : 'max-w-7xl mx-auto px-4 py-20'}`}>
+    <div 
+      ref={dashboardRef}
+      className={`transition-all duration-500 ease-in-out ${isFullscreen ? 'fixed inset-0 z-[100] bg-paper overflow-auto p-8 md:p-20' : 'max-w-7xl mx-auto px-4 py-20'}`}
+    >
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
         <div>
           <h1 className="text-4xl font-serif mb-2">Control Center</h1>
@@ -258,7 +312,7 @@ export default function Dashboard() {
         <div className="flex gap-4 w-full md:w-auto">
           <Button 
             variant="ghost" 
-            onClick={() => setIsFullscreen(!isFullscreen)}
+            onClick={toggleFullscreen}
             icon={isFullscreen ? Minimize2 : Maximize2}
             className="flex-1 md:flex-none"
           >
@@ -514,13 +568,22 @@ export default function Dashboard() {
             )}
           </section>
 
-          <section className="bg-surface rounded-3xl border border-ink/5 shadow-sm h-[400px] relative overflow-hidden">
-            <div className="absolute top-4 left-4 z-10 flex items-center gap-2 bg-paper/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-ink/5">
-              <TrainFront size={12} className="text-accent" />
-              <span className="text-[10px] font-black uppercase tracking-widest">Byparken</span>
+          <section className="bg-surface rounded-3xl border border-ink/5 shadow-sm h-[450px] relative overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-ink/5 bg-paper/50 backdrop-blur-sm z-10">
+              <div className="flex justify-between items-center mb-1">
+                <div className="flex items-center gap-2">
+                  <TrainFront size={14} className="text-accent" />
+                  <h3 className="text-xs font-black uppercase tracking-widest text-ink">Byparken</h3>
+                </div>
+                <span className="text-[9px] font-black uppercase tracking-widest text-ink/30 italic">
+                  Sist oppdatert: {Math.max(0, Math.floor((now.getTime() - lastTimetableUpdate.getTime()) / 1000))}s siden
+                </span>
+              </div>
+              <p className="text-[9px] text-ink/40 uppercase tracking-tighter">Henter data fra Skyss via Entur</p>
             </div>
-            <div className="absolute inset-0 overflow-hidden bg-black">
+            <div className="flex-grow relative overflow-hidden bg-black">
               <iframe 
+                key={timetableKey}
                 src="https://vis-tavla.entur.no/NMnjuXGA6AGs72LhErfe" 
                 className="absolute border-none"
                 style={{ 
