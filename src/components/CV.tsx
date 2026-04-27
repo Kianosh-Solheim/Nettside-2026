@@ -81,8 +81,55 @@ export default function CV() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <p className="text-xs uppercase tracking-[0.3em] text-ink/20 animate-pulse">Loading CV...</p>
+      <div key="cv-loader" className="min-h-screen flex flex-col items-center justify-center bg-paper relative overflow-hidden">
+        {/* Ambient Background Elements */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/4 -left-20 w-80 h-80 bg-accent/5 rounded-full blur-[100px] animate-pulse" />
+          <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-accent/5 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+        </div>
+
+        <motion.div
+           initial={{ opacity: 0, scale: 0.95 }}
+           animate={{ opacity: 1, scale: 1 }}
+           className="relative flex flex-col items-center z-10"
+        >
+          <div className="w-20 h-28 border-2 border-ink/5 rounded-xl relative overflow-hidden bg-surface shadow-2xl mb-8 flex flex-col p-4 gap-2">
+            {/* Header skeleton */}
+            <div className="w-12 h-2 bg-accent/20 rounded-full" />
+            <div className="w-8 h-1 bg-ink/10 rounded-full" />
+            
+            {/* Lines skeleton */}
+            <div className="mt-4 space-y-2">
+              <div className="w-full h-1 bg-ink/5 rounded-full" />
+              <div className="w-full h-1 bg-ink/5 rounded-full" />
+              <div className="w-2/3 h-1 bg-ink/5 rounded-full" />
+            </div>
+            
+            <div className="mt-4 space-y-2">
+              <div className="w-full h-1 bg-ink/5 rounded-full" />
+              <div className="w-4/5 h-1 bg-ink/5 rounded-full" />
+            </div>
+
+            {/* Scanning Line */}
+            <motion.div 
+              animate={{ top: ['-10%', '110%'] }}
+              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              className="absolute left-0 right-0 h-[2px] bg-accent/50 shadow-[0_0_15px_rgba(227,28,40,0.4)] z-10"
+            />
+
+            {/* Subtle paper texture overlay */}
+            <div className="absolute inset-0 bg-paper/5 opacity-50 pointer-events-none mix-blend-multiply" />
+          </div>
+          
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-[10px] uppercase tracking-[0.6em] text-accent font-black animate-pulse">
+              Compiling CV
+            </span>
+            <span className="text-ink/30 text-[9px] uppercase tracking-[0.2em] font-bold">
+              Accessing Digital Archive
+            </span>
+          </div>
+        </motion.div>
       </div>
     );
   }

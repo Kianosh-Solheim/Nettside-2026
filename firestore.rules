@@ -278,6 +278,18 @@ service cloud.firestore {
              (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
+    function isValidDashboardItem(data) {
+      return data.keys().hasAll(['title', 'type', 'targetDate']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
+             data.type in ['task', 'event'] &&
+             (data.targetDate is string || data.targetDate is timestamp) &&
+             (!('startDate' in data) || (data.startDate is string || data.startDate is timestamp)) &&
+             (!('color' in data) || (data.color is string && data.color.size() < 50)) &&
+             (!('description' in data) || (data.description is string && data.description.size() < 2000)) &&
+             (!('completed' in data) || data.completed is bool) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
     function isValidBook(data) {
       let allowedFields = [
         'title', 'subtitle', 'author', 'authors', 'location', 'isbn', 'genre', 'description', 
@@ -379,6 +391,10 @@ service cloud.firestore {
       allow update: if isAuthenticated() && isValidBorrowHistory(request.resource.data) && 
                       (isAdmin() || isOwner(resource.data.userId));
       allow delete: if isAdmin();
+    }
+
+    match /dashboard_items/{itemId} {
+      allow read, write: if isAdmin();
     }
 
     match /recommendations/{recommendationId} {

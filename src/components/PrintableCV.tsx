@@ -1,12 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useProfile } from '../App';
-import { Mail, MapPin, Globe, Phone, ArrowLeft, Printer, FileDown, Loader2 } from 'lucide-react';
+import { Mail, MapPin, Globe, Phone, ArrowLeft, Printer } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { db, collection, onSnapshot, query, orderBy, handleFirestoreError, OperationType } from '../firebase';
 import Button from './ui/Button';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
 interface CVItem {
   title: string;
@@ -29,7 +27,6 @@ export default function PrintableCV() {
   const navigate = useNavigate();
   const [sections, setSections] = useState<CVSection[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const cvRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -49,81 +46,6 @@ export default function PrintableCV() {
 
     return () => unsubscribe();
   }, []);
-
-  const handleDownloadPdf = async () => {
-    if (!cvRef.current) return;
-    
-    setIsGeneratingPdf(true);
-    try {
-      const element = cvRef.current;
-      const canvas = await html2canvas(element, {
-        scale: 2, // Higher scale for better quality
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff',
-        onclone: (clonedDoc) => {
-          // html2canvas fails on oklch() colors which are default in Tailwind v4
-          // We add a style block to the cloned document to override common oklch colors with hex fallbacks
-          const style = clonedDoc.createElement('style');
-          style.innerHTML = `
-            * {
-              color-scheme: light !important;
-            }
-            /* Override common Tailwind gray colors with hex fallbacks for html2canvas */
-            .text-gray-600 { color: #4b5563 !important; }
-            .text-gray-400 { color: #9ca3af !important; }
-            .text-gray-500 { color: #6b7280 !important; }
-            .text-gray-900 { color: #111827 !important; }
-            .border-gray-200 { border-color: #e5e7eb !important; }
-            .border-gray-100 { border-color: #f3f4f6 !important; }
-            .bg-gray-50 { background-color: #f9fafb !important; }
-            .text-black { color: #000000 !important; }
-            .border-black { border-color: #000000 !important; }
-            /* Ensure the container is visible and has white background */
-            .print-container {
-              background-color: #ffffff !important;
-              color: #000000 !important;
-              padding: 20px !important;
-            }
-          `;
-          clonedDoc.head.appendChild(style);
-        }
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'mm',
-        format: 'a4'
-      });
-      
-      const margin = 10; // 10mm margin
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = pdf.internal.pageSize.getHeight();
-      const printableWidth = pdfWidth - (margin * 2);
-      const printableHeight = pdfHeight - (margin * 2);
-      
-      const imgProps = pdf.getImageProperties(imgData);
-      const imgWidth = imgProps.width;
-      const imgHeight = imgProps.height;
-      
-      // Calculate ratio to fit on one page with margins
-      const ratio = Math.min(printableWidth / imgWidth, printableHeight / imgHeight);
-      const width = imgWidth * ratio;
-      const height = imgHeight * ratio;
-      
-      // Center on page with margins
-      const x = (pdfWidth - width) / 2;
-      const y = margin; // Start from top margin
-      
-      pdf.addImage(imgData, 'PNG', x, y, width, height);
-      pdf.save(`${profile.name.replace(/\s+/g, '_')}_CV.pdf`);
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-    } finally {
-      setIsGeneratingPdf(false);
-    }
-  };
 
   if (loading) {
     return (
@@ -173,18 +95,7 @@ export default function PrintableCV() {
           magnetic={true}
           className="bg-white/80 backdrop-blur-sm border-gray-200 text-gray-600 hover:text-black hover:border-black"
         >
-          Print View
-        </Button>
-        <Button
-          onClick={handleDownloadPdf}
-          variant="primary"
-          size="sm"
-          icon={FileDown}
-          magnetic={true}
-          isLoading={isGeneratingPdf}
-          className="shadow-lg shadow-black/10"
-        >
-          {isGeneratingPdf ? 'Generating...' : 'Download PDF'}
+          Print Page
         </Button>
       </div>
 

@@ -322,6 +322,22 @@
         "returnedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["bookId", "userId", "userName", "borrowedAt"]
+    },
+    "DashboardItem": {
+      "title": "DashboardItem",
+      "description": "A task or event for the personal dashboard.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "type": { "type": "string", "enum": ["task", "event"] },
+        "startDate": { "type": "string", "format": "date-time" },
+        "targetDate": { "type": "string", "format": "date-time" },
+        "color": { "type": "string", "description": "Custom color for the item" },
+        "completed": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "type", "targetDate"]
     }
   },
   "firestore": {
@@ -396,6 +412,10 @@
     "/borrow_history/{historyId}": {
       "schema": "BorrowHistory",
       "description": "History of book borrowings."
+    },
+    "/dashboard_items/{itemId}": {
+      "schema": "DashboardItem",
+      "description": "Kianosh's personal tasks and events."
     }
   }
 }

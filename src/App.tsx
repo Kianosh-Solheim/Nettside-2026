@@ -2,12 +2,13 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { useState, useEffect, createContext, useContext, useRef } from 'react';
 import { auth, onAuthStateChanged, signOut, signInWithPopup, googleProvider, db, collection, onSnapshot, query, orderBy, where, doc, getDocFromServer, setDoc, serverTimestamp, handleFirestoreError, OperationType } from './firebase';
 import { motion, AnimatePresence, useMotionValue, useSpring, useMotionTemplate, useScroll } from 'framer-motion';
-import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar } from 'lucide-react';
+import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar, LayoutDashboard } from 'lucide-react';
 import { BlueskyIcon } from './components/Icons';
 import Home from './components/Home';
 import Recommendations from './components/Recommendations';
 import CV from './components/CV';
 import Admin from './components/Admin';
+import Dashboard from './components/Dashboard';
 import HealthTracker from './components/HealthTracker';
 import PrintableCV from './components/PrintableCV';
 import Magnetic from './components/Magnetic';
@@ -183,6 +184,16 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
                         </Link>
                         {isAdmin && (
                           <Link
+                            to="/dashboard"
+                            onClick={() => setIsProfileOpen(false)}
+                            className="flex items-center space-x-2 px-4 py-2 text-xs text-ink/60 hover:text-accent hover:bg-ink/5 transition-colors"
+                          >
+                            <LayoutDashboard size={14} />
+                            <span>Dashboard</span>
+                          </Link>
+                        )}
+                        {isAdmin && (
+                          <Link
                             to="/admin"
                             onClick={() => setIsProfileOpen(false)}
                             className="flex items-center space-x-2 px-4 py-2 text-xs text-ink/60 hover:text-accent hover:bg-ink/5 transition-colors"
@@ -299,6 +310,16 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
                     <User size={18} />
                     <span>My Page</span>
                   </Link>
+                  {isAdmin && (
+                    <Link
+                      to="/dashboard"
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center space-x-3 text-xs uppercase tracking-widest text-ink/60"
+                    >
+                      <LayoutDashboard size={18} />
+                      <span>Dashboard</span>
+                    </Link>
+                  )}
                   {isAdmin && (
                     <Link
                       to="/admin"
@@ -528,6 +549,7 @@ const AnimatedRoutes = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid }
         <Route path="/cv" element={<PageWrapper><CV /></PageWrapper>} />
         <Route path="/library" element={<PageWrapper><Library /></PageWrapper>} />
         <Route path="/admin" element={<PageWrapper><Admin user={user} /></PageWrapper>} />
+        <Route path="/dashboard" element={isAdmin ? <PageWrapper><Dashboard /></PageWrapper> : <PageWrapper><Home /></PageWrapper>} />
         <Route path="/cv/print" element={<PrintableCV />} />
         <Route path="/visiting-card" element={<VisitingCard />} />
         <Route path="/user/:userId" element={<PageWrapper><UserPage /></PageWrapper>} />
