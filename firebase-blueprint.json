@@ -416,6 +416,10 @@
     "/dashboard_items/{itemId}": {
       "schema": "DashboardItem",
       "description": "Kianosh's personal tasks and events."
+    },
+    "/sampol_dashboard_items/{itemId}": {
+      "schema": "DashboardItem",
+      "description": "SAMPOL team tasks and events."
     }
   }
 }

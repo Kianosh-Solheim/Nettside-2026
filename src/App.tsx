@@ -16,6 +16,7 @@ import UserPage from './components/UserPage';
 import Kiaplay from './components/Kiaplay';
 import Library from './components/Library';
 import VisitingCard from './components/VisitingCard';
+import SampolDashboard from './components/SampolDashboard';
 import ErrorBoundary from './components/ErrorBoundary';
 import Button from './components/ui/Button';
 import Availability from './components/Availability';
@@ -562,6 +563,7 @@ const AnimatedRoutes = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid }
         <Route path="/library" element={<PageWrapper><Library /></PageWrapper>} />
         <Route path="/admin" element={<PageWrapper><Admin user={user} /></PageWrapper>} />
         <Route path="/dashboard" element={isAdmin ? <PageWrapper><Dashboard /></PageWrapper> : <PageWrapper><Home /></PageWrapper>} />
+        <Route path="/sampol-dashboard" element={<PageWrapper><SampolDashboard /></PageWrapper>} />
         <Route path="/cv/print" element={<PrintableCV />} />
         <Route path="/visiting-card" element={<VisitingCard />} />
         <Route path="/user/:userId" element={<PageWrapper><UserPage /></PageWrapper>} />

@@ -11,8 +11,11 @@ import admin from "firebase-admin";
 import { getFirestore } from "firebase-admin/firestore";
 import { initializeApp as initializeFirebaseApp } from "firebase/app";
 import fs from "fs";
+import Parser from "rss-parser";
 
 dotenv.config();
+
+const parser = new Parser();
 
 const firebaseConfig = JSON.parse(fs.readFileSync("./firebase-applet-config.json", "utf-8"));
 
@@ -59,6 +62,29 @@ async function startServer() {
   // API routes FIRST
   app.get("/api/health", (req, res) => {
     res.json({ status: "ok" });
+  });
+
+  app.get("/api/rss", async (req, res) => {
+    try {
+      const [nrkFeed, bbcFeed] = await Promise.all([
+        parser.parseURL("https://www.nrk.no/nyheter/siste.rss"),
+        parser.parseURL("https://feeds.bbci.co.uk/news/rss.xml")
+      ]);
+
+      // Tag items with source
+      const nrkItems = (nrkFeed.items || []).map(item => ({ ...item, source: 'NRK', logo: 'https://www.nrk.no/serum/latest/media/nrk-logo-vit-pa-svart.png' }));
+      const bbcItems = (bbcFeed.items || []).map(item => ({ ...item, source: 'BBC', logo: 'https://nav.files.bbci.co.uk/orbit/2.0.0-rc.30/img/blq-orbit-blocks_grey.svg' }));
+
+      // Merge and sort by date
+      const mergedItems = [...nrkItems, ...bbcItems].sort((a, b) => {
+        return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
+      });
+
+      res.json({ items: mergedItems.slice(0, 20) });
+    } catch (error) {
+      console.error("RSS fetch error:", error);
+      res.status(500).json({ error: "Failed to fetch RSS feed" });
+    }
   });
 
   // Google OAuth URL
