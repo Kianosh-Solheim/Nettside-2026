@@ -1,25 +1,27 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
-import { useState, useEffect, createContext, useContext, useRef } from 'react';
+import { useState, useEffect, createContext, useContext, useRef, lazy, Suspense } from 'react';
 import { auth, onAuthStateChanged, signOut, signInWithPopup, googleProvider, db, collection, onSnapshot, query, orderBy, where, doc, getDocFromServer, setDoc, serverTimestamp, handleFirestoreError, OperationType } from './firebase';
 import { motion, AnimatePresence, useMotionValue, useSpring, useMotionTemplate, useScroll } from 'framer-motion';
-import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar, LayoutDashboard } from 'lucide-react';
+import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar, LayoutDashboard, Loader2 } from 'lucide-react';
 import { BlueskyIcon } from './components/Icons';
-import Home from './components/Home';
-import Recommendations from './components/Recommendations';
-import CV from './components/CV';
-import Admin from './components/Admin';
-import Dashboard from './components/Dashboard';
-import HealthTracker from './components/HealthTracker';
-import PrintableCV from './components/PrintableCV';
 import Magnetic from './components/Magnetic';
-import UserPage from './components/UserPage';
-import Kiaplay from './components/Kiaplay';
-import Library from './components/Library';
-import VisitingCard from './components/VisitingCard';
-import SampolDashboard from './components/SampolDashboard';
 import ErrorBoundary from './components/ErrorBoundary';
 import Button from './components/ui/Button';
-import Availability from './components/Availability';
+
+// Lazy loaded components
+const Home = lazy(() => import('./components/Home'));
+const Recommendations = lazy(() => import('./components/Recommendations'));
+const CV = lazy(() => import('./components/CV'));
+const Admin = lazy(() => import('./components/Admin'));
+const Dashboard = lazy(() => import('./components/Dashboard'));
+const HealthTracker = lazy(() => import('./components/HealthTracker'));
+const PrintableCV = lazy(() => import('./components/PrintableCV'));
+const UserPage = lazy(() => import('./components/UserPage'));
+const Kiaplay = lazy(() => import('./components/Kiaplay'));
+const Library = lazy(() => import('./components/Library'));
+const VisitingCard = lazy(() => import('./components/VisitingCard'));
+const SampolDashboard = lazy(() => import('./components/SampolDashboard'));
+const Availability = lazy(() => import('./components/Availability'));
 
 export const ThemeContext = createContext({ theme: 'light', toggleTheme: () => {} });
 
@@ -549,30 +551,38 @@ const MainLayout = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid, show
   );
 };
 
+const LoadingSpinner = () => (
+  <div className="flex items-center justify-center min-h-[50vh]">
+    <Loader2 className="animate-spin text-accent" size={32} />
+  </div>
+);
+
 const AnimatedRoutes = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid }: { user: any, canViewAdminHealth: boolean, hasKiaplayAccess: boolean, adminUid: string | null }) => {
   const location = useLocation();
   const isAdmin = user && (user.email === 'kianoshsolheim@gmail.com' || user.email === 'kianosh@solheim.online');
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
-        <Route path="/recommendations" element={<PageWrapper><Recommendations /></PageWrapper>} />
-        <Route path="/availability" element={<PageWrapper><Availability /></PageWrapper>} />
-        <Route path="/cv" element={<PageWrapper><CV /></PageWrapper>} />
-        <Route path="/library" element={<PageWrapper><Library /></PageWrapper>} />
-        <Route path="/admin" element={<PageWrapper><Admin user={user} /></PageWrapper>} />
-        <Route path="/dashboard" element={isAdmin ? <PageWrapper><Dashboard /></PageWrapper> : <PageWrapper><Home /></PageWrapper>} />
-        <Route path="/sampol-dashboard" element={<PageWrapper><SampolDashboard /></PageWrapper>} />
-        <Route path="/cv/print" element={<PrintableCV />} />
-        <Route path="/visiting-card" element={<VisitingCard />} />
-        <Route path="/user/:userId" element={<PageWrapper><UserPage /></PageWrapper>} />
-        <Route path="/kiaplay" element={(isAdmin || hasKiaplayAccess) ? <Kiaplay /> : <PageWrapper><Home /></PageWrapper>} />
-        {(isAdmin || canViewAdminHealth) && (
-          <Route path="/health" element={<PageWrapper><HealthTracker user={user} canViewAdminHealth={canViewAdminHealth} adminUid={adminUid} /></PageWrapper>} />
-        )}
-      </Routes>
-    </AnimatePresence>
+    <Suspense fallback={<LoadingSpinner />}>
+      <AnimatePresence mode="wait">
+        <Routes location={location} key={location.pathname}>
+          <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
+          <Route path="/recommendations" element={<PageWrapper><Recommendations /></PageWrapper>} />
+          <Route path="/availability" element={<PageWrapper><Availability /></PageWrapper>} />
+          <Route path="/cv" element={<PageWrapper><CV /></PageWrapper>} />
+          <Route path="/library" element={<PageWrapper><Library /></PageWrapper>} />
+          <Route path="/admin" element={<PageWrapper><Admin user={user} /></PageWrapper>} />
+          <Route path="/dashboard" element={isAdmin ? <PageWrapper><Dashboard /></PageWrapper> : <PageWrapper><Home /></PageWrapper>} />
+          <Route path="/sampol-dashboard" element={<PageWrapper><SampolDashboard /></PageWrapper>} />
+          <Route path="/cv/print" element={<PrintableCV />} />
+          <Route path="/visiting-card" element={<VisitingCard />} />
+          <Route path="/user/:userId" element={<PageWrapper><UserPage /></PageWrapper>} />
+          <Route path="/kiaplay" element={(isAdmin || hasKiaplayAccess) ? <Kiaplay /> : <PageWrapper><Home /></PageWrapper>} />
+          {(isAdmin || canViewAdminHealth) && (
+            <Route path="/health" element={<PageWrapper><HealthTracker user={user} canViewAdminHealth={canViewAdminHealth} adminUid={adminUid} /></PageWrapper>} />
+          )}
+        </Routes>
+      </AnimatePresence>
+    </Suspense>
   );
 };
 

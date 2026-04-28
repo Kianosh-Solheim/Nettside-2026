@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "vite build",
-    "start": "tsx server.ts",
+    "build": "vite build && rm -rf build && cp -r dist build",
+    "start": "node server.ts",
     "preview": "vite preview",
     "clean": "rm -rf dist",
     "lint": "tsc --noEmit"
@@ -46,6 +46,7 @@
     "rss-parser": "^3.13.0",
     "tailwind-merge": "^3.5.0",
     "three": "^0.183.2",
+    "tsx": "^4.21.0",
     "vite": "^6.2.0"
   },
   "devDependencies": {
@@ -54,8 +55,6 @@
     "@types/node": "^22.14.0",
     "autoprefixer": "^10.4.21",
     "tailwindcss": "^4.1.14",
-    "tsx": "^4.21.0",
-    "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "typescript": "~5.8.2"
   }
 }

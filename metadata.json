@@ -1,6 +1,6 @@
 {
   "name": "Kianosh F. Solheim",
-  "description": "A visual, interactive 3D library management system with ISBN/NFC scanning and spatial navigation.",
+  "description": "An interactive, visual SAMPOL dashboard with real-time weather, news, tasks, and travel information.",
   "requestFramePermissions": [
     "camera"
   ]

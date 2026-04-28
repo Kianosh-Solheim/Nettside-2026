@@ -1,5 +1,4 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import cors from "cors";
@@ -13,39 +12,39 @@ import { initializeApp as initializeFirebaseApp } from "firebase/app";
 import fs from "fs";
 import Parser from "rss-parser";
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 dotenv.config();
 
 const parser = new Parser();
 
-const firebaseConfig = JSON.parse(fs.readFileSync("./firebase-applet-config.json", "utf-8"));
-
-const firebaseApp = initializeFirebaseApp(firebaseConfig);
-
-// Initialize Firebase Admin
-if (!admin.apps.length) {
-  try {
-    admin.initializeApp({
-      credential: admin.credential.applicationDefault(),
-      projectId: firebaseConfig.projectId,
-    });
-  } catch (e) {
-    console.error("Firebase Admin initialization failed:", e);
-  }
-}
-
-const db = getFirestore(firebaseConfig.firestoreDatabaseId);
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const oauth2Client = new google.auth.OAuth2(
-  process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI || 
-  (process.env.APP_URL ? `${process.env.APP_URL}/api/auth/google/callback` : "http://localhost:3000/api/auth/google/callback")
-);
-
 async function startServer() {
+  const firebaseConfig = JSON.parse(fs.readFileSync(path.resolve(__dirname, "./firebase-applet-config.json"), "utf-8"));
+
+  const firebaseApp = initializeFirebaseApp(firebaseConfig);
+
+  // Initialize Firebase Admin
+  if (!admin.apps.length) {
+    try {
+      admin.initializeApp({
+        credential: admin.credential.applicationDefault(),
+        projectId: firebaseConfig.projectId,
+      });
+    } catch (e) {
+      console.error("Firebase Admin initialization failed:", e);
+    }
+  }
+
+  const db = getFirestore(firebaseConfig.firestoreDatabaseId);
+
+  const oauth2Client = new google.auth.OAuth2(
+    process.env.GOOGLE_CLIENT_ID,
+    process.env.GOOGLE_CLIENT_SECRET,
+    process.env.GOOGLE_REDIRECT_URI || 
+    (process.env.APP_URL ? `${process.env.APP_URL}/api/auth/google/callback` : "http://localhost:3000/api/auth/google/callback")
+  );
+
   const app = express();
   const PORT = 3000;
 
@@ -66,24 +65,34 @@ async function startServer() {
 
   app.get("/api/rss", async (req, res) => {
     try {
-      const [nrkFeed, bbcFeed] = await Promise.all([
+      const [nrkFeed, bbcFeed, sampolFeed, uibFeed, chathamFeed] = await Promise.all([
         parser.parseURL("https://www.nrk.no/nyheter/siste.rss"),
-        parser.parseURL("https://feeds.bbci.co.uk/news/rss.xml")
+        parser.parseURL("https://feeds.bbci.co.uk/news/rss.xml"),
+        parser.parseURL("https://bsky.app/profile/sampol.bsky.social/rss"),
+        parser.parseURL("https://bsky.app/profile/did:plc:3jxcojdw76kvrvajuwclbg2l/rss"),
+        parser.parseURL("https://bsky.app/profile/did:plc:mxrblrevl3divnsgg47t7r7n/rss")
       ]);
 
       // Tag items with source
       const nrkItems = (nrkFeed.items || []).map(item => ({ ...item, source: 'NRK', logo: 'https://www.nrk.no/serum/latest/media/nrk-logo-vit-pa-svart.png' }));
       const bbcItems = (bbcFeed.items || []).map(item => ({ ...item, source: 'BBC', logo: 'https://nav.files.bbci.co.uk/orbit/2.0.0-rc.30/img/blq-orbit-blocks_grey.svg' }));
+      
+      const sampolItems = (sampolFeed.items || []).map(item => ({ ...item, source: 'Sampol', logo: 'https://bsky.app/static/apple-touch-icon.png' }));
+      const uibItems = (uibFeed.items || []).map(item => ({ ...item, source: 'UiB Sampol', logo: 'https://bsky.app/static/apple-touch-icon.png' }));
+      const chathamItems = (chathamFeed.items || []).map(item => ({ ...item, source: 'Chatham House', logo: 'https://bsky.app/static/apple-touch-icon.png' }));
 
-      // Merge and sort by date
-      const mergedItems = [...nrkItems, ...bbcItems].sort((a, b) => {
-        return new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
+      const sortByDate = (a: any, b: any) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
+
+      const generalNews = [...nrkItems, ...bbcItems].sort(sortByDate);
+      const academicUpdates = [...sampolItems, ...uibItems, ...chathamItems].sort(sortByDate);
+
+      res.json({ 
+        news: generalNews.slice(0, 20),
+        academic: academicUpdates.slice(0, 30)
       });
-
-      res.json({ items: mergedItems.slice(0, 20) });
     } catch (error) {
       console.error("RSS fetch error:", error);
-      res.status(500).json({ error: "Failed to fetch RSS feed" });
+      res.status(500).json({ error: "Failed to fetch RSS feeds" });
     }
   });
 
@@ -227,16 +236,28 @@ async function startServer() {
 
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
+    const { createServer: createViteServer } = await import("vite");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
-    const distPath = path.join(process.cwd(), 'dist');
+    // In production, serve from dist
+    const distPath = path.resolve(__dirname, "dist");
+    
+    // Serve static files
     app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
+    
+    // Explicitly handle index.html for SPA
+    app.get("*", (req, res) => {
+      // Use absolute path for reliability
+      const indexPath = path.join(distPath, "index.html");
+      if (fs.existsSync(indexPath)) {
+        res.sendFile(indexPath);
+      } else {
+        res.status(404).send("Build artifacts not found. Please run 'npm run build' first.");
+      }
     });
   }
 

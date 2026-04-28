@@ -86,6 +86,8 @@ export default function SampolDashboard() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [fetchingWeather, setFetchingWeather] = useState(false);
   const [news, setNews] = useState<NewsItem[]>([]);
+  const [academicNews, setAcademicNews] = useState<NewsItem[]>([]);
+  const [newsTab, setNewsTab] = useState<'news' | 'academic'>('news');
   const [fetchingNews, setFetchingNews] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -160,7 +162,8 @@ export default function SampolDashboard() {
       const response = await fetch('/api/rss');
       if (!response.ok) throw new Error('News fetch failed');
       const data = await response.json();
-      setNews(data.items); // Items are already sliced and sorted by server
+      setNews(data.news || []);
+      setAcademicNews(data.academic || []);
     } catch (e) {
       console.error('News fetch fail:', e);
     } finally {
@@ -456,20 +459,22 @@ export default function SampolDashboard() {
         )}
       </AnimatePresence>
 
-      <div className={`grid grid-cols-1 lg:grid-cols-2 gap-12 ${isFullscreen ? 'flex-grow overflow-hidden' : ''}`}>
-        <div className={`space-y-8 flex flex-col ${isFullscreen ? 'overflow-hidden' : ''}`}>
-          <section className={`flex flex-col ${isFullscreen ? 'overflow-hidden' : ''}`}>
+      <div className={`grid grid-cols-1 lg:grid-cols-2 gap-8 ${isFullscreen ? 'flex-grow min-h-0 overflow-hidden' : ''}`}>
+        <div className={`flex flex-col gap-8 ${isFullscreen ? 'overflow-hidden h-full' : 'space-y-8'}`}>
+          <section className={`flex flex-col ${isFullscreen ? 'overflow-hidden flex-grow basis-3/5' : ''}`}>
             <div className="flex items-center gap-3 mb-6 flex-shrink-0">
               <CheckSquare className="text-accent" size={20} />
-              <h2 className="text-lg font-serif">Tasks & Countdowns</h2>
+              <h2 className="text-lg font-serif">{isFullscreen ? 'Tasks' : 'Tasks & Countdowns'}</h2>
             </div>
             <div className={`grid grid-cols-1 gap-4 ${isFullscreen ? 'overflow-y-auto pr-2 custom-scrollbar flex-grow' : ''}`}>
-              {items.length === 0 ? (
+              {items.filter(item => isFullscreen ? item.type === 'task' : true).length === 0 ? (
                 <div className="p-12 text-center border-2 border-dashed border-ink/5 rounded-2xl">
                   <p className="text-ink/40 text-xs uppercase tracking-widest">No active items</p>
                 </div>
               ) : (
-                items.map((item) => (
+                items
+                  .filter(item => isFullscreen ? item.type === 'task' : true)
+                  .map((item) => (
                   <motion.div
                     key={item.id}
                     layout
@@ -537,69 +542,134 @@ export default function SampolDashboard() {
             </div>
           </section>
 
-          <div className={`grid ${isFullscreen ? 'grid-cols-2 gap-4' : 'grid-cols-1 gap-8'} flex-shrink-0`}>
+          <div className={`${isFullscreen ? 'flex flex-col gap-4 basis-2/2 min-h-0' : 'grid grid-cols-1 gap-8'} flex-shrink-0`}>
             {isFullscreen ? (
               <>
-                <div className="flex flex-col gap-4 overflow-hidden">
+                <div className="grid grid-cols-3 gap-4 flex-shrink-0">
                   <section className="bg-surface p-4 rounded-3xl border border-ink/5 shadow-xl relative overflow-hidden group">
+                    {/* Weather Content */}
                     <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-3">
                         <div className="p-2 bg-blue-500/10 rounded-xl text-blue-500">
-                          <Thermometer size={20} />
+                          <Thermometer size={18} />
                         </div>
                         <div>
-                          <h3 className="text-sm font-black uppercase tracking-widest text-ink">Bergen</h3>
-                          <p className="text-[10px] text-ink/40 uppercase tracking-tighter">MET.NO Data</p>
+                          <h3 className="text-[10px] font-black uppercase tracking-widest text-ink">Bergen</h3>
+                          <p className="text-[8px] text-ink/40 uppercase tracking-tighter">MET.NO Data</p>
                         </div>
                       </div>
-                      {fetchingWeather && <Loader2 size={16} className="animate-spin text-ink/20" />}
+                      {fetchingWeather && <Loader2 size={14} className="animate-spin text-ink/20" />}
                     </div>
 
                     {weather ? (
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="text-4xl font-mono font-black tracking-tighter text-ink">
+                          <p className="text-3xl font-mono font-black tracking-tighter text-ink">
                             {Math.round(weather.temp)}°
                           </p>
-                          <p className="text-xs font-black uppercase tracking-widest text-ink/40 mt-2 flex items-center gap-2">
-                            <Wind size={12} /> {weather.wind} m/s
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <div className="w-12 h-12 bg-accent/5 rounded-2xl flex items-center justify-center mb-2">
-                            {weather.symbol.includes('rain') ? <CloudRain className="text-blue-500" size={24} /> : 
-                             weather.symbol.includes('sun') || weather.symbol.includes('clear') ? <Sun className="text-orange-500" size={24} /> : 
-                             <Cloud className="text-ink/60" size={24} />}
+                          <div className="mt-1 flex items-center gap-2">
+                            <Wind size={10} className="text-ink/40" />
+                            <p className="text-[9px] font-black uppercase tracking-widest text-ink/40">{weather.wind} m/s</p>
                           </div>
-                          <p className="text-[10px] font-black uppercase tracking-widest opacity-40 text-ink">{weather.condition.replace(/_/g, ' ')}</p>
+                        </div>
+                        <div className="w-10 h-10 bg-accent/5 rounded-xl flex items-center justify-center">
+                          {weather.symbol.includes('rain') ? <CloudRain className="text-blue-500" size={20} /> : 
+                           weather.symbol.includes('sun') || weather.symbol.includes('clear') ? <Sun className="text-orange-500" size={20} /> : 
+                           <Cloud className="text-ink/60" size={20} />}
                         </div>
                       </div>
                     ) : (
-                      <div className="py-4 flex flex-col items-center gap-2 text-ink/20">
-                        <Cloud size={32} />
-                        <p className="text-[9px] uppercase tracking-widest font-black">Connecting...</p>
+                      <div className="py-2 flex flex-col items-center gap-1 text-ink/20">
+                        <Cloud size={20} />
+                        <p className="text-[8px] uppercase tracking-widest font-black">Laster...</p>
                       </div>
                     )}
                   </section>
 
+                  <section className="bg-surface p-4 rounded-3xl border border-ink/5 shadow-xl relative overflow-hidden flex flex-col justify-center items-center text-center">
+                    <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,var(--accent-rgb,100,100,100)_0%,transparent_70%)] opacity-[0.03]" />
+                    <div className="relative">
+                      <div className="flex items-center justify-center gap-2">
+                        <p className="text-4xl font-mono font-black tracking-tight text-accent">
+                          {now.toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                        <p className="text-xl font-mono font-medium text-ink/40">
+                          :{now.toLocaleTimeString('no-NO', { second: '2-digit' })}
+                        </p>
+                      </div>
+                      <div className="pt-2 mt-1 border-t border-ink/5">
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-ink/60">
+                          {now.toLocaleDateString('no-NO', { weekday: 'long' })}
+                        </p>
+                        <p className="text-[10px] font-serif italic text-ink">
+                          {now.toLocaleDateString('no-NO', { day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="bg-surface p-4 rounded-3xl border border-ink/5 shadow-xl relative overflow-hidden flex flex-col">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="p-1.5 bg-accent/10 rounded-lg text-accent">
+                        <TimerIcon size={14} />
+                      </div>
+                      <h3 className="text-[10px] font-black uppercase tracking-widest text-ink">Countdowns</h3>
+                    </div>
+                    
+                    <div className="space-y-3 overflow-y-auto custom-scrollbar flex-grow pr-1">
+                      {items.filter(i => i.type === 'event' && !i.completed).length > 0 ? (
+                        items.filter(i => i.type === 'event' && !i.completed).map(item => (
+                          <div key={item.id} className="group">
+                            <div className="flex justify-between items-center mb-1">
+                              <h4 className="text-[10px] font-bold truncate text-ink max-w-[120px]">{item.title}</h4>
+                              <p className="text-[8px] font-black uppercase tracking-widest text-accent">
+                                {Math.ceil((new Date(item.targetDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24))}d
+                              </p>
+                            </div>
+                            <div className="h-1 bg-ink/5 rounded-full overflow-hidden">
+                              <motion.div 
+                                initial={{ width: 0 }}
+                                animate={{ width: '100%' }}
+                                className="h-full bg-accent/30"
+                              />
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="h-full flex flex-col items-center justify-center opacity-20 py-2">
+                          <TimerIcon size={16} />
+                          <p className="text-[8px] font-black uppercase mt-1">Empty</p>
+                        </div>
+                      )}
+                    </div>
+                  </section>
+                </div>
+
                   <section className="bg-surface p-4 rounded-3xl border border-ink/5 shadow-xl relative overflow-hidden flex flex-col flex-grow min-h-0">
                     <div className="flex justify-between items-center mb-2 flex-shrink-0">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-accent/10 rounded-xl text-accent">
-                          <Newspaper size={18} />
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-black uppercase tracking-widest text-ink">Siste Nytt</h3>
-                          <p className="text-[10px] text-ink/40 uppercase tracking-tighter">NRK & BBC World</p>
-                        </div>
+                      <div className="flex gap-4">
+                        <button 
+                          onClick={() => setNewsTab('news')}
+                          className={`flex items-center gap-2 pb-1 border-b-2 transition-all ${newsTab === 'news' ? 'border-accent text-accent' : 'border-transparent text-ink/40 hover:text-ink/60'}`}
+                        >
+                          <Newspaper size={14} />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Verden</span>
+                        </button>
+                        <button 
+                          onClick={() => setNewsTab('academic')}
+                          className={`flex items-center gap-2 pb-1 border-b-2 transition-all ${newsTab === 'academic' ? 'border-accent text-accent' : 'border-transparent text-ink/40 hover:text-ink/60'}`}
+                        >
+                          <Book size={14} />
+                          <span className="text-[10px] font-black uppercase tracking-widest">Akademisk</span>
+                        </button>
                       </div>
-                      {fetchingNews && <Loader2 size={16} className="animate-spin text-ink/20" />}
+                      {fetchingNews && <Loader2 size={12} className="animate-spin text-ink/20" />}
                     </div>
 
-                    <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-grow">
-                      {news.length > 0 ? (
-                        news.map((item, index) => (
+                    <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-grow mt-2">
+                      {(newsTab === 'news' ? news : academicNews).length > 0 ? (
+                        (newsTab === 'news' ? news : academicNews).map((item, index) => (
                           <motion.a
                             key={index}
                             href={item.link}
@@ -609,7 +679,7 @@ export default function SampolDashboard() {
                           >
                             <div className="flex justify-between items-start gap-4">
                               <div className="space-y-1 flex-grow">
-                                <h4 className="text-[11px] font-medium leading-tight text-ink group-hover:text-accent transition-colors">
+                                <h4 className="text-[11px] font-medium leading-tight text-ink group-hover:text-accent transition-colors line-clamp-2">
                                   {item.title}
                                 </h4>
                                 <div className="flex items-center gap-2">
@@ -623,45 +693,20 @@ export default function SampolDashboard() {
                                 </div>
                               </div>
                             </div>
-                            {index < news.length - 1 && <div className="h-px bg-ink/5 mt-3" />}
+                            {index < (newsTab === 'news' ? news : academicNews).length - 1 && <div className="h-px bg-ink/5 mt-3" />}
                           </motion.a>
                         ))
                       ) : (
-                        <div className="py-4 flex flex-col items-center gap-2 text-ink/20">
-                          <Newspaper size={32} />
-                          <p className="text-[9px] uppercase tracking-widest font-black">Laster...</p>
+                        <div className="h-full flex flex-col items-center justify-center opacity-20 py-4">
+                          <Newspaper size={24} />
+                          <p className="text-[9px] uppercase tracking-widest font-black mt-2">Laster...</p>
                         </div>
                       )}
                     </div>
                   </section>
-                </div>
+                </>
+              ) : (
 
-                <section className="bg-surface p-6 rounded-3xl border border-ink/5 shadow-xl relative overflow-hidden flex flex-col justify-center items-center text-center">
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,var(--accent-rgb,100,100,100)_0%,transparent_70%)] opacity-[0.03]" />
-                  <div className="relative space-y-4">
-                    <div className="p-3 bg-accent/10 rounded-full text-accent inline-block mx-auto">
-                      <Clock size={32} />
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-7xl font-mono font-black tracking-tight text-accent">
-                        {now.toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' })}
-                      </p>
-                      <p className="text-2xl font-mono font-medium text-ink/40">
-                        :{now.toLocaleTimeString('no-NO', { second: '2-digit' })}
-                      </p>
-                    </div>
-                    <div className="pt-4 border-t border-ink/5">
-                      <p className="text-sm font-black uppercase tracking-[0.3em] text-ink/60">
-                        {now.toLocaleDateString('no-NO', { weekday: 'long' })}
-                      </p>
-                      <p className="text-lg font-serif italic text-ink">
-                        {now.toLocaleDateString('no-NO', { day: 'numeric', month: 'long', year: 'numeric' })}
-                      </p>
-                    </div>
-                  </div>
-                </section>
-              </>
-            ) : (
               <>
                 <section className="bg-surface p-8 rounded-3xl border border-ink/5 shadow-xl relative overflow-hidden group">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-3xl opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -707,21 +752,34 @@ export default function SampolDashboard() {
 
                 <section className="bg-surface p-8 rounded-3xl border border-ink/5 shadow-xl relative overflow-hidden flex flex-col">
                   <div className="flex justify-between items-center mb-6 flex-shrink-0">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-accent/10 rounded-xl text-accent">
+                    <div className="flex gap-6">
+                      <button 
+                        onClick={() => setNewsTab('news')}
+                        className={`flex items-center gap-3 pb-2 border-b-2 transition-all ${newsTab === 'news' ? 'border-accent text-accent' : 'border-transparent text-ink/40 hover:text-ink/60'}`}
+                      >
                         <Newspaper size={20} />
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-black uppercase tracking-widest text-ink">Siste Nytt</h3>
-                        <p className="text-[10px] text-ink/40 uppercase tracking-tighter">NRK & BBC World</p>
-                      </div>
+                        <div>
+                          <h3 className="text-sm font-black uppercase tracking-widest leading-none">Verden</h3>
+                          <p className="text-[8px] opacity-40 uppercase tracking-tighter mt-1">NRK & BBC</p>
+                        </div>
+                      </button>
+                      <button 
+                        onClick={() => setNewsTab('academic')}
+                        className={`flex items-center gap-3 pb-2 border-b-2 transition-all ${newsTab === 'academic' ? 'border-accent text-accent' : 'border-transparent text-ink/40 hover:text-ink/60'}`}
+                      >
+                        <Book size={20} />
+                        <div>
+                          <h3 className="text-sm font-black uppercase tracking-widest leading-none">Akademisk</h3>
+                          <p className="text-[8px] opacity-40 uppercase tracking-tighter mt-1">UiB & Chatham</p>
+                        </div>
+                      </button>
                     </div>
                     {fetchingNews && <Loader2 size={16} className="animate-spin text-ink/20" />}
                   </div>
 
                   <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2 custom-scrollbar">
-                    {news.length > 0 ? (
-                      news.map((item, index) => (
+                    {(newsTab === 'news' ? news : academicNews).length > 0 ? (
+                      (newsTab === 'news' ? news : academicNews).map((item, index) => (
                         <motion.a
                           key={index}
                           href={item.link}
@@ -749,13 +807,13 @@ export default function SampolDashboard() {
                             </div>
                             <ArrowUpRight size={14} className="text-ink/10 group-hover:text-accent group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all flex-shrink-0" />
                           </div>
-                          {index < news.length - 1 && <div className="h-px bg-ink/5 mt-4" />}
+                          {index < (newsTab === 'news' ? news : academicNews).length - 1 && <div className="h-px bg-ink/5 mt-4" />}
                         </motion.a>
                       ))
                     ) : (
                       <div className="py-12 flex flex-col items-center gap-2 text-ink/20">
                         <Newspaper size={32} />
-                        <p className="text-[9px] uppercase tracking-widest font-black">Laster nyheter...</p>
+                        <p className="text-[9px] uppercase tracking-widest font-black">Laster...</p>
                       </div>
                     )}
                   </div>
