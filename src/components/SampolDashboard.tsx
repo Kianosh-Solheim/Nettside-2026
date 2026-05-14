@@ -297,11 +297,57 @@ export default function SampolDashboard() {
   const fetchNews = async () => {
     setFetchingNews(true);
     try {
-      const response = await fetch('/api/rss');
-      if (!response.ok) throw new Error('News fetch failed');
-      const data = await response.json();
-      setNews(data.news || []);
-      setAcademicNews(data.academic || []);
+      // Since this is hosted on GitHub Pages, we don't have a backend proxy.
+      // We'll use a public CORS proxy and rss-parser to fetch directly in the client.
+      const RSS_FEEDS = {
+        news: [
+          { url: 'https://www.nrk.no/toppsaker.rss', source: 'NRK' },
+          { url: 'https://feeds.bbci.co.uk/news/world/rss.xml', source: 'BBC' }
+        ],
+        academic: [
+          { url: 'https://www.uib.no/aktuelt/rss', source: 'UiB' },
+          { url: 'https://www.chathamhouse.org/rss/news', source: 'Chatham House' }
+        ]
+      };
+
+      const fetchFeed = async (feedUrl: string, sourceName: string) => {
+        try {
+          // Use allorigins.win to bypass CORS
+          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`;
+          const res = await fetch(proxyUrl);
+          if (!res.ok) return [];
+          const proxyData = await res.json();
+          const xmlContent = proxyData.contents;
+          
+          // Simple regex-based parser to avoid bulky dependencies if possible, 
+          // but since rss-parser is in package.json, we should use it if we can import it.
+          // However, for simplicity and to avoid import issues in this environment, 
+          // I'll do a basic XML to NewsItem mapping.
+          
+          const parser = new DOMParser();
+          const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
+          const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 5);
+          
+          return items.map(item => ({
+            title: item.querySelector("title")?.textContent || '',
+            link: item.querySelector("link")?.textContent || '',
+            pubDate: item.querySelector("pubDate")?.textContent || new Date().toISOString(),
+            source: sourceName,
+            logo: ''
+          }));
+        } catch (err) {
+          console.warn(`Failed to fetch ${sourceName}:`, err);
+          return [];
+        }
+      };
+
+      const [newsResults, academicResults] = await Promise.all([
+        Promise.all(RSS_FEEDS.news.map(f => fetchFeed(f.url, f.source))),
+        Promise.all(RSS_FEEDS.academic.map(f => fetchFeed(f.url, f.source)))
+      ]);
+
+      setNews(newsResults.flat().sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()));
+      setAcademicNews(academicResults.flat().sort((a, b) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime()));
     } catch (e) {
       console.error('News fetch fail:', e);
     } finally {

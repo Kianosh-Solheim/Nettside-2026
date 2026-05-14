@@ -533,8 +533,8 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin() || 
-                    (resource.data != null && (resource.data.role == 'admin' || 
-                     resource.data.email in ["kianoshsolheim@gmail.com", "kianosh@solheim.online"]));
+                    (resource.data.role == 'admin' || 
+                     resource.data.email in ["kianoshsolheim@gmail.com", "kianosh@solheim.online"]);
       allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && 
                       request.resource.data.role == 'client' && request.resource.data.approved == false;
       allow update: if isAuthenticated() && (
