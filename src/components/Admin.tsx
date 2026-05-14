@@ -4,6 +4,9 @@ import { collection, db, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSn
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Edit2, Save, X, LogIn, AlertCircle, CheckCircle2, Search, Book as BookIcon, Film, Tv, Loader2, Upload, File as FileIcon, Image as ImageIcon, Copy, ExternalLink as ExternalLinkIcon, ArrowUpDown, Mail, Briefcase, GraduationCap, Heart, Calendar as CalendarIcon, RefreshCcw, Users, User, Check, Share2, MailOpen, XCircle } from 'lucide-react';
 import Button from './ui/Button';
+import Expenses from './Expenses';
+import MeasuredWords from './MeasuredWords';
+import Memberships from './Memberships';
 
 const CV_CATEGORIES = [
   { title: 'Work Experience', icon: Briefcase },
@@ -85,7 +88,7 @@ interface Message {
 }
 
 export default function Admin({ user }: { user: any }) {
-  const [activeTab, setActiveTab] = useState<'recommendations' | 'cv' | 'socials' | 'files' | 'messages' | 'integrations' | 'users' | 'meetings'>('recommendations');
+  const [activeTab, setActiveTab] = useState<'recommendations' | 'cv' | 'socials' | 'files' | 'messages' | 'integrations' | 'users' | 'meetings' | 'expenses' | 'measured-words' | 'memberships'>('recommendations');
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [cvSections, setCvSections] = useState<CVSection[]>([]);
   const [socials, setSocials] = useState<Social[]>([]);
@@ -133,6 +136,7 @@ export default function Admin({ user }: { user: any }) {
     onConfirm: () => {}
   });
 
+  const [timetableBoards, setTimetableBoards] = useState<any[]>([]);
   const [filePicker, setFilePicker] = useState<{
     isOpen: boolean;
     onSelect: (url: string) => void;
@@ -140,6 +144,42 @@ export default function Admin({ user }: { user: any }) {
     isOpen: false,
     onSelect: () => {}
   });
+
+  useEffect(() => {
+    const unsub = onSnapshot(query(collection(db, 'timetable_boards'), orderBy('order', 'asc')), (snapshot) => {
+      setTimetableBoards(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
+    return unsub;
+  }, []);
+
+  const addTimetableBoard = async () => {
+    try {
+      await addDoc(collection(db, 'timetable_boards'), {
+        name: 'New Board',
+        url: '',
+        order: timetableBoards.length + 1,
+        createdAt: serverTimestamp()
+      });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'timetable_boards');
+    }
+  };
+
+  const updateTimetableBoard = async (id: string, data: any) => {
+    try {
+      await updateDoc(doc(db, 'timetable_boards', id), data);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `timetable_boards/${id}`);
+    }
+  };
+
+  const deleteTimetableBoard = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'timetable_boards', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `timetable_boards/${id}`);
+    }
+  };
   
   // Search state
   const [searchQuery, setSearchQuery] = useState('');
@@ -157,8 +197,8 @@ export default function Admin({ user }: { user: any }) {
     const q = query(collection(db, 'recommendations'), orderBy('createdAt', 'desc'));
     const unsubscribeRecs = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       })) as Recommendation[];
       setRecommendations(data);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'recommendations'));
@@ -166,23 +206,23 @@ export default function Admin({ user }: { user: any }) {
     const qCV = query(collection(db, 'cv'), orderBy('order', 'asc'));
     const unsubscribeCV = onSnapshot(qCV, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       })) as CVSection[];
       setCvSections(data);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'cv'));
 
     const unsubscribeProfile = onSnapshot(collection(db, 'profile'), (snapshot) => {
       if (!snapshot.empty) {
-        setProfile(snapshot.docs[0].data() as Profile);
+        setProfile({ ...snapshot.docs[0].data(), id: snapshot.docs[0].id } as any);
       }
     }, (error) => handleFirestoreError(error, OperationType.GET, 'profile'));
 
     const qSocials = query(collection(db, 'socials'), orderBy('order', 'asc'));
     const unsubscribeSocials = onSnapshot(qSocials, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       })) as Social[];
       setSocials(data);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'socials'));
@@ -190,8 +230,8 @@ export default function Admin({ user }: { user: any }) {
     const qFiles = query(collection(db, 'files'), orderBy('createdAt', 'desc'));
     const unsubscribeFiles = onSnapshot(qFiles, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       })) as FileMetadata[];
       setFiles(data);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'files'));
@@ -199,8 +239,8 @@ export default function Admin({ user }: { user: any }) {
     const qMessages = query(collection(db, 'messages'), orderBy('createdAt', 'desc'));
     const unsubscribeMessages = onSnapshot(qMessages, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       })) as Message[];
       setMessages(data);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'messages'));
@@ -208,8 +248,8 @@ export default function Admin({ user }: { user: any }) {
     const qUsers = query(collection(db, 'users'), orderBy('email', 'asc'));
     const unsubscribeUsers = onSnapshot(qUsers, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       }));
       setUsers(data);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'users'));
@@ -1438,6 +1478,9 @@ export default function Admin({ user }: { user: any }) {
               { id: 'files', label: 'Files' },
               { id: 'messages', label: 'Messages', count: messages.filter(m => !m.read).length },
               { id: 'meetings', label: 'Meetings', count: allMeetings.filter(m => m.status === 'pending').length },
+              { id: 'expenses', label: 'Expenses' },
+              { id: 'memberships', label: 'Memberships' },
+              { id: 'measured-words', label: 'Measured Words' },
               { id: 'integrations', label: 'Integrations' },
               { id: 'users', label: 'Users' }
             ].map((tab) => (
@@ -2472,7 +2515,7 @@ export default function Admin({ user }: { user: any }) {
             ) : (
               allMeetings.map((meeting, idx) => (
                 <motion.div
-                  key={meeting.id || idx}
+                  key={`${meeting.id}-${idx}`}
                   layout
                   className="bg-surface p-8 md:p-10 rounded-[48px] border border-ink/5 hover:border-accent/20 hover:shadow-2xl hover:shadow-accent/5 transition-all duration-500 group relative overflow-hidden"
                 >
@@ -2749,6 +2792,56 @@ export default function Admin({ user }: { user: any }) {
                   Seed Data
                 </Button>
               </div>
+              <div className="pt-12 border-t border-ink/5 mt-12">
+                <div className="flex items-center justify-between mb-8">
+                  <div>
+                    <h3 className="text-2xl font-serif">Dashboard Timetables</h3>
+                    <p className="text-xs text-ink/40">Manage iframe boards shown on the SAMPOL Dashboard</p>
+                  </div>
+                  <Button onClick={addTimetableBoard} variant="primary" size="sm" icon={Plus}>Add Board</Button>
+                </div>
+                
+                <div className="space-y-6">
+                  {timetableBoards.map((board, idx) => (
+                    <div key={`${board.id}-${idx}`} className="bg-paper p-8 rounded-3xl border border-ink/5 space-y-6 group relative">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">Board Name</label>
+                          <input 
+                            value={board.name}
+                            onChange={(e) => updateTimetableBoard(board.id, { name: e.target.value })}
+                            className="w-full bg-ink/5 p-4 rounded-xl outline-none text-sm"
+                            placeholder="e.g. Bergen Airport"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">Iframe/Source URL</label>
+                          <input 
+                            value={board.url}
+                            onChange={(e) => updateTimetableBoard(board.id, { url: e.target.value })}
+                            className="w-full bg-ink/5 p-4 rounded-xl outline-none text-sm font-mono"
+                            placeholder="https://..."
+                          />
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between pt-4 border-t border-ink/5">
+                        <div className="flex items-center gap-4">
+                           <span className="text-[10px] text-ink/30 italic">Tip: Use Avinor departure link for live flight status</span>
+                        </div>
+                        <Button 
+                          onClick={() => deleteTimetableBoard(board.id)} 
+                          variant="ghost" 
+                          size="sm" 
+                          icon={Trash2} 
+                          className="text-red-500 hover:bg-red-50"
+                        >
+                          Remove Board
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -2844,6 +2937,18 @@ export default function Admin({ user }: { user: any }) {
               ))
             )}
           </div>
+        </div>
+      ) : activeTab === 'expenses' ? (
+        <div className="max-w-7xl mx-auto">
+          <Expenses />
+        </div>
+      ) : activeTab === 'memberships' ? (
+        <div className="max-w-7xl mx-auto">
+          <Memberships />
+        </div>
+      ) : activeTab === 'measured-words' ? (
+        <div className="max-w-7xl mx-auto">
+          <MeasuredWords />
         </div>
       ) : (
         <div className="space-y-12 max-w-7xl mx-auto">

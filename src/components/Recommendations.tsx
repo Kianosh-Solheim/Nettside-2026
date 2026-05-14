@@ -46,8 +46,8 @@ export default function Recommendations() {
     
     const unsubscribeRecs = onSnapshot(q, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        ...doc.data(),
+        id: doc.id
       })) as Recommendation[];
       setRecommendations(data);
       setLoading(false);
@@ -143,14 +143,34 @@ export default function Recommendations() {
     }
   };
 
+  const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
+
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Are you sure you want to delete this recommendation?')) return;
+    console.log('[Recommendations] Starting handleDelete for ID:', id);
     try {
+      setStatus({ type: 'success', message: 'Initiating deletion...' });
       await deleteDoc(doc(db, 'recommendations', id));
+      console.log('[Recommendations] deleteDoc resolved successfully for:', id);
       setStatus({ type: 'success', message: 'Deleted successfully' });
-      setTimeout(() => setStatus(null), 3000);
+      setDeleteConfirmation(null);
+      
+      // Quick verification log
+      setTimeout(() => {
+        setRecommendations(prev => {
+          const stillExists = prev.some(r => r.id === id);
+          if (stillExists) {
+            console.warn('[Recommendations] Warning: Item still in local state after successful deleteDoc for ID:', id);
+          } else {
+            console.log('[Recommendations] Item confirmed gone from local state for ID:', id);
+          }
+          return prev;
+        });
+        setStatus(null);
+      }, 2000);
     } catch (error) {
+      console.error('[Recommendations] Delete failed:', error);
       setStatus({ type: 'error', message: 'Failed to delete' });
+      setDeleteConfirmation(null);
     }
   };
 
@@ -577,7 +597,7 @@ export default function Recommendations() {
                         Edit Entry
                       </Button>
                       <Button
-                        onClick={() => { setSelectedItem(null); handleDelete(selectedItem.id); }}
+                        onClick={() => { setSelectedItem(null); setDeleteConfirmation(selectedItem.id); }}
                         variant="ghost"
                         size="lg"
                         icon={Trash2}
@@ -591,6 +611,50 @@ export default function Recommendations() {
               </div>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmation && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setDeleteConfirmation(null)}
+              className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative bg-paper p-10 rounded-[48px] border border-ink/5 shadow-2xl max-w-md w-full text-center"
+            >
+              <div className="w-20 h-20 bg-red-500/10 text-red-500 rounded-[32px] flex items-center justify-center mx-auto mb-8">
+                <Trash2 size={40} />
+              </div>
+              <h3 className="text-3xl font-serif mb-4">Delete Entry?</h3>
+              <p className="text-ink/40 text-sm leading-relaxed mb-10 px-4">
+                Are you sure you want to remove this recommendation from your library?
+              </p>
+              <div className="flex gap-4">
+                <Button 
+                  onClick={() => setDeleteConfirmation(null)} 
+                  variant="secondary" 
+                  className="flex-1 py-5 rounded-3xl"
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  onClick={() => handleDelete(deleteConfirmation)} 
+                  className="flex-1 bg-red-500 hover:bg-red-600 text-white py-5 rounded-3xl border-none"
+                >
+                  Delete
+                </Button>
+              </div>
+            </motion.div>
+          </div>
         )}
       </AnimatePresence>
 

@@ -1,6 +1,6 @@
 {
   "name": "Kianosh F. Solheim",
-  "description": "An interactive, visual SAMPOL dashboard with real-time weather, news, tasks, and travel information.",
+  "description": "An interactive, visual SAMPOL dashboard with financial tracking, recurring expenses, portfolio management, and real-time information.",
   "requestFramePermissions": [
     "camera"
   ]

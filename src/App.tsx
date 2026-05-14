@@ -2,11 +2,13 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { useState, useEffect, createContext, useContext, useRef, lazy, Suspense } from 'react';
 import { auth, onAuthStateChanged, signOut, signInWithPopup, googleProvider, db, collection, onSnapshot, query, orderBy, where, doc, getDocFromServer, setDoc, serverTimestamp, handleFirestoreError, OperationType } from './firebase';
 import { motion, AnimatePresence, useMotionValue, useSpring, useMotionTemplate, useScroll } from 'framer-motion';
-import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar, LayoutDashboard, Loader2 } from 'lucide-react';
+import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar, LayoutDashboard, Loader2, DollarSign } from 'lucide-react';
 import { BlueskyIcon } from './components/Icons';
 import Magnetic from './components/Magnetic';
 import ErrorBoundary from './components/ErrorBoundary';
 import Button from './components/ui/Button';
+
+import { ThemeContext } from './contexts/ThemeContext';
 
 // Lazy loaded components
 const Home = lazy(() => import('./components/Home'));
@@ -22,8 +24,8 @@ const Library = lazy(() => import('./components/Library'));
 const VisitingCard = lazy(() => import('./components/VisitingCard'));
 const SampolDashboard = lazy(() => import('./components/SampolDashboard'));
 const Availability = lazy(() => import('./components/Availability'));
-
-export const ThemeContext = createContext({ theme: 'light', toggleTheme: () => {} });
+const FlyBergen = lazy(() => import('./components/FlyBergen'));
+const Expenses = lazy(() => import('./components/Expenses'));
 
 interface Profile {
   name: string;
@@ -197,6 +199,16 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
                         )}
                         {isAdmin && (
                           <Link
+                            to="/expenses"
+                            onClick={() => setIsProfileOpen(false)}
+                            className="flex items-center space-x-2 px-4 py-2 text-xs text-ink/60 hover:text-accent hover:bg-ink/5 transition-colors"
+                          >
+                            <DollarSign size={14} />
+                            <span>Expenses</span>
+                          </Link>
+                        )}
+                        {isAdmin && (
+                          <Link
                             to="/admin"
                             onClick={() => setIsProfileOpen(false)}
                             className="flex items-center space-x-2 px-4 py-2 text-xs text-ink/60 hover:text-accent hover:bg-ink/5 transition-colors"
@@ -325,6 +337,16 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
                   )}
                   {isAdmin && (
                     <Link
+                      to="/expenses"
+                      onClick={() => setIsOpen(false)}
+                      className="flex items-center space-x-3 text-xs uppercase tracking-widest text-ink/60"
+                    >
+                      <DollarSign size={18} />
+                      <span>Expenses</span>
+                    </Link>
+                  )}
+                  {isAdmin && (
+                    <Link
                       to="/admin"
                       onClick={() => setIsOpen(false)}
                       className="flex items-center space-x-3 text-xs uppercase tracking-widest text-ink/60"
@@ -421,11 +443,16 @@ const Footer = ({ socials }: { socials: Social[] }) => {
           <div className="text-xl font-serif tracking-widest uppercase">
             {(profile.name || 'Kianosh F. Solheim').split(' ').map(n => n[0]).join('. ')}
           </div>
-          <div className="flex space-x-8">
-            {['Home', 'Recommendations', 'CV', 'Contact'].map((item) => (
+          <div className="flex flex-wrap justify-center gap-x-8 gap-y-4">
+            {['Home', 'Recommendations', 'CV', 'Fly-Bergen', 'Contact', 'SAMPOL-Dashboard'].map((item) => (
               <Link
                 key={item}
-                to={item === 'Home' ? '/' : `/${item.toLowerCase()}`}
+                to={
+                  item === 'Home' ? '/' : 
+                  item === 'SAMPOL-Dashboard' ? '/sampol-dashboard' : 
+                  item === 'Fly-Bergen' ? '/fly-bergen' :
+                  `/${item.toLowerCase()}`
+                }
                 className="text-[10px] uppercase tracking-widest text-ink/40 hover:text-accent transition-colors"
               >
                 {item}
@@ -575,6 +602,8 @@ const AnimatedRoutes = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid }
           <Route path="/sampol-dashboard" element={<PageWrapper><SampolDashboard /></PageWrapper>} />
           <Route path="/cv/print" element={<PrintableCV />} />
           <Route path="/visiting-card" element={<VisitingCard />} />
+          <Route path="/fly-bergen" element={<FlyBergen />} />
+          <Route path="/expenses" element={isAdmin ? <PageWrapper><Expenses /></PageWrapper> : <PageWrapper><Home /></PageWrapper>} />
           <Route path="/user/:userId" element={<PageWrapper><UserPage /></PageWrapper>} />
           <Route path="/kiaplay" element={(isAdmin || hasKiaplayAccess) ? <Kiaplay /> : <PageWrapper><Home /></PageWrapper>} />
           {(isAdmin || canViewAdminHealth) && (
@@ -720,10 +749,10 @@ export default function App() {
     landline: '',
     visitingCardKey: undefined
   });
-  const [theme, setTheme] = useState(() => {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('theme');
-      if (saved) return saved;
+      if (saved === 'light' || saved === 'dark') return saved;
       
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       return prefersDark ? 'dark' : 'light';

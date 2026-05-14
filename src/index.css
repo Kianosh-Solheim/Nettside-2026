@@ -77,6 +77,19 @@ body {
 .markdown-body em { @apply italic; }
 
 @layer utilities {
+  .animate-ticker {
+    animation: ticker 40s linear infinite;
+  }
+  
+  .animate-ticker:hover {
+    animation-play-state: paused;
+  }
+
+  @keyframes ticker {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-25%); }
+  }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }

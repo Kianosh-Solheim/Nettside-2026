@@ -338,6 +338,139 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "type", "targetDate"]
+    },
+    "Quote": {
+      "title": "Quote",
+      "description": "A notable quote for the dashboard.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string", "description": "The quote content" },
+        "author": { "type": "string", "description": "Who said it" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text", "author"]
+    },
+    "TickerMessage": {
+      "title": "Ticker Message",
+      "description": "A message for the scrolling ticker.",
+      "type": "object",
+      "properties": {
+        "text": { "type": "string", "description": "The message content" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["text"]
+    },
+    "TimetableBoard": {
+      "title": "Timetable Board",
+      "description": "A configuration for a timetable board iframe.",
+      "type": "object",
+      "properties": {
+        "url": { "type": "string", "format": "uri" },
+        "name": { "type": "string" },
+        "order": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["url", "name", "order"]
+    },
+    "AirlineLogo": {
+      "title": "Airline Logo",
+      "description": "Custom logo for an airline.",
+      "type": "object",
+      "properties": {
+        "airlineCode": { "type": "string" },
+        "logoData": { "type": "string", "description": "SVG data URL or image URL" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["airlineCode", "logoData"]
+    },
+    "Expense": {
+      "title": "Expense",
+      "description": "Admin tracking for expenses like rent, power, etc.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "category": { "type": "string", "enum": ["Membership Fee", "Rent", "Power", "Transport", "Debt", "Other"] },
+        "date": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["unpaid", "paid"] },
+        "description": { "type": "string" },
+        "recurring": { "type": "string", "enum": ["One-time", "Weekly", "Monthly", "6 Monthly", "Yearly"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "amount", "category", "date", "recurring"]
+    },
+    "Income": {
+      "title": "Income",
+      "description": "Tracking sources of income.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date" },
+        "type": { "type": "string", "enum": ["Salary", "Dividend", "Side Hustle", "Other"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "amount", "date", "type"]
+    },
+    "Budget": {
+      "title": "Budget",
+      "description": "Monthly budget targets for different expense categories.",
+      "type": "object",
+      "properties": {
+        "category": { "type": "string", "enum": ["Membership Fee", "Rent", "Power", "Transport", "Debt", "Other"] },
+        "amount": { "type": "number" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["category", "amount"]
+    },
+    "Membership": {
+      "title": "Membership",
+      "description": "Information about a membership in an organization or service.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "organization": { "type": "string" },
+        "memberNumber": { "type": "string" },
+        "category": { "type": "string" },
+        "cost": { "type": "number" },
+        "currency": { "type": "string" },
+        "frequency": { "type": "string", "enum": ["Monthly", "Yearly", "Quarterly", "One-time"] },
+        "startDate": { "type": "string", "format": "date" },
+        "nextRenewalDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["Active", "Inactive", "Cancelled"] },
+        "localBranch": { "type": "string" },
+        "logoUrl": { "type": "string", "format": "uri" },
+        "contactEmail": { "type": "string" },
+        "website": { "type": "string" },
+        "description": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "cost", "frequency", "status"]
+    },
+    "MembershipRole": {
+      "title": "MembershipRole",
+      "description": "A role held within a membership organization.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "startDate": { "type": "string", "format": "date" },
+        "endDate": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "startDate"]
+    },
+    "MembershipPayment": {
+      "title": "MembershipPayment",
+      "description": "A record of a payment for a specific membership.",
+      "type": "object",
+      "properties": {
+        "membershipId": { "type": "string" },
+        "amount": { "type": "number" },
+        "date": { "type": "string", "format": "date" },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["membershipId", "amount", "date"]
     }
   },
   "firestore": {
@@ -420,6 +553,46 @@
     "/sampol_dashboard_items/{itemId}": {
       "schema": "DashboardItem",
       "description": "SAMPOL team tasks and events."
+    },
+    "/quotes/{quoteId}": {
+      "schema": "Quote",
+      "description": "Siterte Sitater collection."
+    },
+    "/ticker_messages/{messageId}": {
+      "schema": "TickerMessage",
+      "description": "Custom messages for the header ticker."
+    },
+    "/timetable_boards/{boardId}": {
+      "schema": "TimetableBoard",
+      "description": "External timetable iframe URLs for the dashboard carousel."
+    },
+    "/airline_logos/{airlineCode}": {
+      "schema": "AirlineLogo",
+      "description": "Custom mappings for airline logos."
+    },
+    "/expenses/{expenseId}": {
+      "schema": "Expense",
+      "description": "Tracked business or personal expenses."
+    },
+    "/budgets/{budgetId}": {
+      "schema": "Budget",
+      "description": "Monthly spending targets."
+    },
+    "/incomes/{incomeId}": {
+      "schema": "Income",
+      "description": "Tracked income sources."
+    },
+    "/memberships/{membershipId}": {
+      "schema": "Membership",
+      "description": "User's memberships and subscriptions."
+    },
+    "/membership_payments/{paymentId}": {
+      "schema": "MembershipPayment",
+      "description": "Payment history for memberships."
+    },
+    "/memberships/{membershipId}/roles/{roleId}": {
+      "schema": "MembershipRole",
+      "description": "Roles held within a specific membership."
     }
   }
 }

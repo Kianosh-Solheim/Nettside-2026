@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Plus, Trash2, CheckSquare, Clock, Calendar, 
   TrainFront, Timer as TimerIcon, Loader2, 
   X, Edit2, Maximize2, Minimize2, Cloud, Sun, 
+  ChevronLeft, ChevronRight,
   CloudRain, Wind, Thermometer, Play, Pause, RotateCcw,
-  LayoutDashboard, Newspaper, ArrowUpRight
+  LayoutDashboard, Newspaper, ArrowUpRight, Book
 } from 'lucide-react';
-import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, handleFirestoreError, OperationType } from '../firebase';
+import { db, collection, addDoc, updateDoc, deleteDoc, doc, onSnapshot, query, orderBy, serverTimestamp, handleFirestoreError, OperationType, auth, onAuthStateChanged } from '../firebase';
 import Button from './ui/Button';
+import { ThemeContext } from '../contexts/ThemeContext';
 
 interface DashboardItem {
   id: string;
@@ -38,15 +40,77 @@ interface NewsItem {
   contentSnippet?: string;
 }
 
+interface Quote {
+  id: string;
+  text: string;
+  author: string;
+  createdAt: any;
+}
+
+interface TickerMessage {
+  id: string;
+  text: string;
+  createdAt: any;
+}
+
+interface TimetableBoard {
+  id: string;
+  url: string;
+  name: string;
+  order: number;
+  createdAt: any;
+}
+
 export default function SampolDashboard() {
+  const [user, setUser] = useState<any>(null);
   const [items, setItems] = useState<DashboardItem[]>([]);
+  const [quotes, setQuotes] = useState<Quote[] | any[]>([]);
+  const [tickerMessages, setTickerMessages] = useState<TickerMessage[]>([]);
+  const [timetableBoards, setTimetableBoards] = useState<TimetableBoard[]>([]);
+  const [activeQuoteIndex, setActiveQuoteIndex] = useState(0);
+  const [activeBoardIndex, setActiveBoardIndex] = useState(0);
+  const [boardTimer, setBoardTimer] = useState(15);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [addMode, setAddMode] = useState<'item' | 'quote' | 'ticker' | 'board'>('item');
   const [editingItem, setEditingItem] = useState<DashboardItem | null>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [timetableKey, setTimetableKey] = useState(0);
-  const [lastTimetableUpdate, setLastTimetableUpdate] = useState(new Date());
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const { theme } = useContext(ThemeContext);
+  const isDark = theme === 'dark';
+
+  const getIframeUrl = (url: string) => {
+    if (!url) return '';
+    // Handle local routes or files
+    if (url.startsWith('/') || url.includes('Fly.html') || url.includes('fly-bergen')) {
+      return url;
+    }
+    // Avinor specific support: Map official flight status URL to our internal component
+    if (url.includes('avinor.no/flyplass/bergen/flytider')) {
+      const dir = url.toLowerCase().includes('arrival') ? 'A' : 'D';
+      return `/fly-bergen?direction=${dir}`;
+    }
+    // Entur Tavla specific dark mode parameter
+    if (url.includes('vis-tavla.entur.no')) {
+      const separator = url.includes('?') ? '&' : '?';
+      return isDark ? `${url}${separator}theme=dark` : url;
+    }
+    return url;
+  };
+
+  const [quoteFormData, setQuoteFormData] = useState({
+    text: '',
+    author: ''
+  });
+
+  const [tickerFormData, setTickerFormData] = useState({
+    text: ''
+  });
+
+  const [boardFormData, setBoardFormData] = useState({
+    name: '',
+    url: ''
+  });
 
   useEffect(() => {
     const handleFullscreenChange = () => {
@@ -93,12 +157,21 @@ export default function SampolDashboard() {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
-    type: 'task' as 'task' | 'event',
+    type: 'event' as 'task' | 'event',
     startDate: '',
     targetDate: '',
     color: ''
   });
   const [now, setNow] = useState(new Date());
+  
+  const isAdmin = user && (user.email === 'kianoshsolheim@gmail.com' || user.email === 'kianosh@solheim.online');
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      setUser(user);
+    });
+    return () => unsubscribe();
+  }, []);
 
   const COLORS = [
     { name: 'Default', value: '' },
@@ -126,33 +199,98 @@ export default function SampolDashboard() {
   }, []);
 
   useEffect(() => {
-    const clockTimer = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(clockTimer);
+    const q = query(collection(db, 'quotes'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as Quote[];
+      setQuotes(data);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'quotes'));
+
+    return () => unsubscribe();
   }, []);
 
-  // Timetable Update Logic (Every 30 seconds)
   useEffect(() => {
+    const q = query(collection(db, 'ticker_messages'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as TickerMessage[];
+      setTickerMessages(data);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'ticker_messages'));
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const q = query(collection(db, 'timetable_boards'), orderBy('order', 'asc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as TimetableBoard[];
+      setTimetableBoards(data);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'timetable_boards'));
+
+    return () => unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    if (timetableBoards.length <= 1) {
+      setBoardTimer(15);
+      if (activeBoardIndex !== 0) setActiveBoardIndex(0);
+      return;
+    }
+    
     const interval = setInterval(() => {
-      const currentTime = new Date();
-      if (currentTime.getSeconds() % 30 === 0) {
-        setTimetableKey(k => k + 1);
-        setLastTimetableUpdate(currentTime);
-      }
+      setBoardTimer((prev) => prev - 1);
     }, 1000);
+    
     return () => clearInterval(interval);
+  }, [timetableBoards.length, activeBoardIndex]);
+
+  useEffect(() => {
+    if (boardTimer <= 0 && timetableBoards.length > 1) {
+      setActiveBoardIndex((prev) => (prev + 1) % timetableBoards.length);
+      setBoardTimer(15);
+    }
+  }, [boardTimer, timetableBoards.length]);
+
+  useEffect(() => {
+    if (activeBoardIndex >= timetableBoards.length && timetableBoards.length > 0) {
+      setActiveBoardIndex(0);
+      setBoardTimer(15);
+    }
+  }, [timetableBoards.length, activeBoardIndex]);
+
+  useEffect(() => {
+    if (quotes.length <= 1) return;
+    
+    const interval = setInterval(() => {
+      setActiveQuoteIndex((prev) => (prev + 1) % quotes.length);
+    }, 15000); // 15 seconds
+    
+    return () => clearInterval(interval);
+  }, [quotes.length]);
+
+  useEffect(() => {
+    const clockTimer = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(clockTimer);
   }, []);
 
   // Weather Logic
   useEffect(() => {
     fetchWeather();
-    const weatherInterval = setInterval(fetchWeather, 30 * 60 * 1000); // 30 mins
+    const weatherInterval = setInterval(fetchWeather, 60 * 60 * 1000); // 1 hour
     return () => clearInterval(weatherInterval);
   }, []);
 
   // News Logic
   useEffect(() => {
     fetchNews();
-    const newsInterval = setInterval(fetchNews, 10 * 60 * 1000); // 10 mins
+    const newsInterval = setInterval(fetchNews, 15 * 60 * 1000); // 15 mins
     return () => clearInterval(newsInterval);
   }, []);
 
@@ -195,6 +333,42 @@ export default function SampolDashboard() {
     }
   };
 
+  const translateWeatherCondition = (condition: string) => {
+    if (!condition) return '';
+    const code = condition.split('_')[0];
+    const translations: Record<string, string> = {
+      'clearsky': 'Klarvær',
+      'fair': 'Lettskyet',
+      'partlycloudy': 'Delvis skyet',
+      'cloudy': 'Skyet',
+      'rain': 'Regn',
+      'heavyrain': 'Kraftig regn',
+      'lightrain': 'Lett regn',
+      'rainshowers': 'Regnbyger',
+      'lightrainshowers': 'Lette regnbyger',
+      'heavyrainshowers': 'Kraftige regnbyger',
+      'snow': 'Snø',
+      'heavysnow': 'Kraftig snø',
+      'lightsnow': 'Lett snø',
+      'snowshowers': 'Snøbyger',
+      'lightsnowshowers': 'Lette snøbyger',
+      'heavysnowshowers': 'Kraftige snøbyger',
+      'sleet': 'Sludd',
+      'heavyrainandthunder': 'Kraftig regn og torden',
+      'heavyrainshowersandthunder': 'Kraftige regnbyger og torden',
+      'lightrainandthunder': 'Lett regn og torden',
+      'lightrainshowersandthunder': 'Lette regnbyger og torden',
+      'rainandthunder': 'Regn og torden',
+      'rainshowersandthunder': 'Regnbyger og torden',
+      'sleetandthunder': 'Sludd og torden',
+      'sleetshowersandthunder': 'Sluddbyger og torden',
+      'snowandthunder': 'Snø og torden',
+      'snowshowersandthunder': 'Snøbyger og torden',
+      'fog': 'Tåke'
+    };
+    return translations[code] || condition.replace(/_/g, ' ');
+  };
+
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title || !formData.targetDate) return;
@@ -215,9 +389,83 @@ export default function SampolDashboard() {
         await addDoc(collection(db, 'sampol_dashboard_items'), data);
         setIsAdding(false);
       }
-      setFormData({ title: '', description: '', type: 'task', startDate: '', targetDate: '', color: '' });
+      setFormData({ title: '', description: '', type: 'event', startDate: '', targetDate: '', color: '' });
     } catch (error) {
       handleFirestoreError(error, editingItem ? OperationType.UPDATE : OperationType.CREATE, 'sampol_dashboard_items');
+    }
+  };
+
+  const handleAddQuote = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quoteFormData.text || !quoteFormData.author) return;
+
+    try {
+      await addDoc(collection(db, 'quotes'), {
+        ...quoteFormData,
+        createdAt: serverTimestamp()
+      });
+      setQuoteFormData({ text: '', author: '' });
+      setIsAdding(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'quotes');
+    }
+  };
+
+  const handleAddTickerMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!tickerFormData.text) return;
+
+    try {
+      await addDoc(collection(db, 'ticker_messages'), {
+        ...tickerFormData,
+        createdAt: serverTimestamp()
+      });
+      setTickerFormData({ text: '' });
+      setIsAdding(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'ticker_messages');
+    }
+  };
+
+  const handleAddTimetableBoard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!boardFormData.name || !boardFormData.url) return;
+
+    try {
+      await addDoc(collection(db, 'timetable_boards'), {
+        ...boardFormData,
+        order: timetableBoards.length,
+        createdAt: serverTimestamp()
+      });
+      setBoardFormData({ name: '', url: '' });
+      setIsAdding(false);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'timetable_boards');
+    }
+  };
+
+  const deleteTimetableBoard = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      await deleteDoc(doc(db, 'timetable_boards', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `timetable_boards/${id}`);
+    }
+  };
+
+  const deleteTickerMessage = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'ticker_messages', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `ticker_messages/${id}`);
+    }
+  };
+
+  const deleteQuote = async (id: string) => {
+    try {
+      await deleteDoc(doc(db, 'quotes', id));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `quotes/${id}`);
     }
   };
 
@@ -308,58 +556,129 @@ export default function SampolDashboard() {
   return (
     <div 
       ref={dashboardRef}
-      className={`transition-all duration-500 ease-in-out ${isFullscreen ? 'fixed inset-0 z-[100] bg-paper p-8 flex flex-col h-screen' : 'max-w-7xl mx-auto px-4 py-20'}`}
+      className={`transition-all duration-500 ease-in-out ${isFullscreen ? 'fixed inset-0 z-[100] bg-paper p-8 flex flex-col h-screen overflow-hidden' : 'max-w-7xl mx-auto px-4 py-12'}`}
     >
-      <div className={`flex flex-col md:flex-row justify-between items-start md:items-end ${isFullscreen ? 'mb-8' : 'mb-12'} gap-6 flex-shrink-0`}>
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="p-2 bg-accent/10 rounded-xl text-accent">
-              <LayoutDashboard size={24} />
+      {/* Top Ticker Bar */}
+      <div className={`w-full overflow-hidden mb-4 border-b border-ink/5 pb-1`}>
+        {tickerMessages.length > 0 ? (
+          <div className="relative w-full flex items-center h-6">
+            <div className="whitespace-nowrap flex animate-ticker w-max">
+              {[...tickerMessages, ...tickerMessages, ...tickerMessages, ...tickerMessages].map((msg, i) => (
+                <div key={`${msg.id}-${i}`} className="flex items-center gap-4 px-8">
+                  <p className={`uppercase tracking-[0.25em] font-black ${isFullscreen ? 'text-[10px] text-ink/40' : 'text-[9px] text-ink/30'}`}>
+                    {msg.text}
+                  </p>
+                  <div className="w-1.5 h-1.5 rounded-full bg-accent/20" />
+                  {!isFullscreen && isAdmin && (
+                    <button 
+                      onClick={() => deleteTickerMessage(msg.id)}
+                      className="text-red-500/0 group-hover:text-red-500/50 hover:text-red-500 transition-colors"
+                      title="Slett melding"
+                    >
+                      <Trash2 size={10} />
+                    </button>
+                  )}
+                </div>
+              ))}
             </div>
-            <h1 className={`${isFullscreen ? 'text-2xl' : 'text-4xl'} font-serif transition-all`}>SAMPOL Dashboard</h1>
           </div>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <p className="text-ink/60 uppercase text-[10px] tracking-[0.3em] font-black">
-              {now.toLocaleDateString('no-NO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+        ) : (
+          <div className="w-full text-center">
+            <p className="text-[8px] text-ink/30 uppercase tracking-[0.25em] font-black">
+              SAMPOL Dashboard er en tjeneste laget av Kianosh F. Solheim
             </p>
-            {!isFullscreen && (
-              <>
-                <div className="hidden md:block w-1 h-1 bg-ink/20 rounded-full" />
-                <p className="text-4xl font-mono font-black text-accent tracking-tighter transition-all">
-                  {now.toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                </p>
-              </>
-            )}
           </div>
-        </div>
+        )}
+      </div>
+
+      <div className={`flex flex-col md:flex-row justify-between items-start md:items-end ${isFullscreen ? 'mb-4 justify-center' : 'mb-8'} gap-6 flex-shrink-0`}>
+        {!isFullscreen && (
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-accent/10 rounded-xl text-accent">
+                <LayoutDashboard size={24} />
+              </div>
+              <h1 className="text-4xl font-serif">SAMPOL Dashboard</h1>
+            </div>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <p className="text-ink/60 uppercase text-[10px] tracking-[0.3em] font-black">
+                {now.toLocaleDateString('no-NO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+              </p>
+              <div className="hidden md:block w-1 h-1 bg-ink/20 rounded-full" />
+              <p className="text-4xl font-mono font-black text-accent tracking-tighter">
+                {now.toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              </p>
+            </div>
+          </div>
+        )}
         <div className="flex gap-2 w-full md:w-auto">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            onClick={toggleFullscreen}
-            icon={isFullscreen ? Minimize2 : Maximize2}
-            className="flex-grow md:flex-none py-2 text-[10px]"
-          >
-            {isFullscreen ? 'Exit Full' : 'Fullscreen'}
-          </Button>
-          <Button 
-            variant="primary" 
-            size="sm"
-            onClick={() => {
-              if (isAdding) {
-                setIsAdding(false);
-                setEditingItem(null);
-                setFormData({ title: '', description: '', type: 'task', startDate: '', targetDate: '', color: '' });
-              } else {
-                setIsAdding(true);
-              }
-            }}
-            icon={isAdding ? X : Plus}
-            magnetic={true}
-            className="flex-grow md:flex-none py-2 text-[10px]"
-          >
-            {isAdding ? 'Cancel' : 'Add Item'}
-          </Button>
+          {!isFullscreen && (
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={toggleFullscreen}
+              icon={Maximize2}
+              className="flex-grow md:flex-none py-2 text-[10px]"
+            >
+              Fullskjerm
+            </Button>
+          )}
+          {!isFullscreen && isAdmin && (
+            <>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setAddMode('ticker');
+                  setIsAdding(true);
+                }}
+                className="flex-grow md:flex-none py-2 text-[10px]"
+              >
+                Add Ticker Message
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setAddMode('quote');
+                  setIsAdding(true);
+                }}
+                className="flex-grow md:flex-none py-2 text-[10px]"
+              >
+                Add Quote
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => {
+                  setAddMode('board');
+                  setIsAdding(true);
+                }}
+                className="flex-grow md:flex-none py-2 text-[10px]"
+              >
+                Add Timetable
+              </Button>
+              <Button 
+                variant="primary" 
+                size="sm"
+                onClick={() => {
+                  if (isAdding && addMode === 'item') {
+                    setIsAdding(false);
+                    setEditingItem(null);
+                    setFormData({ title: '', description: '', type: 'event', startDate: '', targetDate: '', color: '' });
+                  } else {
+                    setAddMode('item');
+                    setIsAdding(true);
+                  }
+                }}
+                icon={isAdding && addMode === 'item' ? X : Plus}
+                magnetic={true}
+                className="flex-grow md:flex-none py-2 text-[10px]"
+              >
+                {isAdding && addMode === 'item' ? 'Cancel' : 'Add Item'}
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
@@ -371,31 +690,29 @@ export default function SampolDashboard() {
             exit={{ opacity: 0, y: -20 }}
             className="mb-8 bg-surface p-6 rounded-2xl border border-ink/5"
           >
-            <form onSubmit={handleAddItem} className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-3">
-                  <div>
-                    <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Title</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent"
-                      placeholder="Enter title..."
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
+            <div className="flex justify-between items-center mb-6 pb-4 border-b border-ink/5">
+              <h3 className="text-xs font-black uppercase tracking-widest text-ink">
+                {addMode === 'item' ? (editingItem ? 'Edit Item' : 'New Dashboard Item') : addMode === 'quote' ? 'Add New Quote' : addMode === 'ticker' ? 'Add Ticker Message' : 'Add Timetable Board'}
+              </h3>
+              <Button variant="ghost" size="sm" onClick={() => setIsAdding(false)}>
+                <X size={16} />
+              </Button>
+            </div>
+
+            {addMode === 'item' ? (
+              <form onSubmit={handleAddItem} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-3">
                     <div>
-                      <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Type</label>
-                      <select
-                        value={formData.type}
-                        onChange={(e) => setFormData({ ...formData, type: e.target.value as 'task' | 'event' })}
+                      <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Title</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.title}
+                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                         className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent"
-                      >
-                        <option value="task">Task</option>
-                        <option value="event">Event</option>
-                      </select>
+                        placeholder="Enter title..."
+                      />
                     </div>
                     <div>
                       <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Color</label>
@@ -415,65 +732,147 @@ export default function SampolDashboard() {
                       </div>
                     </div>
                   </div>
-                </div>
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
-                      <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Start Date (Opt)</label>
-                      <input
-                        type="datetime-local"
-                        value={formData.startDate}
-                        onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                        className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent"
-                      />
+                  <div className="space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Start Date (Opt)</label>
+                        <input
+                          type="datetime-local"
+                          value={formData.startDate}
+                          onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                          className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">End Date & Time</label>
+                        <input
+                          type="datetime-local"
+                          required
+                          value={formData.targetDate}
+                          onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
+                          className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent"
+                        />
+                      </div>
                     </div>
                     <div>
-                      <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">End Date & Time</label>
-                      <input
-                        type="datetime-local"
-                        required
-                        value={formData.targetDate}
-                        onChange={(e) => setFormData({ ...formData, targetDate: e.target.value })}
-                        className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent"
+                      <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Description</label>
+                      <textarea
+                        value={formData.description}
+                        onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                        className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent h-[36px] resize-none"
+                        placeholder="Brief description..."
                       />
                     </div>
                   </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-3 border-t border-ink/5">
+                  <Button type="submit" variant="primary" size="sm">
+                    {editingItem ? 'Update Item' : 'Create Item'}
+                  </Button>
+                </div>
+              </form>
+            ) : addMode === 'quote' ? (
+              <form onSubmit={handleAddQuote} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Description</label>
+                    <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Quote Text</label>
                     <textarea
-                      value={formData.description}
-                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                      className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent h-[36px] resize-none"
-                      placeholder="Brief description..."
+                      required
+                      value={quoteFormData.text}
+                      onChange={(e) => setQuoteFormData({ ...quoteFormData, text: e.target.value })}
+                      className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent h-[100px] resize-none"
+                      placeholder="Enter the quote..."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Author</label>
+                    <input
+                      type="text"
+                      required
+                      value={quoteFormData.author}
+                      onChange={(e) => setQuoteFormData({ ...quoteFormData, author: e.target.value })}
+                      className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent"
+                      placeholder="Who said it?"
                     />
                   </div>
                 </div>
-              </div>
-              <div className="flex justify-end gap-3 pt-3 border-t border-ink/5">
-                <Button type="submit" variant="primary" size="sm">
-                  {editingItem ? 'Update Item' : 'Create Item'}
-                </Button>
-              </div>
-            </form>
+                <div className="flex justify-end gap-3 pt-3 border-t border-ink/5">
+                  <Button type="submit" variant="primary" size="sm">
+                    Add Quote
+                  </Button>
+                </div>
+              </form>
+            ) : addMode === 'ticker' ? (
+              <form onSubmit={handleAddTickerMessage} className="space-y-4">
+                <div className="max-w-xl">
+                  <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Ticker Message</label>
+                  <input
+                    type="text"
+                    required
+                    value={tickerFormData.text}
+                    onChange={(e) => setTickerFormData({ text: e.target.value })}
+                    className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent"
+                    placeholder="Enter short message for the top ticker..."
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-3 border-t border-ink/5">
+                  <Button type="submit" variant="primary" size="sm">
+                    Add Ticker Message
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleAddTimetableBoard} className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Board Name</label>
+                    <input
+                      type="text"
+                      required
+                      value={boardFormData.name}
+                      onChange={(e) => setBoardFormData({ ...boardFormData, name: e.target.value })}
+                      className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent"
+                      placeholder="e.g. Festplassen"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] uppercase tracking-widest text-ink/40 mb-1.5">Board URL (Entur or Local)</label>
+                    <input
+                      type="text"
+                      required
+                      value={boardFormData.url}
+                      onChange={(e) => setBoardFormData({ ...boardFormData, url: e.target.value })}
+                      className="w-full bg-paper border border-ink/10 rounded-lg p-2.5 text-sm outline-none focus:border-accent"
+                      placeholder="Entur-URL, Avinor-URL eller /fly-bergen"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-3 pt-3 border-t border-ink/5">
+                  <Button type="submit" variant="primary" size="sm">
+                    Add Timetable
+                  </Button>
+                </div>
+              </form>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
 
       <div className={`grid grid-cols-1 lg:grid-cols-2 gap-8 ${isFullscreen ? 'flex-grow min-h-0 overflow-hidden' : ''}`}>
         <div className={`flex flex-col gap-8 ${isFullscreen ? 'overflow-hidden h-full' : 'space-y-8'}`}>
-          <section className={`flex flex-col ${isFullscreen ? 'overflow-hidden flex-grow basis-3/5' : ''}`}>
+          <section className={`flex flex-col ${isFullscreen ? 'hidden' : ''}`}>
             <div className="flex items-center gap-3 mb-6 flex-shrink-0">
-              <CheckSquare className="text-accent" size={20} />
-              <h2 className="text-lg font-serif">{isFullscreen ? 'Tasks' : 'Tasks & Countdowns'}</h2>
+              <TimerIcon className="text-accent" size={20} />
+              <h2 className="text-lg font-serif">Countdowns</h2>
             </div>
-            <div className={`grid grid-cols-1 gap-4 ${isFullscreen ? 'overflow-y-auto pr-2 custom-scrollbar flex-grow' : ''}`}>
-              {items.filter(item => isFullscreen ? item.type === 'task' : true).length === 0 ? (
+            <div className="grid grid-cols-1 gap-4">
+              {items.filter(item => item.type === 'event').length === 0 ? (
                 <div className="p-12 text-center border-2 border-dashed border-ink/5 rounded-2xl">
-                  <p className="text-ink/40 text-xs uppercase tracking-widest">No active items</p>
+                  <p className="text-ink/40 text-xs uppercase tracking-widest">No active countdowns</p>
                 </div>
               ) : (
                 items
-                  .filter(item => isFullscreen ? item.type === 'task' : true)
+                  .filter(item => item.type === 'event')
                   .map((item) => (
                   <motion.div
                     key={item.id}
@@ -488,16 +887,7 @@ export default function SampolDashboard() {
                     <div className="flex justify-between items-start gap-6">
                       <div className="flex-grow">
                         <div className="flex items-center gap-3 mb-2">
-                          <span 
-                            className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest"
-                            style={{ 
-                              backgroundColor: item.color ? `${item.color}10` : (item.type === 'event' ? '#3b82f610' : '#f9731610'),
-                              color: item.color || (item.type === 'event' ? '#3b82f6' : '#f97316')
-                            }}
-                          >
-                            {item.type}
-                          </span>
-                          <h3 className={`font-medium ${item.completed ? 'line-through opacity-50' : ''}`}>
+                          <h3 className={`font-medium ${item.completed ? 'opacity-50' : ''}`}>
                             {item.title}
                           </h3>
                         </div>
@@ -510,31 +900,33 @@ export default function SampolDashboard() {
                           </div>
                         )}
                       </div>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => toggleComplete(item.id, item.completed)}
-                          className={item.completed ? 'text-green-500' : 'text-ink/30'}
-                        >
-                          <CheckSquare size={18} />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => startEditing(item)}
-                        >
-                          <Edit2 size={16} className="text-ink/30 hover:text-accent" />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => deleteItem(item.id)}
-                          className="text-red-500/50 hover:text-red-500"
-                        >
-                          <Trash2 size={18} />
-                        </Button>
-                      </div>
+                      {isAdmin && (
+                        <div className="flex items-center gap-2">
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => toggleComplete(item.id, item.completed)}
+                            className={item.completed ? 'text-green-500' : 'text-ink/30'}
+                          >
+                            <CheckSquare size={18} />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => startEditing(item)}
+                          >
+                            <Edit2 size={16} className="text-ink/30 hover:text-accent" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => deleteItem(item.id)}
+                            className="text-red-500/50 hover:text-red-500"
+                          >
+                            <Trash2 size={18} />
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   </motion.div>
                 ))
@@ -542,7 +934,7 @@ export default function SampolDashboard() {
             </div>
           </section>
 
-          <div className={`${isFullscreen ? 'flex flex-col gap-4 basis-2/2 min-h-0' : 'grid grid-cols-1 gap-8'} flex-shrink-0`}>
+          <div className={`${isFullscreen ? 'flex flex-col gap-4 flex-grow min-h-0 overflow-hidden' : 'grid grid-cols-1 gap-8'}`}>
             {isFullscreen ? (
               <>
                 <div className="grid grid-cols-3 gap-4 flex-shrink-0">
@@ -556,7 +948,7 @@ export default function SampolDashboard() {
                         </div>
                         <div>
                           <h3 className="text-[10px] font-black uppercase tracking-widest text-ink">Bergen</h3>
-                          <p className="text-[8px] text-ink/40 uppercase tracking-tighter">MET.NO Data</p>
+                          <p className="text-[8px] text-ink/40 uppercase tracking-tighter">MET.NO data</p>
                         </div>
                       </div>
                       {fetchingWeather && <Loader2 size={14} className="animate-spin text-ink/20" />}
@@ -646,64 +1038,175 @@ export default function SampolDashboard() {
                   </section>
                 </div>
 
-                  <section className="bg-surface p-4 rounded-3xl border border-ink/5 shadow-xl relative overflow-hidden flex flex-col flex-grow min-h-0">
-                    <div className="flex justify-between items-center mb-2 flex-shrink-0">
-                      <div className="flex gap-4">
-                        <button 
-                          onClick={() => setNewsTab('news')}
-                          className={`flex items-center gap-2 pb-1 border-b-2 transition-all ${newsTab === 'news' ? 'border-accent text-accent' : 'border-transparent text-ink/40 hover:text-ink/60'}`}
-                        >
-                          <Newspaper size={14} />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Verden</span>
-                        </button>
-                        <button 
-                          onClick={() => setNewsTab('academic')}
-                          className={`flex items-center gap-2 pb-1 border-b-2 transition-all ${newsTab === 'academic' ? 'border-accent text-accent' : 'border-transparent text-ink/40 hover:text-ink/60'}`}
-                        >
-                          <Book size={14} />
-                          <span className="text-[10px] font-black uppercase tracking-widest">Akademisk</span>
-                        </button>
+                  <div className={`grid grid-cols-2 gap-4 flex-grow min-h-0 h-full`}>
+                    {/* Verden Feed */}
+                    <section className="bg-surface p-4 rounded-3xl border border-ink/5 shadow-xl relative overflow-hidden flex flex-col min-h-0">
+                      <div className="flex justify-between items-center mb-3 flex-shrink-0">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 bg-accent/10 rounded-lg text-accent">
+                            <Newspaper size={14} />
+                          </div>
+                          <h3 className="text-[10px] font-black uppercase tracking-widest text-ink">Verden</h3>
+                        </div>
+                        {fetchingNews && <Loader2 size={12} className="animate-spin text-ink/20" />}
                       </div>
-                      {fetchingNews && <Loader2 size={12} className="animate-spin text-ink/20" />}
-                    </div>
 
-                    <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-grow mt-2">
-                      {(newsTab === 'news' ? news : academicNews).length > 0 ? (
-                        (newsTab === 'news' ? news : academicNews).map((item, index) => (
-                          <motion.a
-                            key={index}
-                            href={item.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="block group"
-                          >
-                            <div className="flex justify-between items-start gap-4">
-                              <div className="space-y-1 flex-grow">
-                                <h4 className="text-[11px] font-medium leading-tight text-ink group-hover:text-accent transition-colors line-clamp-2">
-                                  {item.title}
-                                </h4>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-[8px] font-black tracking-widest uppercase text-ink/40">
-                                    {item.source}
-                                  </span>
-                                  <div className="w-1 h-1 bg-ink/10 rounded-full" />
-                                  <p className="text-[9px] text-ink/40 uppercase tracking-tighter font-mono">
-                                    {new Date(item.pubDate).toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' })}
-                                  </p>
+                      <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-grow">
+                        {news.length > 0 ? (
+                          news.map((item, index) => (
+                            <motion.a
+                              key={`news-${index}`}
+                              href={item.link}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="block group"
+                            >
+                              <div className="flex justify-between items-start gap-4">
+                                <div className="space-y-1 flex-grow">
+                                  <h4 className="text-[11px] font-medium leading-tight text-ink group-hover:text-accent transition-colors line-clamp-2">
+                                    {item.title}
+                                  </h4>
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-[8px] font-black tracking-widest uppercase text-ink/40">
+                                      {item.source}
+                                    </span>
+                                    <div className="w-1 h-1 bg-ink/10 rounded-full" />
+                                    <p className="text-[9px] text-ink/40 uppercase tracking-tighter font-mono">
+                                      {new Date(item.pubDate).toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                  </div>
                                 </div>
                               </div>
+                              {index < news.length - 1 && <div className="h-px bg-ink/5 mt-3" />}
+                            </motion.a>
+                          ))
+                        ) : (
+                          <div className="h-full flex flex-col items-center justify-center opacity-20 py-4 text-center">
+                            <Newspaper size={24} />
+                            <p className="text-[9px] uppercase tracking-widest font-black mt-2">
+                              {fetchingNews ? 'Laster...' : 'Ingen nyheter'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </section>
+
+                    {/* Akademisk & Sitater Feed */}
+                    <div className="flex flex-col gap-4 min-h-0 h-full overflow-hidden">
+                      <section className="bg-surface p-4 rounded-3xl border border-ink/5 shadow-xl relative overflow-hidden flex flex-col flex-[1.5] min-h-0">
+                        <div className="flex justify-between items-center mb-3 flex-shrink-0">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-accent/10 rounded-lg text-accent">
+                              <Book size={14} />
                             </div>
-                            {index < (newsTab === 'news' ? news : academicNews).length - 1 && <div className="h-px bg-ink/5 mt-3" />}
-                          </motion.a>
-                        ))
-                      ) : (
-                        <div className="h-full flex flex-col items-center justify-center opacity-20 py-4">
-                          <Newspaper size={24} />
-                          <p className="text-[9px] uppercase tracking-widest font-black mt-2">Laster...</p>
+                            <h3 className="text-[10px] font-black uppercase tracking-widest text-ink">Akademisk</h3>
+                          </div>
                         </div>
-                      )}
+
+                        <div className="space-y-3 overflow-y-auto pr-2 custom-scrollbar flex-grow">
+                          {academicNews.length > 0 ? (
+                            academicNews.map((item, index) => (
+                              <motion.a
+                                key={`academic-${index}`}
+                                href={item.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="block group"
+                              >
+                                <div className="flex justify-between items-start gap-4">
+                                  <div className="space-y-1 flex-grow">
+                                    <h4 className="text-[11px] font-medium leading-tight text-ink group-hover:text-accent transition-colors line-clamp-2">
+                                      {item.title}
+                                    </h4>
+                                    <div className="flex items-center gap-2">
+                                      <span className="text-[8px] font-black tracking-widest uppercase text-ink/40">
+                                        {item.source}
+                                      </span>
+                                      <div className="w-1 h-1 bg-ink/10 rounded-full" />
+                                      <p className="text-[9px] text-ink/40 uppercase tracking-tighter font-mono">
+                                        {new Date(item.pubDate).toLocaleDateString('no-NO', { day: 'numeric', month: 'short' })} • {new Date(item.pubDate).toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                                {index < academicNews.length - 1 && <div className="h-px bg-ink/5 mt-3" />}
+                              </motion.a>
+                            ))
+                          ) : (
+                            <div className="h-full flex flex-col items-center justify-center opacity-20 py-4 text-center">
+                              <Book size={24} />
+                              <p className="text-[9px] uppercase tracking-widest font-black mt-2">
+                                {fetchingNews ? 'Laster...' : 'Ingen nyheter'}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </section>
+
+                      {/* Siterte Sitater Widget */}
+                      <section className="bg-surface p-4 rounded-3xl border border-ink/5 shadow-xl relative overflow-hidden flex flex-col flex-1 min-h-0">
+                        <div className="flex justify-between items-center mb-3 flex-shrink-0">
+                          <div className="flex items-center gap-2">
+                            <div className="p-1.5 bg-accent/10 rounded-lg text-accent">
+                              <Edit2 size={14} />
+                            </div>
+                            <h3 className="text-[10px] font-black uppercase tracking-widest text-ink">Siterte Sitater</h3>
+                          </div>
+                        </div>
+
+                        <div className="flex-grow relative">
+                          {quotes.length > 0 ? (
+                            <div className="h-full relative overflow-hidden">
+                              <AnimatePresence mode="wait">
+                                <motion.div
+                                  key={quotes[activeQuoteIndex]?.id || 'empty'}
+                                  initial={{ opacity: 0, x: 20 }}
+                                  animate={{ opacity: 1, x: 0 }}
+                                  exit={{ opacity: 0, x: -20 }}
+                                  transition={{ duration: 0.5, ease: "easeInOut" }}
+                                  className="absolute inset-0 flex flex-col justify-center"
+                                >
+                                  <p className="text-[18px] md:text-[24px] font-serif italic text-ink leading-relaxed mb-4 text-center px-4">
+                                    "{quotes[activeQuoteIndex]?.text}"
+                                  </p>
+                                  <div className="flex justify-center items-center">
+                                    <p className="text-[10px] md:text-[12px] font-black uppercase tracking-[0.2em] text-accent">
+                                      — {quotes[activeQuoteIndex]?.author}
+                                    </p>
+                                  </div>
+                                </motion.div>
+                              </AnimatePresence>
+
+                              {!isFullscreen && isAdmin && (
+                                <button 
+                                  onClick={() => deleteQuote(quotes[activeQuoteIndex].id)}
+                                  className="absolute bottom-0 right-0 p-2 text-red-500/30 hover:text-red-500 transition-colors"
+                                  title="Slett sitat"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              )}
+                              
+                              <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-1.5 pb-2">
+                                {quotes.map((_, idx) => (
+                                  <div 
+                                    key={idx}
+                                    className={`w-1 h-1 rounded-full transition-all duration-500 ${
+                                      idx === activeQuoteIndex ? 'bg-accent w-3' : 'bg-ink/10'
+                                    }`}
+                                  />
+                                ))}
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="h-full flex flex-col items-center justify-center opacity-20 py-2">
+                              <p className="text-[8px] font-black uppercase tracking-widest">Ingen sitater</p>
+                            </div>
+                          )}
+                        </div>
+                      </section>
                     </div>
-                  </section>
+                  </div>
                 </>
               ) : (
 
@@ -717,7 +1220,7 @@ export default function SampolDashboard() {
                       </div>
                       <div>
                         <h3 className="text-sm font-black uppercase tracking-widest text-ink">Bergen</h3>
-                        <p className="text-[10px] text-ink/40 uppercase tracking-tighter">MET.NO Data</p>
+                        <p className="text-[10px] text-ink/40 uppercase tracking-tighter">MET.NO data</p>
                       </div>
                     </div>
                     {fetchingWeather && <Loader2 size={16} className="animate-spin text-ink/20" />}
@@ -739,13 +1242,13 @@ export default function SampolDashboard() {
                            weather.symbol.includes('sun') || weather.symbol.includes('clear') ? <Sun className="text-orange-500" size={40} /> : 
                            <Cloud className="text-ink/60" size={40} />}
                         </div>
-                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40 text-ink">{weather.condition.replace(/_/g, ' ')}</p>
+                        <p className="text-[10px] font-black uppercase tracking-widest opacity-40 text-ink">{translateWeatherCondition(weather.condition)}</p>
                       </div>
                     </div>
                   ) : (
                     <div className="py-12 flex flex-col items-center gap-2 text-ink/20">
                       <Cloud size={32} />
-                      <p className="text-[9px] uppercase tracking-widest font-black">Connecting...</p>
+                      <p className="text-[9px] uppercase tracking-widest font-black">Laster...</p>
                     </div>
                   )}
                 </section>
@@ -801,6 +1304,7 @@ export default function SampolDashboard() {
                                 </span>
                                 <div className="w-1 h-1 bg-ink/10 rounded-full" />
                                 <p className="text-[10px] text-ink/40 uppercase tracking-tighter">
+                                  {newsTab === 'academic' && `${new Date(item.pubDate).toLocaleDateString('no-NO', { day: 'numeric', month: 'short' })} • `}
                                   {new Date(item.pubDate).toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit' })}
                                 </p>
                               </div>
@@ -811,9 +1315,48 @@ export default function SampolDashboard() {
                         </motion.a>
                       ))
                     ) : (
-                      <div className="py-12 flex flex-col items-center gap-2 text-ink/20">
-                        <Newspaper size={32} />
-                        <p className="text-[9px] uppercase tracking-widest font-black">Laster...</p>
+                      <div className="py-12 flex flex-col items-center gap-2 text-ink/20 text-center">
+                        {newsTab === 'news' ? <Newspaper size={32} /> : <Book size={32} />}
+                        <p className="text-[9px] uppercase tracking-widest font-black mt-2">
+                          {fetchingNews ? 'Laster...' : 'Ingen nyheter'}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </section>
+
+                <section className="bg-surface p-8 rounded-3xl border border-ink/5 shadow-xl relative overflow-hidden flex flex-col">
+                  <div className="flex items-center gap-2 mb-6">
+                    <div className="p-2 bg-accent/10 rounded-xl text-accent">
+                      <Edit2 size={24} />
+                    </div>
+                    <h3 className="text-sm font-black uppercase tracking-widest text-ink">Siterte Sitater</h3>
+                  </div>
+
+                  <div className="space-y-6 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                    {quotes.length > 0 ? (
+                      quotes.map((quote, idx) => (
+                        <div key={quote.id} className="relative group p-4 bg-paper/30 rounded-2xl border border-ink/5 transition-all hover:border-accent/20">
+                          <p className="text-base font-serif italic text-ink leading-relaxed">
+                            "{quote.text}"
+                          </p>
+                          <div className="flex justify-between items-center mt-3">
+                            <p className="text-xs font-black uppercase tracking-widest text-accent">— {quote.author}</p>
+                            {isAdmin && (
+                              <button 
+                                onClick={() => deleteQuote(quote.id)}
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-red-500/30 hover:text-red-500"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-12 flex flex-col items-center gap-2 text-ink/20 text-center">
+                        <Edit2 size={32} />
+                        <p className="text-[9px] uppercase tracking-widest font-black mt-2">Ingen sitater lagt til</p>
                       </div>
                     )}
                   </div>
@@ -825,33 +1368,108 @@ export default function SampolDashboard() {
 
         <div className={`space-y-8 flex flex-col ${isFullscreen ? 'overflow-hidden h-full' : ''}`}>
           <section className={`bg-surface rounded-3xl border border-ink/5 shadow-sm relative overflow-hidden flex flex-col ${isFullscreen ? 'flex-grow' : 'h-[950px]'}`}>
-            <div className="p-4 border-b border-ink/5 bg-paper/50 backdrop-blur-sm z-10 flex-shrink-0">
-              <div className="flex justify-between items-center mb-1">
-                <div className="flex items-center gap-2">
-                  <TrainFront size={14} className="text-accent" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-ink">SAMPOL Tavle</h3>
-                </div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-ink/30 italic">
-                  Sist oppdatert: {Math.max(0, Math.floor((now.getTime() - lastTimetableUpdate.getTime()) / 1000))}s siden
-                </span>
-              </div>
-              <p className="text-[9px] text-ink/40 uppercase tracking-tighter">Henter data fra Skyss via Entur</p>
-            </div>
             <div className="flex-grow relative overflow-hidden bg-black">
-              <iframe 
-                key={timetableKey}
-                src="https://vis-tavla.entur.no/w5GeFGIYRvVgbPD1ci1v" 
-                className="absolute border-none"
-                style={{ 
-                  top: '-45px',
-                  left: '-25px',
-                  width: 'calc(100% + 50px)',
-                  height: 'calc(100% + 100px)',
-                  pointerEvents: 'auto'
-                }}
-                title="Entur Departure Board"
-              />
+              {timetableBoards.length > 0 ? (
+                timetableBoards.map((board, idx) => (
+                  <motion.div
+                    key={board.id}
+                    initial={false}
+                    animate={{ 
+                      opacity: idx === activeBoardIndex ? 1 : 0,
+                      zIndex: idx === activeBoardIndex ? 10 : 0
+                    }}
+                    transition={{ duration: 1 }}
+                    className="absolute inset-0"
+                    style={{ 
+                      pointerEvents: idx === activeBoardIndex ? 'auto' : 'none'
+                    }}
+                  >
+                    <iframe 
+                      src={getIframeUrl(board.url)} 
+                      className="absolute inset-0 w-full h-full border-none"
+                      style={{ 
+                        pointerEvents: 'auto',
+                        filter: isDark && !board.url.includes('theme=dark') && !board.url.startsWith('/') && !board.url.includes('Fly.html') && !board.url.includes('fly-bergen') ? 'invert(0.9) hue-rotate(180deg) brightness(1.1)' : 'none'
+                      }}
+                      title={board.name}
+                    />
+                  </motion.div>
+                ))
+              ) : (
+                <div className="absolute inset-0 flex flex-col items-center justify-center text-ink/20 p-12 text-center">
+                  <TrainFront size={48} />
+                  <p className="mt-4 text-xs font-black uppercase tracking-widest">Ingen rutetabeller lagt til</p>
+                  {isAdmin && <p className="mt-2 text-[10px] opacity-60">Klikk "Add Timetable" for å legge til en Entur-tavle eller lokal fil</p>}
+                </div>
+              )}
             </div>
+
+            {/* Carousel Navigation & Board Info */}
+            {timetableBoards.length > 0 && (
+              <div className={`absolute ${isFullscreen ? 'bottom-0 left-0 right-0 px-0' : 'bottom-1 left-1 right-1 px-1'} flex flex-col items-center pointer-events-none z-20`}>
+                <div className={`${isDark ? 'bg-[#242426]' : 'bg-[#f6f6f9]'} backdrop-blur-md ${isFullscreen ? 'w-full rounded-none' : 'w-[594px] rounded-2xl'} h-[42px] px-6 border border-white/10 pointer-events-auto flex items-center justify-between gap-4 shadow-2xl group/nav ${isDark ? 'text-[#dadeff]' : 'text-[#181c56]'}`}>
+                  {timetableBoards.length > 1 ? (
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveBoardIndex((prev) => (prev - 1 + timetableBoards.length) % timetableBoards.length);
+                        setBoardTimer(15);
+                      }}
+                      className={`p-2 ${isDark ? 'text-[#dadeff]/40 hover:text-[#dadeff] hover:bg-white/5' : 'text-[#181c56]/40 hover:text-[#181c56] hover:bg-[#181c56]/5'} rounded-full transition-colors`}
+                      title="Forrige tavle"
+                    >
+                      <ChevronLeft size={20} />
+                    </button>
+                  ) : <div className="w-10" />}
+
+                  <div className="flex flex-col items-center flex-grow">
+                    <p className={`text-[11px] font-black uppercase tracking-[0.1em] leading-none ${isDark ? 'text-[#dadeff]' : 'text-[#181c56]'} mb-1`}>
+                      {timetableBoards[activeBoardIndex]?.name} <span className="opacity-40 mx-2">•</span> <span className="opacity-70">Neste: {timetableBoards[(activeBoardIndex + 1) % timetableBoards.length]?.name} om {boardTimer}s</span>
+                    </p>
+                    {timetableBoards.length > 1 && (
+                      <div className="flex gap-1.5 items-center">
+                        {timetableBoards.map((_, idx) => (
+                          <div 
+                            key={idx}
+                            className={`h-1 rounded-full transition-all duration-300 ${
+                              idx === activeBoardIndex 
+                                ? (isDark ? 'bg-[#dadeff] w-3' : 'bg-[#181c56] w-3') 
+                                : (isDark ? 'bg-[#dadeff]/20 w-1.5' : 'bg-[#181c56]/20 w-1.5')
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {timetableBoards.length > 1 && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveBoardIndex((prev) => (prev + 1) % timetableBoards.length);
+                          setBoardTimer(15);
+                        }}
+                        className={`p-2 ${isDark ? 'text-[#dadeff]/40 hover:text-[#dadeff] hover:bg-white/5' : 'text-[#181c56]/40 hover:text-[#181c56] hover:bg-[#181c56]/5'} rounded-full transition-colors`}
+                        title="Neste tavle"
+                      >
+                        <ChevronRight size={20} />
+                      </button>
+                    )}
+
+                    {isAdmin && (
+                      <button 
+                        onClick={(e) => deleteTimetableBoard(timetableBoards[activeBoardIndex].id, e)}
+                        className={`p-2 ${isDark ? 'text-[#dadeff]/20 hover:text-red-500' : 'text-[#181c56]/20 hover:text-red-500'} transition-colors ml-2 border-l ${isDark ? 'border-[#dadeff]/10' : 'border-[#181c56]/10'}`}
+                        title="Slett denne tavlen"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </section>
         </div>
       </div>

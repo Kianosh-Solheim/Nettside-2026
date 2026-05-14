@@ -1,9 +1,16 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    
+    // Global safety net (Default Deny)
+    match /{document=**} {
+      allow read, write: if false;
+    }
 
-    // ===============================================================
-    // Assumed Data Model
+    match /airline_logos/{airlineCode} {
+      allow get, list: if true;
+      allow write: if isAdmin() && isValidAirlineLogo(request.resource.data);
+    }
     // ===============================================================
     //
     // Collection: recommendations
@@ -76,6 +83,7 @@ service cloud.firestore {
       return isAuthenticated() &&
         ((request.auth.token.email == "kianoshsolheim@gmail.com" && request.auth.token.email_verified == true) ||
          (request.auth.token.email == "kianosh@solheim.online" && request.auth.token.email_verified == true) ||
+         request.auth.uid == "ecr5aqINrYT4BQXKY84fgwPe2Yh2" ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));
     }
@@ -283,11 +291,105 @@ service cloud.firestore {
              data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
              data.type in ['task', 'event'] &&
              (data.targetDate is string || data.targetDate is timestamp) &&
-             (!('startDate' in data) || (data.startDate is string || data.startDate is timestamp)) &&
-             (!('color' in data) || (data.color is string && data.color.size() < 50)) &&
-             (!('description' in data) || (data.description is string && data.description.size() < 2000)) &&
+             (!('startDate' in data) || data.startDate == null || data.startDate is string || data.startDate is timestamp) &&
+             (!('color' in data) || data.color == null || (data.color is string && data.color.size() < 50)) &&
+             (!('description' in data) || data.description == null || (data.description is string && data.description.size() < 2000)) &&
              (!('completed' in data) || data.completed is bool) &&
              (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+    
+    function isValidQuote(data) {
+      return data.keys().hasAll(['text', 'author']) &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 2000 &&
+             data.author is string && data.author.size() > 0 && data.author.size() < 200 &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+    
+    function isValidTickerMessage(data) {
+      return data.keys().hasAll(['text']) &&
+             data.text is string && data.text.size() > 0 && data.text.size() < 500 &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    function isValidTimetableBoard(data) {
+      return data.keys().hasAll(['url', 'name', 'order']) &&
+             isValidUrl(data.url) &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 200 &&
+             data.order is number &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    function isValidAirlineLogo(data) {
+      return data.keys().hasAll(['airlineCode', 'logoData']) &&
+             data.airlineCode is string && data.airlineCode.size() > 0 && data.airlineCode.size() < 10 &&
+             data.logoData is string && data.logoData.size() > 0 && data.logoData.size() < 50000 &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidExpense(data) {
+      return data.keys().hasAll(['title', 'amount', 'category', 'date', 'recurring']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
+             data.amount is number &&
+             data.category in ["Membership Fee", "Rent", "Power", "Transport", "Debt", "Other"] &&
+             data.recurring in ["One-time", "Weekly", "Monthly", "6 Monthly", "Yearly"] &&
+             data.date is string &&
+             (!('status' in data) || data.status in ["unpaid", "paid"]) &&
+             (!('description' in data) || data.description is string) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    function isValidIncome(data) {
+      return data.keys().hasAll(['title', 'amount', 'date', 'type']) &&
+             data.title is string && data.title.size() > 0 &&
+             data.amount is number &&
+             data.date is string &&
+             data.type in ["Salary", "Dividend", "Side Hustle", "Other"] &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    function isValidMembership(data) {
+      return data.keys().hasAll(['name', 'frequency', 'status']) &&
+             data.name is string && data.name.size() > 0 &&
+             (!('cost' in data) || data.cost is number) &&
+             data.frequency in ["Monthly", "Quarterly", "Yearly", "One-time"] &&
+             data.status in ["Active", "Inactive", "Cancelled"] &&
+             (!('category' in data) || data.category is string) &&
+             (!('currency' in data) || data.currency is string) &&
+             (!('startDate' in data) || data.startDate is string) &&
+             (!('nextRenewalDate' in data) || data.nextRenewalDate is string) &&
+             (!('organization' in data) || data.organization is string) &&
+             (!('memberNumber' in data) || data.memberNumber is string) &&
+             (!('localBranch' in data) || data.localBranch is string) &&
+             (!('logoUrl' in data) || data.logoUrl is string) &&
+             (!('contactEmail' in data) || data.contactEmail is string) &&
+             (!('website' in data) || data.website is string) &&
+             (!('description' in data) || data.description is string) &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
+    function isValidMembershipRole(data) {
+      return data.keys().hasAll(['title', 'startDate']) &&
+             data.title is string && data.title.size() > 0 &&
+             data.startDate is string &&
+             (!('endDate' in data) || data.endDate == null || data.endDate is string) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    function isValidMembershipPayment(data) {
+      return data.keys().hasAll(['membershipId', 'amount', 'date']) &&
+             data.membershipId is string &&
+             data.amount is number &&
+             data.date is string &&
+             (!('notes' in data) || data.notes is string) &&
+             (!('createdAt' in data) || data.createdAt is timestamp);
+    }
+
+    function isValidBudget(data) {
+      return data.keys().hasAll(['category', 'amount']) &&
+             data.category in ["Membership Fee", "Rent", "Power", "Transport", "Debt", "Other"] &&
+             data.amount is number &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
     function isValidBook(data) {
@@ -398,9 +500,28 @@ service cloud.firestore {
     }
 
     match /sampol_dashboard_items/{itemId} {
-      allow read: if isAuthenticated();
-      allow create, update: if isAuthenticated() && isValidDashboardItem(request.resource.data);
-      allow delete: if isAuthenticated();
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidDashboardItem(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /quotes/{quoteId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidQuote(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /ticker_messages/{messageId} {
+      allow read: if true;
+      allow create, update: if isAdmin() && isValidTickerMessage(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /timetable_boards/{boardId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidTimetableBoard(request.resource.data);
+      allow update: if isAdmin() && isValidTimetableBoard(request.resource.data);
+      allow delete: if isAdmin();
     }
 
     match /recommendations/{recommendationId} {
@@ -412,8 +533,8 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow read: if isOwner(userId) || isAdmin() || 
-                    resource.data.role == 'admin' || 
-                    resource.data.email in ["kianoshsolheim@gmail.com", "kianosh@solheim.online"];
+                    (resource.data != null && (resource.data.role == 'admin' || 
+                     resource.data.email in ["kianoshsolheim@gmail.com", "kianosh@solheim.online"]));
       allow create: if isAuthenticated() && isOwner(userId) && isValidUser(request.resource.data) && 
                       request.resource.data.role == 'client' && request.resource.data.approved == false;
       allow update: if isAuthenticated() && (
@@ -463,9 +584,40 @@ service cloud.firestore {
       allow write: if isAdmin() && isValidConfig(request.resource.data);
     }
 
-    // Default deny
-    match /{path=**} {
-      allow read, write: if false;
+    match /expenses/{expenseId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidExpense(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /budgets/{budgetId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidBudget(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /incomes/{incomeId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidIncome(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /memberships/{membershipId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidMembership(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /membership_payments/{paymentId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidMembershipPayment(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /memberships/{membershipId}/roles/{roleId} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && isValidMembershipRole(request.resource.data);
+      allow delete: if isAdmin();
     }
   }
 }

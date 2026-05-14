@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
 import { Calendar } from 'lucide-react';
 import { useContext } from 'react';
-import { ThemeContext } from '../App';
+import { ThemeContext } from '../contexts/ThemeContext';
 
 export default function Availability() {
   const { theme } = useContext(ThemeContext);

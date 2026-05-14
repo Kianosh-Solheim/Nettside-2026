@@ -65,34 +65,152 @@ async function startServer() {
 
   app.get("/api/rss", async (req, res) => {
     try {
-      const [nrkFeed, bbcFeed, sampolFeed, uibFeed, chathamFeed] = await Promise.all([
-        parser.parseURL("https://www.nrk.no/nyheter/siste.rss"),
-        parser.parseURL("https://feeds.bbci.co.uk/news/rss.xml"),
-        parser.parseURL("https://bsky.app/profile/sampol.bsky.social/rss"),
-        parser.parseURL("https://bsky.app/profile/did:plc:3jxcojdw76kvrvajuwclbg2l/rss"),
-        parser.parseURL("https://bsky.app/profile/did:plc:mxrblrevl3divnsgg47t7r7n/rss")
-      ]);
+      const urls = [
+        { url: "https://www.nrk.no/nyheter/siste.rss", name: 'NRK' },
+        { url: "https://feeds.bbci.co.uk/news/world/rss.xml", name: 'BBC World' },
+        { url: "https://bsky.app/profile/did:plc:3jxcojdw76kvrvajuwclbg2l/rss", name: 'UiB Sampol' }
+      ];
 
-      // Tag items with source
-      const nrkItems = (nrkFeed.items || []).map(item => ({ ...item, source: 'NRK', logo: 'https://www.nrk.no/serum/latest/media/nrk-logo-vit-pa-svart.png' }));
-      const bbcItems = (bbcFeed.items || []).map(item => ({ ...item, source: 'BBC', logo: 'https://nav.files.bbci.co.uk/orbit/2.0.0-rc.30/img/blq-orbit-blocks_grey.svg' }));
+      const feedResults = await Promise.allSettled(urls.map(u => parser.parseURL(u.url)));
       
-      const sampolItems = (sampolFeed.items || []).map(item => ({ ...item, source: 'Sampol', logo: 'https://bsky.app/static/apple-touch-icon.png' }));
-      const uibItems = (uibFeed.items || []).map(item => ({ ...item, source: 'UiB Sampol', logo: 'https://bsky.app/static/apple-touch-icon.png' }));
-      const chathamItems = (chathamFeed.items || []).map(item => ({ ...item, source: 'Chatham House', logo: 'https://bsky.app/static/apple-touch-icon.png' }));
+      const allItems: any[] = [];
+      
+      feedResults.forEach((result, index) => {
+        const sourceName = urls[index].name;
+        if (result.status === 'fulfilled') {
+          const feed = result.value;
+          const items = (feed.items || []).map(item => ({
+            ...item,
+            source: sourceName,
+            title: item.title || item.contentSnippet || item.content || 'Uten tittel',
+            logo: sourceName.includes('NRK') ? 'https://www.nrk.no/serum/latest/media/nrk-logo-vit-pa-svart.png' :
+                  sourceName.includes('BBC') ? 'https://nav.files.bbci.co.uk/orbit/2.0.0-rc.30/img/blq-orbit-blocks_grey.svg' :
+                  'https://bsky.app/static/apple-touch-icon.png'
+          }));
+          allItems.push(...items);
+        } else {
+          console.error(`Failed to fetch ${sourceName}:`, result.reason);
+        }
+      });
 
       const sortByDate = (a: any, b: any) => new Date(b.pubDate).getTime() - new Date(a.pubDate).getTime();
 
-      const generalNews = [...nrkItems, ...bbcItems].sort(sortByDate);
-      const academicUpdates = [...sampolItems, ...uibItems, ...chathamItems].sort(sortByDate);
+      const generalNews = allItems.filter(i => i.source === 'NRK' || i.source === 'BBC World').sort(sortByDate);
+      const academicUpdates = allItems.filter(i => i.source === 'UiB Sampol').sort(sortByDate);
 
       res.json({ 
         news: generalNews.slice(0, 20),
         academic: academicUpdates.slice(0, 30)
       });
     } catch (error) {
-      console.error("RSS fetch error:", error);
-      res.status(500).json({ error: "Failed to fetch RSS feeds" });
+      console.error("RSS route error:", error);
+      res.status(500).json({ error: "Internal server error fetching feeds" });
+    }
+  });
+
+  // Avinor Flight Proxy
+  app.get("/api/flights", async (req, res) => {
+    const { airport, direction } = req.query;
+    if (!airport) return res.status(400).json({ error: "Missing airport parameter" });
+
+    try {
+      // Documentation shows airport and direction are lowercase in the parameter name
+      const url = `https://asrv.avinor.no/XmlFeed/v1.0?airport=${airport}&direction=${direction || 'D'}`;
+      const response = await fetch(url);
+      
+      if (!response.ok) {
+        throw new Error(`Avinor API responded with ${response.status}`);
+      }
+      
+      const buffer = await response.arrayBuffer();
+      const contentType = response.headers.get('content-type') || '';
+      
+      // Avinor API often uses ISO-8859-1 but might not always advertise it correctly
+      // or uses UTF-8. ISO-8859-1 is the most common cause for "Kbenhavn"
+      let charset = 'utf-8';
+      if (contentType.toLowerCase().includes('iso-8859-1')) {
+        charset = 'iso-8859-1';
+      } else {
+        // Look for encoding in the XML prologue if possible
+        const head = new TextDecoder('ascii').decode(buffer.slice(0, 500));
+        if (head.toLowerCase().includes('encoding="iso-8859-1"')) {
+          charset = 'iso-8859-1';
+        }
+      }
+      
+      const decoder = new TextDecoder(charset);
+      const xml = decoder.decode(buffer);
+      
+      res.set('Content-Type', 'text/xml; charset=utf-8');
+      res.send(xml);
+    } catch (error) {
+      console.error("Flight proxy error:", error);
+      res.status(500).json({ error: "Failed to fetch flight data" });
+    }
+  });
+
+  // Metadata Caches
+  let airportNamesCache = { data: null, timestamp: 0 };
+  let airlineNamesCache = { data: null, timestamp: 0 };
+  const CACHE_DURATION = 24 * 60 * 60 * 1000; // 24 hours
+
+  app.get("/api/flights/airports", async (req, res) => {
+    const now = Date.now();
+    if (airportNamesCache.data && (now - airportNamesCache.timestamp < CACHE_DURATION)) {
+      res.set('Content-Type', 'text/xml');
+      return res.send(airportNamesCache.data);
+    }
+
+    try {
+      const response = await fetch('https://asrv.avinor.no/airportNames/v1.0');
+      const buffer = await response.arrayBuffer();
+      const contentType = response.headers.get('content-type') || '';
+      let charset = 'utf-8';
+      if (contentType.toLowerCase().includes('iso-8859-1')) {
+        charset = 'iso-8859-1';
+      } else {
+        const head = new TextDecoder('ascii').decode(buffer.slice(0, 500));
+        if (head.toLowerCase().includes('encoding="iso-8859-1"')) {
+          charset = 'iso-8859-1';
+        }
+      }
+      const decoder = new TextDecoder(charset);
+      const xml = decoder.decode(buffer);
+      airportNamesCache = { data: xml as any, timestamp: now };
+      res.set('Content-Type', 'text/xml; charset=utf-8');
+      res.send(xml);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch airport names" });
+    }
+  });
+
+  app.get("/api/flights/airlines", async (req, res) => {
+    const now = Date.now();
+    if (airlineNamesCache.data && (now - airlineNamesCache.timestamp < CACHE_DURATION)) {
+      res.set('Content-Type', 'text/xml');
+      return res.send(airlineNamesCache.data);
+    }
+
+    try {
+      const response = await fetch('https://asrv.avinor.no/airlineNames/v1.0');
+      const buffer = await response.arrayBuffer();
+      const contentType = response.headers.get('content-type') || '';
+      let charset = 'utf-8';
+      if (contentType.toLowerCase().includes('iso-8859-1')) {
+        charset = 'iso-8859-1';
+      } else {
+        const head = new TextDecoder('ascii').decode(buffer.slice(0, 500));
+        if (head.toLowerCase().includes('encoding="iso-8859-1"')) {
+          charset = 'iso-8859-1';
+        }
+      }
+      const decoder = new TextDecoder(charset);
+      const xml = decoder.decode(buffer);
+      airlineNamesCache = { data: xml as any, timestamp: now };
+      res.set('Content-Type', 'text/xml; charset=utf-8');
+      res.send(xml);
+    } catch (error) {
+      res.status(500).json({ error: "Failed to fetch airline names" });
     }
   });
 
