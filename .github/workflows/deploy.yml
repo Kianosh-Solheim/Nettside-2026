@@ -24,20 +24,17 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
           
       - name: Install dependencies
-        run: npm install
+        run: npm ci
         
       - name: Build
         run: npm run build:client
         env:
+          GITHUB_ACTIONS: 'true'
           VITE_BASE_URL: /Nettside-2026/
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          VITE_YOUTUBE_API_KEY: ${{ secrets.VITE_YOUTUBE_API_KEY }}
-          VITE_GOOGLE_API_KEY: ${{ secrets.VITE_GOOGLE_API_KEY }}
-          VITE_OMDB_API_KEY: ${{ secrets.VITE_OMDB_API_KEY }}
           
       - name: Create 404.html for SPA support
         run: cp dist/index.html dist/404.html
