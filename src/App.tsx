@@ -905,7 +905,7 @@ export default function App() {
       <ThemeContext.Provider value={{ theme, toggleTheme }}>
         <ProfileContext.Provider value={profile}>
           <SocialsContext.Provider value={socials}>
-            <Router basename={import.meta.env.BASE_URL}>
+            <Router basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
               <MainLayout 
                 user={user} 
                 canViewAdminHealth={canViewAdminHealth}
