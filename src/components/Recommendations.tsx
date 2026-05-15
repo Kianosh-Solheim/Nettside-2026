@@ -241,10 +241,6 @@ export default function Recommendations() {
       <div className="mb-16 flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="max-w-2xl">
           <h1 style={{ transform: 'none' }} className="text-5xl md:text-7xl font-serif mb-6 leading-tight">My Library</h1>
-          <p style={{ transform: 'none' }} className="text-lg text-ink/60 font-serif leading-relaxed max-w-2xl">
-            A carefully curated collection of intellectual and artistic works that have provided insight, 
-            inspiration, and context to my studies and worldview.
-          </p>
         </div>
         {isAdmin && (
           <Button
@@ -614,7 +610,6 @@ export default function Recommendations() {
         )}
       </AnimatePresence>
 
-      {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {deleteConfirmation && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
@@ -657,26 +652,7 @@ export default function Recommendations() {
           </div>
         )}
       </AnimatePresence>
-
-      <FooterBanner />
     </div>
-  );
-}
-
-function FooterBanner() {
-  return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true }}
-      className="mt-40 text-center space-y-8 max-w-2xl mx-auto py-20 border-t border-ink/5"
-    >
-      <div className="inline-block p-4 bg-ink/[0.02] border border-ink/5 rounded-3xl mb-4">
-        <Loader2 className="text-accent animate-spin-slow" size={32} />
-      </div>
-      <h3 className="text-3xl font-serif italic text-ink/60">"Reading is a conversation. All books talk. But a good book listens as well."</h3>
-      <p className="text-[10px] uppercase tracking-[0.4em] font-black text-ink/20">— Mark Haddon</p>
-    </motion.div>
   );
 }
 
