@@ -548,7 +548,7 @@ function MovieRow({ title, movies, onSelect }: { title: string, movies: Movie[],
               key={movie.imdbID}
               whileHover={{ scale: 1.05, zIndex: 30 }}
               onClick={() => onSelect(movie.imdbID)}
-              className="relative flex-none w-40 md:w-56 aspect-[2/3] rounded-md overflow-hidden cursor-pointer shadow-lg"
+              className="relative flex-none w-28 sm:w-36 md:w-56 aspect-[2/3] rounded-md overflow-hidden cursor-pointer shadow-lg"
             >
               <img 
                 src={movie.Poster} 

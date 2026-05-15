@@ -1286,7 +1286,7 @@ export default function Admin({ user }: { user: any }) {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-20">
       {/* Confirmation Modal */}
       <AnimatePresence>
         {confirmModal.isOpen && (
@@ -1302,21 +1302,21 @@ export default function Admin({ user }: { user: any }) {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-surface p-8 rounded-3xl shadow-2xl max-w-md w-full border border-ink/5"
+              className="relative bg-surface p-6 sm:p-8 rounded-3xl shadow-2xl max-w-md w-full border border-ink/5"
             >
               <div className="flex items-center space-x-3 text-accent mb-4">
                 <AlertCircle size={24} />
                 <h3 className="text-xl font-serif">{confirmModal.title}</h3>
               </div>
-              <p className="text-ink/60 mb-8 leading-relaxed">
+              <p className="text-sm sm:text-base text-ink/60 mb-8 leading-relaxed">
                 {confirmModal.message}
               </p>
-              <div className="flex space-x-4">
+              <div className="flex flex-col sm:flex-row gap-3 sm:space-x-4">
                 <Button
                   onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
                   variant="outline"
                   size="lg"
-                  className="flex-1 px-6 py-3 border border-ink/10 rounded-full text-[10px] uppercase tracking-widest hover:bg-ink/5 transition-all"
+                  className="w-full sm:flex-1 px-6 py-3 border border-ink/10 rounded-full text-[10px] uppercase tracking-widest hover:bg-ink/5 transition-all"
                   magnetic={true}
                 >
                   Cancel
@@ -1325,7 +1325,7 @@ export default function Admin({ user }: { user: any }) {
                   onClick={confirmModal.onConfirm}
                   variant="primary"
                   size="lg"
-                  className="flex-1 px-6 py-3 bg-red-500 text-white rounded-full text-[10px] uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
+                  className="w-full sm:flex-1 px-6 py-3 bg-red-500 text-white rounded-full text-[10px] uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
                   magnetic={true}
                 >
                   Confirm Delete
@@ -1351,24 +1351,24 @@ export default function Admin({ user }: { user: any }) {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-surface p-8 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-hidden flex flex-col border border-ink/5"
+              className="relative bg-surface p-5 sm:p-8 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-ink/5"
             >
-              <div className="flex items-center justify-between mb-8">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
                 <div className="flex items-center space-x-4">
-                  <div className="p-3 bg-accent/10 rounded-2xl text-accent">
-                    <ImageIcon size={28} />
+                  <div className="p-2 sm:p-3 bg-accent/10 rounded-2xl text-accent">
+                    <ImageIcon size={24} className="sm:w-7 sm:h-7" />
                   </div>
                   <div>
-                    <h3 className="text-2xl font-serif">File Manager</h3>
-                    <p className="text-[10px] uppercase tracking-widest text-ink/40">Select or upload an asset</p>
+                    <h3 className="text-xl sm:text-2xl font-serif leading-tight">File Manager</h3>
+                    <p className="text-[9px] sm:text-[10px] uppercase tracking-widest text-ink/40">Select or upload an asset</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2 sm:space-x-4">
                   <Button
                     variant="primary"
                     size="sm"
                     magnetic={true}
-                    className="relative"
+                    className="relative flex-1 sm:flex-none py-2.5"
                     icon={Upload}
                   >
                     Upload New
@@ -1385,7 +1385,7 @@ export default function Admin({ user }: { user: any }) {
                     size="sm"
                     icon={X}
                     magnetic={true}
-                    className="p-3 hover:bg-ink/5 rounded-full transition-colors"
+                    className="p-2 sm:p-3 hover:bg-ink/5 rounded-full transition-colors"
                   />
                 </div>
               </div>
@@ -1457,20 +1457,41 @@ export default function Admin({ user }: { user: any }) {
       </AnimatePresence>
 
       {/* Header & Tabs */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-16">
-        <div>
-          <motion.p
-            initial={{ opacity: 0, letterSpacing: "0.1em" }}
-            animate={{ opacity: 1, letterSpacing: "0.3em" }}
-            transition={{ duration: 0.8 }}
-            className="text-[10px] uppercase text-accent font-black mb-2"
-          >
-            Control Center
-          </motion.p>
-          <h1 className="text-4xl md:text-5xl font-serif tracking-tight">Admin Dashboard</h1>
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-10 md:mb-16">
+        <div className="text-center lg:text-left">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif tracking-tight">Admin Dashboard</h1>
         </div>
-        <div className="w-full lg:w-auto overflow-x-auto no-scrollbar pb-2 lg:pb-0">
-          <div className="flex bg-ink/[0.03] p-1.5 rounded-2xl border border-ink/5 shadow-inner min-w-max">
+        <div className="w-full lg:w-auto">
+          {/* Mobile Select Menu */}
+          <div className="lg:hidden w-full mb-4">
+            <select
+              value={activeTab}
+              onChange={(e) => setActiveTab(e.target.value as any)}
+              className="w-full bg-ink/[0.03] border border-ink/10 rounded-2xl px-6 py-4 text-[10px] uppercase tracking-widest font-black text-ink outline-none focus:border-accent ring-accent/20 transition-all appearance-none"
+              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.5rem center', backgroundSize: '1.2rem' }}
+            >
+              {[
+                { id: 'recommendations', label: 'Recommendations' },
+                { id: 'cv', label: 'CV Editor' },
+                { id: 'socials', label: 'Socials' },
+                { id: 'files', label: 'Files' },
+                { id: 'messages', label: 'Messages', count: messages.filter(m => !m.read).length },
+                { id: 'meetings', label: 'Meetings', count: allMeetings.filter(m => m.status === 'pending').length },
+                { id: 'expenses', label: 'Expenses' },
+                { id: 'memberships', label: 'Memberships' },
+                { id: 'measured-words', label: 'Measured Words' },
+                { id: 'integrations', label: 'Integrations' },
+                { id: 'users', label: 'Users' }
+              ].map((tab) => (
+                <option key={tab.id} value={tab.id}>
+                  {tab.label} {tab.count ? `(${tab.count})` : ''}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Desktop Tabs */}
+          <div className="hidden lg:flex bg-ink/[0.03] p-1 rounded-2xl border border-ink/5 shadow-inner gap-1">
             {[
               { id: 'recommendations', label: 'Recommendations' },
               { id: 'cv', label: 'CV Editor' },
@@ -1496,9 +1517,9 @@ export default function Admin({ user }: { user: any }) {
                 }`}
                 magnetic={true}
               >
-                {tab.label}
+                <span>{tab.label}</span>
                 {tab.count ? (
-                  <span className="ml-2 bg-accent text-paper px-1.5 py-0.5 rounded-full text-[8px] animate-pulse">
+                  <span className="ml-2 bg-accent text-paper px-2 py-0.5 rounded-full text-[8px] animate-pulse">
                     {tab.count}
                   </span>
                 ) : null}

@@ -17,22 +17,22 @@ export default function Availability() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  const calendarUrl = `https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=Europe%2FBerlin&showPrint=0&showTitle=0&mode=${isMobile ? 'AGENDA' : 'MONTH'}&hl=en_GB&src=a2lhbm9zaHNvbGhlaW1AZ21haWwuY29t&src=ZW4tZ2Iubm9yd2VnaWFuI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t&color=%23f4511e&color=%230b8043`;
+  const calendarUrl = `https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Europe%2FBerlin&showPrint=0&showTitle=0&mode=${isMobile ? 'AGENDA' : 'MONTH'}&hl=en_GB&src=a2lhbm9zaHNvbGhlaW1AZ21haWwuY29t&src=ZW4tZ2Iubm9yd2VnaWFuI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t&color=%23f4511e&color=%230b8043`;
 
   return (
-    <div className="min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8 bg-paper">
+    <div className="min-h-screen pt-16 sm:pt-24 pb-6 sm:pb-12 px-0 sm:px-6 lg:px-8 bg-paper">
       <motion.div
         initial={{ opacity: 0, y: 15 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
         className="max-w-5xl mx-auto"
       >
-        <div className="mb-12 text-center">
+        <div className="mb-8 sm:mb-12 text-center px-4">
           <motion.p
             initial={{ opacity: 0, letterSpacing: "0.1em" }}
             animate={{ opacity: 1, letterSpacing: "0.3em" }}
             transition={{ delay: 0.1, duration: 0.6 }}
-            className="text-[10px] sm:text-xs uppercase text-accent font-black mb-4"
+            className="text-[10px] sm:text-xs uppercase text-accent font-black mb-2 sm:mb-4"
           >
             Schedule & Availability
           </motion.p>
@@ -40,7 +40,7 @@ export default function Availability() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.6 }}
-            className="text-4xl sm:text-5xl font-serif font-medium text-ink mb-4"
+            className="text-3xl sm:text-5xl font-serif font-medium text-ink mb-4"
           >
             Availability
           </motion.h1>
@@ -51,9 +51,9 @@ export default function Availability() {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3, duration: 0.6 }}
-          className="bg-surface rounded-2xl sm:rounded-[48px] border border-ink/5 p-2 sm:p-8 shadow-xl shadow-ink/5 overflow-hidden ring-1 ring-ink/5"
+          className="bg-surface rounded-none sm:rounded-[48px] border-y sm:border border-ink/5 p-0 sm:p-8 shadow-xl shadow-ink/5 overflow-hidden ring-1 ring-ink/5"
         >
-          <div className="h-[600px] sm:h-auto sm:aspect-video w-full rounded-xl sm:rounded-[32px] overflow-hidden bg-ink/[0.02] relative">
+          <div className="h-[75vh] sm:h-auto sm:aspect-video w-full rounded-none sm:rounded-[32px] overflow-hidden bg-ink/[0.02] relative">
             <div className="absolute inset-0 flex items-center justify-center -z-10">
               <div className="flex flex-col items-center gap-4 text-ink/20">
                 <Calendar size={48} className="animate-pulse" />

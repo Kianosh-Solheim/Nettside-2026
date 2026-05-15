@@ -607,39 +607,6 @@ export default function SampolDashboard() {
       ref={dashboardRef}
       className={`transition-all duration-500 ease-in-out ${isFullscreen ? 'fixed inset-0 z-[100] bg-paper p-8 flex flex-col h-screen overflow-hidden' : 'max-w-7xl mx-auto px-4 py-12'}`}
     >
-      {/* Top Ticker Bar */}
-      <div className={`w-full overflow-hidden mb-4 border-b border-ink/5 pb-1`}>
-        {tickerMessages.length > 0 ? (
-          <div className="relative w-full flex items-center h-6">
-            <div className="whitespace-nowrap flex animate-ticker w-max">
-              {[...tickerMessages, ...tickerMessages, ...tickerMessages, ...tickerMessages].map((msg, i) => (
-                <div key={`${msg.id}-${i}`} className="flex items-center gap-4 px-8">
-                  <p className={`uppercase tracking-[0.25em] font-black ${isFullscreen ? 'text-[10px] text-ink/40' : 'text-[9px] text-ink/30'}`}>
-                    {msg.text}
-                  </p>
-                  <div className="w-1.5 h-1.5 rounded-full bg-accent/20" />
-                  {!isFullscreen && isAdmin && (
-                    <button 
-                      onClick={() => deleteTickerMessage(msg.id)}
-                      className="text-red-500/0 group-hover:text-red-500/50 hover:text-red-500 transition-colors"
-                      title="Slett melding"
-                    >
-                      <Trash2 size={10} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div className="w-full text-center">
-            <p className="text-[8px] text-ink/30 uppercase tracking-[0.25em] font-black">
-              SAMPOL Dashboard er en tjeneste laget av Kianosh F. Solheim
-            </p>
-          </div>
-        )}
-      </div>
-
       <div className={`flex flex-col md:flex-row justify-between items-start md:items-end ${isFullscreen ? 'mb-4 justify-center' : 'mb-8'} gap-6 flex-shrink-0`}>
         {!isFullscreen && (
           <div>

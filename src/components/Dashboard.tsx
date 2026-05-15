@@ -253,23 +253,23 @@ export default function Dashboard() {
     return (
       <div className="space-y-2">
         <p className="text-[9px] uppercase tracking-[0.2em] font-black opacity-40">{label}</p>
-        <div className="flex gap-4">
+        <div className="flex flex-wrap gap-4 sm:gap-6">
           {weeks > 0 && (
             <div className="flex flex-col items-center">
-              <span className="text-2xl font-bold">{weeks}</span>
+              <span className="text-xl sm:text-2xl font-bold">{weeks}</span>
               <span className="text-[10px] uppercase tracking-tighter opacity-50">Wks</span>
             </div>
           )}
           <div className="flex flex-col items-center">
-            <span className="text-2xl font-bold">{days}</span>
+            <span className="text-xl sm:text-2xl font-bold">{days}</span>
             <span className="text-[10px] uppercase tracking-tighter opacity-50">Days</span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-2xl font-bold">{hours.toString().padStart(2, '0')}</span>
+            <span className="text-xl sm:text-2xl font-bold">{hours.toString().padStart(2, '0')}</span>
             <span className="text-[10px] uppercase tracking-tighter opacity-50">Hrs</span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-2xl font-bold font-mono">{seconds.toString().padStart(2, '0')}</span>
+            <span className="text-xl sm:text-2xl font-bold font-mono">{seconds.toString().padStart(2, '0')}</span>
             <span className="text-[10px] uppercase tracking-tighter opacity-50">Sec</span>
           </div>
         </div>
@@ -294,17 +294,13 @@ export default function Dashboard() {
   return (
     <div 
       ref={dashboardRef}
-      className={`transition-all duration-500 ease-in-out ${isFullscreen ? 'fixed inset-0 z-[100] bg-paper overflow-auto p-8 md:p-20' : 'max-w-7xl mx-auto px-4 py-20'}`}
+      className={`transition-all duration-500 ease-in-out ${isFullscreen ? 'fixed inset-0 z-[100] bg-paper overflow-auto p-4 sm:p-8 md:p-20' : 'max-w-7xl mx-auto px-4 py-10 md:py-20'}`}
     >
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-12 gap-6">
-        <div>
-          <h1 className="text-4xl font-serif mb-2">Control Center</h1>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <p className="text-ink/60 uppercase text-[10px] tracking-[0.3em] font-black">
-              {now.toLocaleDateString('no-NO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-            </p>
-            <div className="hidden md:block w-1 h-1 bg-ink/20 rounded-full" />
-            <p className="text-4xl font-mono font-black text-accent tracking-tighter">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 md:mb-12 gap-6 text-center md:text-left">
+        <div className="w-full md:w-auto">
+          <h1 className="text-3xl sm:text-4xl font-serif mb-2">Control Center</h1>
+          <div className="flex flex-col md:flex-row items-center md:items-end gap-x-4 gap-y-2">
+            <p className="text-3xl sm:text-4xl font-mono font-black text-accent tracking-tighter">
               {now.toLocaleTimeString('no-NO', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </p>
           </div>
@@ -568,18 +564,18 @@ export default function Dashboard() {
             )}
           </section>
 
-          <section className="bg-surface rounded-3xl border border-ink/5 shadow-sm h-[450px] relative overflow-hidden flex flex-col">
-            <div className="p-4 border-b border-ink/5 bg-paper/50 backdrop-blur-sm z-10">
+          <section className="bg-surface rounded-3xl border border-ink/5 shadow-sm h-[350px] sm:h-[450px] relative overflow-hidden flex flex-col">
+            <div className="p-3 sm:p-4 border-b border-ink/5 bg-paper/50 backdrop-blur-sm z-10">
               <div className="flex justify-between items-center mb-1">
                 <div className="flex items-center gap-2">
                   <TrainFront size={14} className="text-accent" />
-                  <h3 className="text-xs font-black uppercase tracking-widest text-ink">Byparken</h3>
+                  <h3 className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-ink">Byparken</h3>
                 </div>
-                <span className="text-[9px] font-black uppercase tracking-widest text-ink/30 italic">
-                  Sist oppdatert: {Math.max(0, Math.floor((now.getTime() - lastTimetableUpdate.getTime()) / 1000))}s siden
+                <span className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-ink/30 italic">
+                  {Math.max(0, Math.floor((now.getTime() - lastTimetableUpdate.getTime()) / 1000))}s siden
                 </span>
               </div>
-              <p className="text-[9px] text-ink/40 uppercase tracking-tighter">Henter data fra Skyss via Entur</p>
+              <p className="text-[8px] sm:text-[9px] text-ink/40 uppercase tracking-tighter">Skyss via Entur</p>
             </div>
             <div className="flex-grow relative overflow-hidden bg-black">
               <iframe 

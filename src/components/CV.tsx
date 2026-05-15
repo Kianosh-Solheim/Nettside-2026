@@ -62,7 +62,7 @@ export default function CV() {
 
     const timer = setTimeout(() => {
       setLoading(false);
-    }, 800);
+    }, 200);
 
     return () => {
       unsubscribeSections();
@@ -86,8 +86,8 @@ export default function CV() {
       <div key="cv-loader" className="min-h-screen flex flex-col items-center justify-center bg-paper relative overflow-hidden">
         {/* Ambient Background Elements */}
         <div className="absolute inset-0 pointer-events-none">
-          <div className="absolute top-1/4 -left-20 w-80 h-80 bg-accent/5 rounded-full blur-[100px] animate-pulse" />
-          <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-accent/5 rounded-full blur-[100px] animate-pulse" style={{ animationDelay: '1s' }} />
+          <div className="absolute top-1/4 -left-20 w-80 h-80 bg-accent/5 rounded-full blur-[100px] animate-[pulse_1s_infinite]" />
+          <div className="absolute bottom-1/4 -right-20 w-80 h-80 bg-accent/5 rounded-full blur-[100px] animate-[pulse_1s_infinite]" style={{ animationDelay: '0.4s' }} />
         </div>
 
         <motion.div
@@ -141,12 +141,12 @@ export default function CV() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-20 lg:py-32">
         
         {/* Header Section */}
-        <header className="text-center mb-16 md:mb-32 space-y-6 md:space-y-8 min-h-[auto] md:h-[290px] flex flex-col justify-center">
+        <header className="text-center mb-12 sm:mb-16 md:mb-32 space-y-4 sm:space-y-6 md:space-y-8 flex flex-col justify-center">
           <motion.p
             initial={{ opacity: 0, letterSpacing: "0.1em" }}
             animate={{ opacity: 1, letterSpacing: "0.3em" }}
             transition={{ duration: 1 }}
-            className="text-[10px] sm:text-xs uppercase text-accent font-black"
+            className="text-[9px] sm:text-[10px] md:text-xs uppercase text-accent font-black"
           >
             Curriculum Vitae
           </motion.p>
@@ -155,12 +155,12 @@ export default function CV() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            className="space-y-3 sm:space-y-4"
+            className="space-y-2 sm:space-y-4"
           >
-            <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-serif leading-tight tracking-tight px-4">
+            <h1 className="text-2xl sm:text-4xl md:text-6xl lg:text-7xl font-serif leading-tight tracking-tight px-4">
               {profile?.name || 'Kianosh F. Solheim'}
             </h1>
-            <p className="text-[9px] sm:text-[11px] uppercase tracking-[0.2em] text-ink/40 font-black max-w-lg mx-auto px-4">
+            <p className="text-[8px] sm:text-[10px] md:text-[11px] uppercase tracking-[0.2em] text-ink/40 font-black max-w-lg mx-auto px-4">
               {profile?.role || 'COMPARATIVE POLITICS STUDENT, UNIVERSITY OF BERGEN'}
             </p>
           </motion.div>
@@ -211,7 +211,7 @@ export default function CV() {
         </header>
 
         {/* Main Content */}
-        <main className="space-y-20 md:space-y-32">
+        <main className="space-y-10 sm:space-y-20 md:space-y-32">
           {sections.map((section, sIdx) => (
             <motion.section 
               key={section.id}
@@ -234,7 +234,7 @@ export default function CV() {
                 <div className="h-px flex-grow bg-ink/5" />
               </div>
 
-              <div className="space-y-10 md:space-y-24">
+              <div className="space-y-6 sm:space-y-10 md:space-y-24">
                 {section.items.map((item, iIdx) => (
                   <motion.div 
                     key={iIdx} 
@@ -244,7 +244,7 @@ export default function CV() {
                     transition={{ duration: 0.5, delay: iIdx * 0.1 }}
                     className="group relative"
                   >
-                    <div className="flex gap-4 sm:gap-6 md:gap-8">
+                    <div className="flex gap-3 sm:gap-6 md:gap-8">
                       {/* Logo Column */}
                       {item.logoUrl && (
                         <div className="flex-shrink-0 pt-1">

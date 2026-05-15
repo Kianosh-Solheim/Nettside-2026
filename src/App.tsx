@@ -594,7 +594,7 @@ const MainLayout = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid, show
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center min-h-[50vh]">
-    <Loader2 className="animate-spin text-accent" size={32} />
+    <Loader2 className="animate-[spin_0.6s_linear_infinite] text-accent" size={32} />
   </div>
 );
 
@@ -649,7 +649,7 @@ const LoadingScreen = ({ theme }: { theme: string }) => {
                 scale: [1, 1.1, 1],
                 borderRadius: ["30% 70% 70% 30% / 30% 30% 70% 70%", "50% 50% 20% 80% / 25% 80% 20% 75%", "38% 62% 63% 37% / 41% 44% 56% 59%"]
               }}
-              transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
+              transition={{ duration: 3, repeat: Infinity, ease: "linear" }}
               className="w-32 h-32 bg-accent/10 blur-3xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
             />
             
@@ -669,7 +669,7 @@ const LoadingScreen = ({ theme }: { theme: string }) => {
               
               <motion.div
                 animate={{ x: ["-100%", "200%"] }}
-                transition={{ repeat: Infinity, duration: 1.5, ease: "linear", delay: 0.5 }}
+                transition={{ repeat: Infinity, duration: 0.8, ease: "linear", delay: 0.5 }}
                 className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -rotate-45"
               />
             </motion.div>
