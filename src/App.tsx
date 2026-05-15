@@ -26,6 +26,7 @@ const SampolDashboard = lazy(() => import('./components/SampolDashboard'));
 const Availability = lazy(() => import('./components/Availability'));
 const FlyBergen = lazy(() => import('./components/FlyBergen'));
 const Expenses = lazy(() => import('./components/Expenses'));
+const NotFound = lazy(() => import('./components/NotFound'));
 
 interface Profile {
   name: string;
@@ -622,6 +623,7 @@ const AnimatedRoutes = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid }
           {(isAdmin || canViewAdminHealth) && (
             <Route path="/health" element={<PageWrapper><HealthTracker user={user} canViewAdminHealth={canViewAdminHealth} adminUid={adminUid} /></PageWrapper>} />
           )}
+          <Route path="*" element={<PageWrapper><NotFound /></PageWrapper>} />
         </Routes>
       </AnimatePresence>
     </Suspense>

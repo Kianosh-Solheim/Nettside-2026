@@ -141,7 +141,7 @@ export default function CV() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-20 lg:py-32">
         
         {/* Header Section */}
-        <header className="text-center mb-20 md:mb-32 space-y-8 h-[290px]">
+        <header className="text-center mb-16 md:mb-32 space-y-6 md:space-y-8 min-h-[auto] md:h-[290px] flex flex-col justify-center">
           <motion.p
             initial={{ opacity: 0, letterSpacing: "0.1em" }}
             animate={{ opacity: 1, letterSpacing: "0.3em" }}
@@ -155,12 +155,12 @@ export default function CV() {
             initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-            className="space-y-4"
+            className="space-y-3 sm:space-y-4"
           >
-            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-serif leading-tight tracking-tight">
+            <h1 className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-serif leading-tight tracking-tight px-4">
               {profile?.name || 'Kianosh F. Solheim'}
             </h1>
-            <p className="text-[10px] sm:text-[11px] uppercase tracking-[0.2em] text-ink/40 font-black max-w-lg mx-auto">
+            <p className="text-[9px] sm:text-[11px] uppercase tracking-[0.2em] text-ink/40 font-black max-w-lg mx-auto px-4">
               {profile?.role || 'COMPARATIVE POLITICS STUDENT, UNIVERSITY OF BERGEN'}
             </p>
           </motion.div>
@@ -169,23 +169,23 @@ export default function CV() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-wrap justify-center gap-6 md:gap-10 pt-4"
+            className="flex flex-wrap justify-center gap-4 sm:gap-6 md:gap-10 pt-2 sm:pt-4"
           >
             <div className="flex items-center space-x-2 group cursor-default">
-              <Mail size={14} className="text-accent opacity-60 group-hover:opacity-100 transition-opacity" />
-              <span className="text-[11px] uppercase tracking-widest text-ink/60 font-medium group-hover:text-ink transition-colors">
+              <Mail size={13} className="text-accent opacity-60 group-hover:opacity-100 transition-opacity" />
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-ink/60 font-medium group-hover:text-ink transition-colors">
                 {profile?.email || 'kianosh@solheim.online'}
               </span>
             </div>
             <div className="flex items-center space-x-2 group cursor-default">
-              <MapPin size={14} className="text-accent opacity-60 group-hover:opacity-100 transition-opacity" />
-              <span className="text-[11px] uppercase tracking-widest text-ink/60 font-medium group-hover:text-ink transition-colors">
+              <MapPin size={13} className="text-accent opacity-60 group-hover:opacity-100 transition-opacity" />
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-ink/60 font-medium group-hover:text-ink transition-colors">
                 {profile?.location || 'Bergen, Norway'}
               </span>
             </div>
             <div className="flex items-center space-x-2 group cursor-default">
-              <Globe size={14} className="text-accent opacity-60 group-hover:opacity-100 transition-opacity" />
-              <span className="text-[11px] uppercase tracking-widest text-ink/60 font-medium group-hover:text-ink transition-colors">
+              <Globe size={13} className="text-accent opacity-60 group-hover:opacity-100 transition-opacity" />
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-ink/60 font-medium group-hover:text-ink transition-colors">
                 {profile?.website || 'www.solheim.online'}
               </span>
             </div>
@@ -195,7 +195,7 @@ export default function CV() {
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.5, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-            className="pt-8"
+            className="pt-4 sm:pt-8"
           >
             <Button
               to="/cv/print"
@@ -203,7 +203,7 @@ export default function CV() {
               size="md"
               icon={Printer}
               magnetic={true}
-              className="min-w-[200px]"
+              className="min-w-[180px] sm:min-w-[200px]"
             >
               Printable CV
             </Button>
@@ -223,7 +223,7 @@ export default function CV() {
               onMouseEnter={() => window.dispatchEvent(new CustomEvent('section-hover', { detail: true }))}
               onMouseLeave={() => window.dispatchEvent(new CustomEvent('section-hover', { detail: false }))}
             >
-              <div className="flex items-center justify-center mb-12 md:mb-16">
+              <div className="flex items-center justify-center mb-8 md:mb-16">
                 <div className="h-px flex-grow bg-ink/5" />
                 <div className="px-6 flex items-center space-x-3 text-accent">
                   {getSectionIcon(section.title)}
@@ -234,7 +234,7 @@ export default function CV() {
                 <div className="h-px flex-grow bg-ink/5" />
               </div>
 
-              <div className="space-y-16 md:space-y-24">
+              <div className="space-y-10 md:space-y-24">
                 {section.items.map((item, iIdx) => (
                   <motion.div 
                     key={iIdx} 
@@ -244,11 +244,11 @@ export default function CV() {
                     transition={{ duration: 0.5, delay: iIdx * 0.1 }}
                     className="group relative"
                   >
-                    <div className="flex gap-6 md:gap-8">
+                    <div className="flex gap-4 sm:gap-6 md:gap-8">
                       {/* Logo Column */}
                       {item.logoUrl && (
                         <div className="flex-shrink-0 pt-1">
-                          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-ink/[0.03] border border-ink/5 flex items-center justify-center overflow-hidden group-hover:border-accent/30 group-hover:bg-ink/[0.05] group-hover/section:border-accent/10 transition-all duration-500 p-2">
+                          <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl bg-ink/[0.03] border border-ink/5 flex items-center justify-center overflow-hidden group-hover:border-accent/30 group-hover:bg-ink/[0.05] group-hover/section:border-accent/10 transition-all duration-500 p-2">
                             <img 
                               src={item.logoUrl || null} 
                               alt={item.subtitle} 
@@ -263,7 +263,7 @@ export default function CV() {
                       <div className="flex-grow space-y-4">
                         <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2">
                           <div className="space-y-1">
-                            <h3 className="text-xl sm:text-2xl lg:text-3xl font-serif text-ink/90 group-hover:text-accent transition-colors duration-500 leading-tight">
+                            <h3 className="text-lg sm:text-2xl lg:text-3xl font-serif text-ink/90 group-hover:text-accent transition-colors duration-500 leading-tight">
                               {item.title}
                             </h3>
                             <p className="text-[10px] uppercase tracking-[0.15em] text-ink/40 font-black">
