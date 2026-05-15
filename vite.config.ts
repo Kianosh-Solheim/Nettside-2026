@@ -4,7 +4,9 @@ import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig(({ mode }) => {
   const isGithubActions = process.env.GITHUB_ACTIONS === 'true';
-  const baseUrl = isGithubActions ? '/Nettside-2026/' : '/';
+  // Use '/' if deploying to a custom domain (solheim.online), 
+  // otherwise use the repo name for github.io subfolder.
+  const baseUrl = isGithubActions ? '/' : '/';
   
   return {
     base: baseUrl,

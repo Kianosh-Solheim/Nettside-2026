@@ -312,25 +312,28 @@ export default function SampolDashboard() {
 
       const fetchFeed = async (feedUrl: string, sourceName: string) => {
         try {
-          // Use allorigins.win to bypass CORS
-          const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(feedUrl)}`;
+          // Use corsproxy.io to bypass CORS - it's often more reliable for plain text/xml
+          const proxyUrl = `https://corsproxy.io/?url=${encodeURIComponent(feedUrl)}`;
           const res = await fetch(proxyUrl);
-          if (!res.ok) return [];
-          const proxyData = await res.json();
-          const xmlContent = proxyData.contents;
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+          const xmlContent = await res.text();
           
-          // Simple regex-based parser to avoid bulky dependencies if possible, 
-          // but since rss-parser is in package.json, we should use it if we can import it.
-          // However, for simplicity and to avoid import issues in this environment, 
-          // I'll do a basic XML to NewsItem mapping.
-          
+          if (!xmlContent || xmlContent.trim().startsWith('<!DOCTYPE html>')) {
+            throw new Error('Received HTML instead of XML');
+          }
+
           const parser = new DOMParser();
           const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
+          
+          // Check for parsing errors
+          const parseError = xmlDoc.getElementsByTagName("parsererror");
+          if (parseError.length > 0) throw new Error('XML parsing error');
+
           const items = Array.from(xmlDoc.querySelectorAll("item")).slice(0, 5);
           
           return items.map(item => ({
-            title: item.querySelector("title")?.textContent || '',
-            link: item.querySelector("link")?.textContent || '',
+            title: item.querySelector("title")?.textContent || 'No Title',
+            link: item.querySelector("link")?.textContent || '#',
             pubDate: item.querySelector("pubDate")?.textContent || new Date().toISOString(),
             source: sourceName,
             logo: ''

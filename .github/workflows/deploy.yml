@@ -34,7 +34,7 @@ jobs:
         run: npm run build:client
         env:
           GITHUB_ACTIONS: 'true'
-          VITE_BASE_URL: /Nettside-2026/
+          VITE_BASE_URL: /
           
       - name: Create 404.html for SPA support
         run: cp dist/index.html dist/404.html
