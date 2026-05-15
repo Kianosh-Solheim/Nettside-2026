@@ -67,11 +67,21 @@ export const useSocials = () => useContext(SocialsContext);
 const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, canViewAdminHealth: boolean, hasKiaplayAccess: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isSectionHovered, setIsSectionHovered] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useContext(ThemeContext);
   const profile = useProfile();
   const location = useLocation();
   const { scrollYProgress } = useScroll();
+
+  useEffect(() => {
+    const handleSectionHover = (e: any) => {
+      setIsSectionHovered(e.detail);
+    };
+
+    window.addEventListener('section-hover', handleSectionHover);
+    return () => window.removeEventListener('section-hover', handleSectionHover);
+  }, []);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -112,7 +122,10 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between h-16 items-center">
           <div className="flex items-center">
-            <Link to="/" className="text-xl font-serif tracking-widest uppercase text-ink">
+            <Link 
+              to="/" 
+              className={`text-xl font-serif tracking-widest uppercase transition-all duration-500 ${isSectionHovered ? 'text-accent scale-110 shadow-sm' : 'text-ink'}`}
+            >
               {(profile.name || 'Kianosh F. Solheim').split(' ').map(n => n[0]).join('. ')}
             </Link>
           </div>
@@ -634,19 +647,19 @@ const LoadingScreen = ({ theme }: { theme: string }) => {
                 scale: [1, 1.1, 1],
                 borderRadius: ["30% 70% 70% 30% / 30% 30% 70% 70%", "50% 50% 20% 80% / 25% 80% 20% 75%", "38% 62% 63% 37% / 41% 44% 56% 59%"]
               }}
-              transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+              transition={{ duration: 6, repeat: Infinity, ease: "linear" }}
               className="w-32 h-32 bg-accent/10 blur-3xl absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"
             />
             
             <motion.div
               initial={{ scale: 0.8, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ duration: 1, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
               className="relative z-10 w-20 h-20 rounded-[2.5rem] bg-accent flex items-center justify-center shadow-2xl shadow-accent/30 overflow-hidden"
             >
               <motion.div 
                  animate={{ y: [0, -5, 0], rotate: [0, -2, 2, 0] }}
-                 transition={{ duration: 4, repeat: Infinity, ease: "easeInOut" }}
+                 transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                  className="text-white font-serif text-4xl font-black italic select-none"
               >
                 K
@@ -654,7 +667,7 @@ const LoadingScreen = ({ theme }: { theme: string }) => {
               
               <motion.div
                 animate={{ x: ["-100%", "200%"] }}
-                transition={{ repeat: Infinity, duration: 2.5, ease: "linear", delay: 1 }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: "linear", delay: 0.5 }}
                 className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent -rotate-45"
               />
             </motion.div>
@@ -665,7 +678,7 @@ const LoadingScreen = ({ theme }: { theme: string }) => {
               <motion.h1
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3, duration: 0.8 }}
+                transition={{ delay: 0.2, duration: 0.5 }}
                 className={`text-2xl font-serif font-medium tracking-tight ${isDark ? 'text-[#e5e5e5]' : 'text-[#1a1a1a]'}`}
               >
                 Kianosh F. Solheim
@@ -673,7 +686,7 @@ const LoadingScreen = ({ theme }: { theme: string }) => {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 0.5 }}
-                transition={{ delay: 0.6 }}
+                transition={{ delay: 0.4 }}
                 className="flex items-center justify-center gap-2"
               >
                 <span className="w-8 h-[1px] bg-accent/40" />
@@ -688,12 +701,12 @@ const LoadingScreen = ({ theme }: { theme: string }) => {
               <motion.div
                 initial={{ x: "-100%" }}
                 animate={{ x: "0%" }}
-                transition={{ duration: 2.5, ease: [0.65, 0, 0.35, 1] }}
+                transition={{ duration: 1.2, ease: [0.65, 0, 0.35, 1] }}
                 className="absolute inset-0 bg-accent w-full"
               />
               <motion.div
                 animate={{ x: ["-100%", "200%"] }}
-                transition={{ repeat: Infinity, duration: 2, ease: "easeInOut" }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: "easeInOut" }}
                 className="absolute inset-0 w-1/2 bg-white/30"
               />
             </div>
@@ -701,7 +714,7 @@ const LoadingScreen = ({ theme }: { theme: string }) => {
             <motion.div
                initial={{ opacity: 0 }}
                animate={{ opacity: 1 }}
-               transition={{ delay: 1.5 }}
+               transition={{ delay: 0.8 }}
                className="flex items-center justify-center gap-3"
             >
               <div className="flex gap-1.5">
@@ -709,7 +722,7 @@ const LoadingScreen = ({ theme }: { theme: string }) => {
                   <motion.div
                     key={i}
                     animate={{ scale: [1, 1.4, 1], opacity: [0.2, 1, 0.2] }}
-                    transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.2 }}
+                    transition={{ repeat: Infinity, duration: 0.8, delay: i * 0.15 }}
                     className="w-1 h-1 rounded-full bg-accent"
                   />
                 ))}

@@ -62,12 +62,14 @@ export default function CV() {
 
     const timer = setTimeout(() => {
       setLoading(false);
-    }, 2000);
+    }, 800);
 
     return () => {
       unsubscribeSections();
       unsubscribeProfile();
       clearTimeout(timer);
+      // Ensure logo color is reset if unmounting during hover
+      window.dispatchEvent(new CustomEvent('section-hover', { detail: false }));
     };
   }, []);
 
@@ -113,7 +115,7 @@ export default function CV() {
             {/* Scanning Line */}
             <motion.div 
               animate={{ top: ['-10%', '110%'] }}
-              transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
               className="absolute left-0 right-0 h-[2px] bg-accent/50 shadow-[0_0_15px_rgba(227,28,40,0.4)] z-10"
             />
 
@@ -139,7 +141,7 @@ export default function CV() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-20 lg:py-32">
         
         {/* Header Section */}
-        <header className="text-center mb-20 md:mb-32 space-y-8">
+        <header className="text-center mb-20 md:mb-32 space-y-8 h-[290px]">
           <motion.p
             initial={{ opacity: 0, letterSpacing: "0.1em" }}
             animate={{ opacity: 1, letterSpacing: "0.3em" }}
@@ -217,6 +219,9 @@ export default function CV() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-50px" }}
               transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+              className="group/section"
+              onMouseEnter={() => window.dispatchEvent(new CustomEvent('section-hover', { detail: true }))}
+              onMouseLeave={() => window.dispatchEvent(new CustomEvent('section-hover', { detail: false }))}
             >
               <div className="flex items-center justify-center mb-12 md:mb-16">
                 <div className="h-px flex-grow bg-ink/5" />
@@ -243,11 +248,11 @@ export default function CV() {
                       {/* Logo Column */}
                       {item.logoUrl && (
                         <div className="flex-shrink-0 pt-1">
-                          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-ink/[0.03] border border-ink/5 flex items-center justify-center overflow-hidden group-hover:border-accent/30 group-hover:bg-ink/[0.05] transition-all duration-500 p-2">
+                          <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl bg-ink/[0.03] border border-ink/5 flex items-center justify-center overflow-hidden group-hover:border-accent/30 group-hover:bg-ink/[0.05] group-hover/section:border-accent/10 transition-all duration-500 p-2">
                             <img 
                               src={item.logoUrl || null} 
                               alt={item.subtitle} 
-                              className="w-full h-full object-contain opacity-40 grayscale group-hover:opacity-90 group-hover:grayscale-0 transition-all duration-500"
+                              className="w-full h-full object-contain opacity-40 grayscale group-hover:opacity-90 group-hover:grayscale-0 group-hover/section:opacity-70 group-hover/section:grayscale-0 transition-all duration-500"
                               referrerPolicy="no-referrer"
                             />
                           </div>
