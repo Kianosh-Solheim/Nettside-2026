@@ -1,11 +1,23 @@
 import { motion } from 'framer-motion';
 import { Calendar } from 'lucide-react';
-import { useContext } from 'react';
+import { useContext, useState, useEffect } from 'react';
 import { ThemeContext } from '../contexts/ThemeContext';
 
 export default function Availability() {
   const { theme } = useContext(ThemeContext);
   const isDark = theme === 'dark';
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  const calendarUrl = `https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=Europe%2FBerlin&showPrint=0&showTitle=0&mode=${isMobile ? 'AGENDA' : 'MONTH'}&hl=en_GB&src=a2lhbm9zaHNvbGhlaW1AZ21haWwuY29t&src=ZW4tZ2Iubm9yd2VnaWFuI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t&color=%23f4511e&color=%230b8043`;
 
   return (
     <div className="min-h-screen pt-24 pb-12 px-4 sm:px-6 lg:px-8 bg-paper">
@@ -39,9 +51,9 @@ export default function Availability() {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3, duration: 0.6 }}
-          className="bg-surface rounded-[48px] border border-ink/5 p-4 sm:p-8 shadow-xl shadow-ink/5 overflow-hidden ring-1 ring-ink/5"
+          className="bg-surface rounded-2xl sm:rounded-[48px] border border-ink/5 p-2 sm:p-8 shadow-xl shadow-ink/5 overflow-hidden ring-1 ring-ink/5"
         >
-          <div className="aspect-square sm:aspect-video w-full rounded-[32px] overflow-hidden bg-ink/[0.02] relative">
+          <div className="h-[600px] sm:h-auto sm:aspect-video w-full rounded-xl sm:rounded-[32px] overflow-hidden bg-ink/[0.02] relative">
             <div className="absolute inset-0 flex items-center justify-center -z-10">
               <div className="flex flex-col items-center gap-4 text-ink/20">
                 <Calendar size={48} className="animate-pulse" />
@@ -49,7 +61,7 @@ export default function Availability() {
               </div>
             </div>
             <iframe 
-              src="https://calendar.google.com/calendar/embed?height=600&wkst=2&ctz=Europe%2FBerlin&showPrint=0&showTitle=0&mode=MONTH&hl=en_GB&src=a2lhbm9zaHNvbGhlaW1AZ21haWwuY29t&src=ZW4tZ2Iubm9yd2VnaWFuI2hvbGlkYXlAZ3JvdXAudi5jYWxlbmRhci5nb29nbGUuY29t&color=%23f4511e&color=%230b8043" 
+              src={calendarUrl}
               style={{ border: 0 }} 
               width="100%" 
               height="100%" 
