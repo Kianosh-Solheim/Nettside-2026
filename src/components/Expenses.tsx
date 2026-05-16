@@ -570,15 +570,15 @@ export default function Expenses() {
         {showAddForm && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="mb-12">
             <form onSubmit={handleExpenseSubmit} className="bg-paper border border-ink/5 rounded-2xl p-8 shadow-xl grid grid-cols-1 md:grid-cols-3 gap-6">
-              <input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Title" required className="bg-ink/5 p-3 rounded-xl outline-none" />
-              <input value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} type="number" placeholder="Amount (NOK)" required className="bg-ink/5 p-3 rounded-xl outline-none" />
-              <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value as any})} className="bg-ink/5 p-3 rounded-xl outline-none">
-                {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              <input value={formData.title} onChange={e => setFormData({...formData, title: e.target.value})} placeholder="Title" required className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none" />
+              <input value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} type="number" placeholder="Amount (NOK)" required className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none" />
+              <select value={formData.category} onChange={e => setFormData({...formData, category: e.target.value as any})} className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none">
+                {CATEGORIES.map(c => <option key={c} value={c} className="bg-surface text-ink">{c}</option>)}
               </select>
-              <select value={formData.recurring} onChange={e => setFormData({...formData, recurring: e.target.value as any})} className="bg-ink/5 p-3 rounded-xl outline-none">
-                {RECURRING_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              <select value={formData.recurring} onChange={e => setFormData({...formData, recurring: e.target.value as any})} className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none">
+                {RECURRING_OPTIONS.map(o => <option key={o} value={o} className="bg-surface text-ink">{o}</option>)}
               </select>
-              <input value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} type="date" className="bg-ink/5 p-3 rounded-xl outline-none" />
+              <input value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} type="date" className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none" />
               <div className="flex gap-2">
                 <Button type="submit" variant="primary" className="flex-1">Save</Button>
                 <Button type="button" onClick={() => setShowAddForm(false)} variant="secondary">Cancel</Button>
@@ -590,15 +590,15 @@ export default function Expenses() {
         {showIncomeForm && (
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="mb-12">
             <form onSubmit={handleIncomeSubmit} className="bg-paper border border-ink/5 rounded-2xl p-8 shadow-xl grid grid-cols-1 md:grid-cols-6 gap-6">
-              <input value={incomeData.title} onChange={e => setIncomeData({...incomeData, title: e.target.value})} placeholder="Income Source" required className="bg-ink/5 p-3 rounded-xl outline-none" />
-              <input value={incomeData.amount} onChange={e => setIncomeData({...incomeData, amount: e.target.value})} type="number" placeholder="Amount" required className="bg-ink/5 p-3 rounded-xl outline-none" />
-              <select value={incomeData.type} onChange={e => setIncomeData({...incomeData, type: e.target.value as any})} className="bg-ink/5 p-3 rounded-xl outline-none">
-                {INCOME_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
+              <input value={incomeData.title} onChange={e => setIncomeData({...incomeData, title: e.target.value})} placeholder="Income Source" required className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none" />
+              <input value={incomeData.amount} onChange={e => setIncomeData({...incomeData, amount: e.target.value})} type="number" placeholder="Amount" required className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none" />
+              <select value={incomeData.type} onChange={e => setIncomeData({...incomeData, type: e.target.value as any})} className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none">
+                {INCOME_TYPES.map(t => <option key={t} value={t} className="bg-surface text-ink">{t}</option>)}
               </select>
-              <select value={incomeData.recurring} onChange={e => setIncomeData({...incomeData, recurring: e.target.value as any})} className="bg-ink/5 p-3 rounded-xl outline-none">
-                {RECURRING_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              <select value={incomeData.recurring} onChange={e => setIncomeData({...incomeData, recurring: e.target.value as any})} className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none">
+                {RECURRING_OPTIONS.map(o => <option key={o} value={o} className="bg-surface text-ink">{o}</option>)}
               </select>
-              <input value={incomeData.date} onChange={e => setIncomeData({...incomeData, date: e.target.value})} type="date" className="bg-ink/5 p-3 rounded-xl outline-none" />
+              <input value={incomeData.date} onChange={e => setIncomeData({...incomeData, date: e.target.value})} type="date" className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none" />
               <div className="flex gap-2">
                 <Button type="submit" variant="primary" className="flex-1">Save</Button>
                 <Button type="button" onClick={() => setShowIncomeForm(false)} variant="secondary">Cancel</Button>
@@ -614,7 +614,7 @@ export default function Expenses() {
                 {CATEGORIES.map(cat => (
                   <div key={cat} className="space-y-2">
                     <label className="text-[10px] uppercase tracking-widest text-ink/40">{cat}</label>
-                    <input type="number" value={budgetData[cat] || ''} onChange={e => setBudgetData({...budgetData, [cat]: e.target.value})} className="w-full bg-ink/5 p-3 rounded-xl outline-none" placeholder="0" />
+                    <input type="number" value={budgetData[cat] || ''} onChange={e => setBudgetData({...budgetData, [cat]: e.target.value})} className="w-full bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none" placeholder="0" />
                   </div>
                 ))}
               </div>

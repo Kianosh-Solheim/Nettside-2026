@@ -1286,267 +1286,144 @@ export default function Admin({ user }: { user: any }) {
   });
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-20">
-      {/* Confirmation Modal */}
+    <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-10 md:py-16">
+      {/* Status Notifications */}
       <AnimatePresence>
-        {confirmModal.isOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-              className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-surface p-6 sm:p-8 rounded-3xl shadow-2xl max-w-md w-full border border-ink/5"
-            >
-              <div className="flex items-center space-x-3 text-accent mb-4">
-                <AlertCircle size={24} />
-                <h3 className="text-xl font-serif">{confirmModal.title}</h3>
-              </div>
-              <p className="text-sm sm:text-base text-ink/60 mb-8 leading-relaxed">
-                {confirmModal.message}
-              </p>
-              <div className="flex flex-col sm:flex-row gap-3 sm:space-x-4">
-                <Button
-                  onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
-                  variant="outline"
-                  size="lg"
-                  className="w-full sm:flex-1 px-6 py-3 border border-ink/10 rounded-full text-[10px] uppercase tracking-widest hover:bg-ink/5 transition-all"
-                  magnetic={true}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={confirmModal.onConfirm}
-                  variant="primary"
-                  size="lg"
-                  className="w-full sm:flex-1 px-6 py-3 bg-red-500 text-white rounded-full text-[10px] uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20"
-                  magnetic={true}
-                >
-                  Confirm Delete
-                </Button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* File Picker Modal */}
-      <AnimatePresence>
-        {filePicker.isOpen && (
-          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setFilePicker(prev => ({ ...prev, isOpen: false }))}
-              className="absolute inset-0 bg-ink/60 backdrop-blur-md"
-            />
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative bg-surface p-5 sm:p-8 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-ink/5"
-            >
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
-                <div className="flex items-center space-x-4">
-                  <div className="p-2 sm:p-3 bg-accent/10 rounded-2xl text-accent">
-                    <ImageIcon size={24} className="sm:w-7 sm:h-7" />
-                  </div>
-                  <div>
-                    <h3 className="text-xl sm:text-2xl font-serif leading-tight">File Manager</h3>
-                    <p className="text-[9px] sm:text-[10px] uppercase tracking-widest text-ink/40">Select or upload an asset</p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2 sm:space-x-4">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    magnetic={true}
-                    className="relative flex-1 sm:flex-none py-2.5"
-                    icon={Upload}
-                  >
-                    Upload New
-                    <input
-                      type="file"
-                      className="absolute inset-0 opacity-0 cursor-pointer"
-                      onChange={handleFileUpload}
-                      accept="image/*"
-                    />
-                  </Button>
-                  <Button
-                    onClick={() => setFilePicker(prev => ({ ...prev, isOpen: false }))}
-                    variant="ghost"
-                    size="sm"
-                    icon={X}
-                    magnetic={true}
-                    className="p-2 sm:p-3 hover:bg-ink/5 rounded-full transition-colors"
-                  />
-                </div>
-              </div>
-
-              {isUploading && (
-                <div className="mb-8 p-4 bg-accent/5 rounded-2xl border border-accent/10">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-[10px] uppercase tracking-widest text-accent font-bold">Uploading...</span>
-                    <span className="text-[10px] font-mono text-accent">{Math.round(uploadProgress)}%</span>
-                  </div>
-                  <div className="h-1 w-full bg-accent/10 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-accent"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${uploadProgress}%` }}
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar">
-                {files.length === 0 ? (
-                  <div className="h-64 flex flex-col items-center justify-center text-ink/20 space-y-4">
-                    <ImageIcon size={48} />
-                    <p className="text-xs uppercase tracking-widest">No files uploaded yet</p>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-                  {sortedFiles.map((file) => (
-                    <Button
-                      key={file.id}
-                      onClick={() => {
-                        filePicker.onSelect(file.url);
-                        setFilePicker(prev => ({ ...prev, isOpen: false }));
-                      }}
-                      variant="ghost"
-                      className="group relative aspect-square bg-paper rounded-2xl border border-ink/5 overflow-hidden hover:border-accent transition-all"
-                      magnetic={true}
-                    >
-                      {file.type.startsWith('image/') ? (
-                        <img
-                          src={file.url}
-                          alt={file.name}
-                          className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all"
-                          referrerPolicy="no-referrer"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-ink/20 group-hover:text-accent/20 transition-colors">
-                          <FileIcon size={32} />
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-accent/0 group-hover:bg-accent/10 transition-all flex items-center justify-center">
-                        <span className="opacity-0 group-hover:opacity-100 bg-surface text-accent px-3 py-1 rounded-full text-[8px] uppercase tracking-widest font-bold shadow-sm transform translate-y-2 group-hover:translate-y-0 transition-all">
-                          Select
-                        </span>
-                      </div>
-                      <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-                        <p className="text-[9px] text-white truncate font-medium">{file.name}</p>
-                        <p className="text-[7px] text-white/60 uppercase tracking-widest">{formatFileSize(file.size)}</p>
-                      </div>
-                    </Button>
-                  ))}
-                </div>
-              )}
+        {status && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-[150] w-full max-w-md px-4"
+          >
+            <div className={`flex items-center space-x-3 px-6 py-4 rounded-2xl shadow-2xl border backdrop-blur-md ${
+              status.type === 'success' ? 'bg-emerald-500/90 text-white border-emerald-400' : 
+              status.type === 'info' ? 'bg-blue-500/90 text-white border-blue-400' :
+              'bg-red-500/90 text-white border-red-400'
+            }`}>
+              {status.type === 'success' ? <CheckCircle2 size={20} /> : 
+               status.type === 'info' ? <Loader2 size={20} className="animate-spin" /> :
+               <AlertCircle size={20} />}
+              <span className="text-[11px] uppercase tracking-widest font-black flex-grow">{status.message}</span>
+              <button onClick={() => setStatus(null)} className="opacity-50 hover:opacity-100 transition-opacity">
+                <X size={16} />
+              </button>
             </div>
-            </motion.div>
-          </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Header & Tabs */}
-      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 mb-10 md:mb-16">
-        <div className="text-center lg:text-left">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-serif tracking-tight">Admin Dashboard</h1>
-        </div>
-        <div className="w-full lg:w-auto">
-          {/* Mobile Select Menu */}
-          <div className="lg:hidden w-full mb-4">
-            <select
-              value={activeTab}
-              onChange={(e) => setActiveTab(e.target.value as any)}
-              className="w-full bg-ink/[0.03] border border-ink/10 rounded-2xl px-6 py-4 text-[10px] uppercase tracking-widest font-black text-ink outline-none focus:border-accent ring-accent/20 transition-all appearance-none"
-              style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.5rem center', backgroundSize: '1.2rem' }}
-            >
-              {[
-                { id: 'recommendations', label: 'Recommendations' },
-                { id: 'cv', label: 'CV Editor' },
-                { id: 'socials', label: 'Socials' },
-                { id: 'files', label: 'Files' },
-                { id: 'messages', label: 'Messages', count: messages.filter(m => !m.read).length },
-                { id: 'meetings', label: 'Meetings', count: allMeetings.filter(m => m.status === 'pending').length },
-                { id: 'expenses', label: 'Expenses' },
-                { id: 'memberships', label: 'Memberships' },
-                { id: 'measured-words', label: 'Measured Words' },
-                { id: 'integrations', label: 'Integrations' },
-                { id: 'users', label: 'Users' }
-              ].map((tab) => (
-                <option key={tab.id} value={tab.id}>
-                  {tab.label} {tab.count ? `(${tab.count})` : ''}
-                </option>
-              ))}
-            </select>
-          </div>
+      <div className="flex flex-col lg:flex-row gap-12">
+        {/* Navigation Sidebar */}
+        <aside className="lg:w-80 flex-shrink-0">
+          <div className="lg:sticky lg:top-32 space-y-8">
+            <div className="hidden lg:block">
+              <h1 className="text-4xl font-serif tracking-tight mb-2">Admin</h1>
+              <p className="text-[10px] uppercase tracking-[0.2em] font-black text-ink/30">Dashboard Control</p>
+            </div>
 
-          {/* Desktop Tabs */}
-          <div className="hidden lg:flex bg-ink/[0.03] p-1 rounded-2xl border border-ink/5 shadow-inner gap-1">
-            {[
-              { id: 'recommendations', label: 'Recommendations' },
-              { id: 'cv', label: 'CV Editor' },
-              { id: 'socials', label: 'Socials' },
-              { id: 'files', label: 'Files' },
-              { id: 'messages', label: 'Messages', count: messages.filter(m => !m.read).length },
-              { id: 'meetings', label: 'Meetings', count: allMeetings.filter(m => m.status === 'pending').length },
-              { id: 'expenses', label: 'Expenses' },
-              { id: 'memberships', label: 'Memberships' },
-              { id: 'measured-words', label: 'Measured Words' },
-              { id: 'integrations', label: 'Integrations' },
-              { id: 'users', label: 'Users' }
-            ].map((tab) => (
-              <Button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
-                variant={activeTab === tab.id ? 'primary' : 'ghost'}
-                size="sm"
-                className={`px-5 py-2.5 rounded-xl text-[10px] uppercase tracking-widest transition-all font-black ${
-                  activeTab === tab.id 
-                    ? 'shadow-lg shadow-accent/20' 
-                    : 'text-ink/40 hover:text-ink hover:bg-ink/5'
-                }`}
-                magnetic={true}
+            {/* Mobile Select Menu */}
+            <div className="lg:hidden w-full mb-8">
+              <div className="text-center mb-6">
+                <h1 className="text-3xl font-serif tracking-tight mb-1">Admin Dashboard</h1>
+                <p className="text-[9px] uppercase tracking-[0.2em] font-black text-ink/30">Manage your digital presence</p>
+              </div>
+              <select
+                value={activeTab}
+                onChange={(e) => setActiveTab(e.target.value as any)}
+                className="w-full bg-surface border border-ink/10 rounded-2xl px-6 py-4 text-[10px] uppercase tracking-widest font-black text-ink outline-none focus:border-accent ring-accent/20 transition-all appearance-none [color-scheme:dark]"
+                style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.5rem center', backgroundSize: '1.2rem' }}
               >
-                <span>{tab.label}</span>
-                {tab.count ? (
-                  <span className="ml-2 bg-accent text-paper px-2 py-0.5 rounded-full text-[8px] animate-pulse">
-                    {tab.count}
-                  </span>
-                ) : null}
-              </Button>
-            ))}
+                {[
+                  { id: 'recommendations', label: 'Recommendations' },
+                  { id: 'cv', label: 'CV Editor' },
+                  { id: 'socials', label: 'Socials' },
+                  { id: 'files', label: 'Files' },
+                  { id: 'messages', label: 'Messages', count: messages.filter(m => !m.read).length },
+                  { id: 'meetings', label: 'Meetings', count: allMeetings.filter(m => m.status === 'pending').length },
+                  { id: 'expenses', label: 'Expenses' },
+                  { id: 'memberships', label: 'Memberships' },
+                  { id: 'measured-words', label: 'Measured Words' },
+                  { id: 'integrations', label: 'Integrations' },
+                  { id: 'users', label: 'Users' }
+                ].map((tab) => (
+                  <option key={tab.id} value={tab.id} className="bg-surface text-ink">
+                    {tab.label} {tab.count ? `(${tab.count})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Desktop Sidebar Nav */}
+            <nav className="hidden lg:flex flex-col gap-1.5 p-3 bg-paper border border-ink/5 rounded-[40px] shadow-inner relative group">
+              <div className="absolute inset-0 bg-accent/[0.02] rounded-[40px] pointer-events-none" />
+              {[
+                { id: 'recommendations', label: 'Recommendations', icon: BookIcon },
+                { id: 'cv', label: 'CV Editor', icon: User },
+                { id: 'socials', label: 'Socials', icon: Share2 },
+                { id: 'files', label: 'File Library', icon: ImageIcon },
+                { id: 'messages', label: 'Messages', icon: Mail, count: messages.filter(m => !m.read).length },
+                { id: 'meetings', label: 'Meetings', icon: CalendarIcon, count: allMeetings.filter(m => m.status === 'pending').length },
+                { id: 'expenses', label: 'Expenses', icon: ArrowUpDown },
+                { id: 'memberships', label: 'Memberships', icon: Users },
+                { id: 'measured-words', label: 'Measured Words', icon: Edit2 },
+                { id: 'integrations', label: 'Integrations', icon: RefreshCcw },
+                { id: 'users', label: 'User Directory', icon: User }
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`w-full group flex items-center justify-between px-6 py-4 rounded-3xl text-[10px] uppercase tracking-widest transition-all font-black relative overflow-hidden ${
+                    activeTab === tab.id 
+                      ? 'bg-ink text-paper shadow-xl shadow-ink/20' 
+                      : 'text-ink/40 hover:text-ink hover:bg-ink/5'
+                  }`}
+                >
+                  <div className="flex items-center space-x-4 relative z-10">
+                    <tab.icon size={18} className={`transition-transform group-hover:scale-110 ${activeTab === tab.id ? 'text-accent' : 'text-current opacity-40'}`} />
+                    <span>{tab.label}</span>
+                  </div>
+                  {tab.count ? (
+                    <span className={`relative z-10 px-2 py-0.5 rounded-full text-[8px] animate-pulse ${
+                      activeTab === tab.id ? 'bg-accent text-paper' : 'bg-accent/10 text-accent'
+                    }`}>
+                      {tab.count}
+                    </span>
+                  ) : null}
+                  {activeTab === tab.id && (
+                    <motion.div
+                      layoutId="nav-bg"
+                      className="absolute inset-0 bg-ink"
+                      initial={false}
+                      transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
+                    />
+                  )}
+                </button>
+              ))}
+            </nav>
+
+            {/* Quick Stats Overlay (Optional Decoration) */}
+            <div className="hidden lg:block p-8 bg-accent/5 border border-accent/10 rounded-[40px] group hover:bg-accent/10 transition-colors duration-500">
+              <p className="text-[8px] uppercase tracking-[0.3em] text-accent font-black mb-4">Storage Used</p>
+              <div className="h-1.5 w-full bg-accent/10 rounded-full overflow-hidden mb-2">
+                 <div className="h-full bg-accent w-1/3 rounded-full" />
+              </div>
+              <p className="text-[7px] text-accent/40 font-black uppercase tracking-widest">342 MB / 5 GB (Spark Plan)</p>
+            </div>
           </div>
-        </div>
-      </div>
+        </aside>
 
-      {status && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className={`flex items-center space-x-2 px-6 py-3 rounded-full text-xs uppercase tracking-widest mb-8 ${
-            status.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800' : 
-            status.type === 'info' ? 'bg-blue-50 text-blue-700 border border-blue-100 dark:bg-blue-900/20 dark:text-blue-400 dark:border-blue-800' :
-            'bg-red-50 text-red-700 border border-red-100 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800'
-          }`}
-        >
-          {status.type === 'success' ? <CheckCircle2 size={16} /> : 
-           status.type === 'info' ? <Loader2 size={16} className="animate-spin" /> :
-           <AlertCircle size={16} />}
-          <span>{status.message}</span>
-        </motion.div>
-      )}
-
-      {activeTab === 'recommendations' ? (
+        {/* Content Area */}
+        <main className="flex-grow min-w-0">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+            >
+              {activeTab === 'recommendations' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-16">
           {/* Left Column: Search & Form */}
           <div className="lg:col-span-1 space-y-8">
@@ -3135,8 +3012,181 @@ export default function Admin({ user }: { user: any }) {
           )}
         </div>
       )}
+      </motion.div>
+    </AnimatePresence>
+  </main>
+</div>
+
+{/* Confirmation Modal */}
+<AnimatePresence>
+  {confirmModal.isOpen && (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+        className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="relative bg-surface p-6 sm:p-8 rounded-3xl shadow-2xl max-w-md w-full border border-ink/5"
+      >
+        <div className="flex items-center space-x-3 text-accent mb-4">
+          <AlertCircle size={24} />
+          <h3 className="text-xl font-serif">{confirmModal.title}</h3>
+        </div>
+        <p className="text-sm sm:text-base text-ink/60 mb-8 leading-relaxed">
+          {confirmModal.message}
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 sm:space-x-4">
+          <Button
+            onClick={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+            variant="outline"
+            size="lg"
+            className="w-full sm:flex-1 px-6 py-3 border border-ink/10 rounded-full text-[10px] uppercase tracking-widest hover:bg-ink/5 transition-all font-black"
+            magnetic={true}
+          >
+            Cancel
+          </Button>
+          <Button
+            onClick={confirmModal.onConfirm}
+            variant="primary"
+            size="lg"
+            className="w-full sm:flex-1 px-6 py-3 bg-red-500 text-white rounded-full text-[10px] uppercase tracking-widest hover:bg-red-600 transition-all shadow-lg shadow-red-500/20 font-black"
+            magnetic={true}
+          >
+            Confirm Delete
+          </Button>
+        </div>
+      </motion.div>
     </div>
-  );
+  )}
+</AnimatePresence>
+
+{/* File Picker Modal */}
+<AnimatePresence>
+  {filePicker.isOpen && (
+    <div className="fixed inset-0 z-[210] flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={() => setFilePicker(prev => ({ ...prev, isOpen: false }))}
+        className="absolute inset-0 bg-ink/60 backdrop-blur-md"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.9, y: 20 }}
+        className="relative bg-surface p-5 sm:p-8 rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col border border-ink/5"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6 sm:mb-8 gap-4">
+          <div className="flex items-center space-x-4">
+            <div className="p-2 sm:p-3 bg-accent/10 rounded-2xl text-accent">
+              <ImageIcon size={24} className="sm:w-7 sm:h-7" />
+            </div>
+            <div>
+              <h3 className="text-xl sm:text-2xl font-serif leading-tight">File Manager</h3>
+              <p className="text-[9px] sm:text-[10px] uppercase tracking-widest text-ink/40">Select or upload an asset</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2 sm:space-x-4">
+            <Button
+              variant="primary"
+              size="sm"
+              magnetic={true}
+              className="relative flex-1 sm:flex-none py-2.5"
+              icon={Upload}
+            >
+              Upload New
+              <input
+                type="file"
+                className="absolute inset-0 opacity-0 cursor-pointer"
+                onChange={handleFileUpload}
+                accept="image/*"
+              />
+            </Button>
+            <Button
+              onClick={() => setFilePicker(prev => ({ ...prev, isOpen: false }))}
+              variant="ghost"
+              size="sm"
+              icon={X}
+              magnetic={true}
+              className="p-2 sm:p-3 hover:bg-ink/5 rounded-full transition-colors"
+            />
+          </div>
+        </div>
+
+        {isUploading && (
+          <div className="mb-8 p-4 bg-accent/5 rounded-2xl border border-accent/10">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[10px] uppercase tracking-widest text-accent font-bold">Uploading...</span>
+              <span className="text-[10px] font-mono text-accent">{Math.round(uploadProgress)}%</span>
+            </div>
+            <div className="h-1 w-full bg-accent/10 rounded-full overflow-hidden">
+              <motion.div
+                className="h-full bg-accent"
+                initial={{ width: 0 }}
+                animate={{ width: `${uploadProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar">
+          {files.length === 0 ? (
+            <div className="h-64 flex flex-col items-center justify-center text-ink/20 space-y-4">
+              <ImageIcon size={48} />
+              <p className="text-xs uppercase tracking-widest">No files uploaded yet</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+            {sortedFiles.map((file) => (
+              <Button
+                key={file.id}
+                onClick={() => {
+                  filePicker.onSelect(file.url);
+                  setFilePicker(prev => ({ ...prev, isOpen: false }));
+                }}
+                variant="ghost"
+                className="group relative aspect-square bg-paper rounded-2xl border border-ink/5 overflow-hidden hover:border-accent transition-all"
+                magnetic={true}
+              >
+                {file.type.startsWith('image/') ? (
+                  <img
+                    src={file.url}
+                    alt={file.name}
+                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all font-black"
+                    referrerPolicy="no-referrer"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-ink/20 group-hover:text-accent/20 transition-colors">
+                    <FileIcon size={32} />
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-accent/0 group-hover:bg-accent/10 transition-all flex items-center justify-center">
+                  <span className="opacity-0 group-hover:opacity-100 bg-surface text-accent px-3 py-1 rounded-full text-[8px] uppercase tracking-widest font-black shadow-sm transform translate-y-2 group-hover:translate-y-0 transition-all font-black">
+                    Select
+                  </span>
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+                  <p className="text-[9px] text-white truncate font-medium">{file.name}</p>
+                  <p className="text-[7px] text-white/60 uppercase tracking-widest">{formatFileSize(file.size)}</p>
+                </div>
+              </Button>
+            ))}
+          </div>
+        )}
+      </div>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
+</div>
+);
 }
 
 function SocialItemEditor({ social, onUpdate, onDelete }: { 

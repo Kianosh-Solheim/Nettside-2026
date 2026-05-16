@@ -520,13 +520,13 @@ export default function HealthTracker({ user, canViewAdminHealth, adminUid }: { 
             <select
               value={activeTab}
               onChange={(e) => setActiveTab(e.target.value as any)}
-              className="w-full bg-surface border border-ink/10 rounded-full px-6 py-2.5 text-[10px] uppercase tracking-widest font-bold text-ink outline-none appearance-none"
+              className="w-full bg-surface border border-ink/10 rounded-full px-6 py-2.5 text-[10px] uppercase tracking-widest font-bold text-ink outline-none appearance-none [color-scheme:dark]"
               style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', backgroundSize: '1rem' }}
             >
               {(['dashboard', 'logs', 'milestones', 'settings'] as const)
                 .filter(tab => isAdmin || (tab !== 'settings' && !isViewingAdmin))
                 .map((tab) => (
-                <option key={tab} value={tab}>{tab}</option>
+                <option key={tab} value={tab} className="bg-surface text-ink">{tab}</option>
               ))}
             </select>
           </div>

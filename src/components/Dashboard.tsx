@@ -362,10 +362,10 @@ export default function Dashboard() {
                       <select
                         value={formData.type}
                         onChange={(e) => setFormData({ ...formData, type: e.target.value as 'task' | 'event' })}
-                        className="w-full bg-paper border border-ink/10 rounded-lg p-3 outline-none focus:border-accent"
+                        className="w-full bg-paper border border-ink/10 rounded-lg p-3 outline-none focus:border-accent [color-scheme:dark]"
                       >
-                        <option value="task">Task</option>
-                        <option value="event">Event</option>
+                        <option value="task" className="bg-paper text-ink">Task</option>
+                        <option value="event" className="bg-paper text-ink">Event</option>
                       </select>
                     </div>
                     <div>

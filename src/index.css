@@ -28,6 +28,7 @@
 }
 
 :root {
+  color-scheme: light;
   --paper: #f5f2ed;
   --paper-rgb: 245, 242, 237;
   --surface: #ffffff;
@@ -39,6 +40,7 @@
 }
 
 .dark {
+  color-scheme: dark;
   --paper: #121212;
   --paper-rgb: 18, 18, 18;
   --surface: #1e1e1e;

@@ -388,12 +388,12 @@ export default function Recommendations() {
                     <select
                       value={formData.category}
                       onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                      className="w-full px-6 py-4 bg-paper border border-ink/5 rounded-2xl text-base focus:outline-none focus:border-accent transition-all appearance-none ring-1 ring-ink/5 focus:ring-accent/10"
+                      className="w-full px-6 py-4 bg-paper border border-ink/5 rounded-2xl text-base focus:outline-none focus:border-accent transition-all appearance-none ring-1 ring-ink/5 focus:ring-accent/10 [color-scheme:dark]"
                     >
-                      <option value="Books">Books</option>
-                      <option value="Movies & Shows">Movies & Shows</option>
-                      <option value="Video & Media">Video & Media</option>
-                      <option value="Apps">Apps</option>
+                      <option value="Books" className="bg-paper text-ink">Books</option>
+                      <option value="Movies & Shows" className="bg-paper text-ink">Movies & Shows</option>
+                      <option value="Video & Media" className="bg-paper text-ink">Video & Media</option>
+                      <option value="Apps" className="bg-paper text-ink">Apps</option>
                     </select>
                   </div>
                   <div className="space-y-3">
