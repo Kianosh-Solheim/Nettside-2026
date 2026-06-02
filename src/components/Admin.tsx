@@ -60,6 +60,8 @@ interface Profile {
   mobile?: string;
   landline?: string;
   visitingCardKey?: string;
+  githubToken?: string;
+  githubRepo?: string; // owner/repo format
 }
 
 interface Social {
@@ -166,6 +168,7 @@ export default function Admin({ user }: { user: any }) {
     imageUrl: ''
   });
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
     title: string;
@@ -769,8 +772,9 @@ export default function Admin({ user }: { user: any }) {
       setStatus({ type: 'error', message: 'Failed to initiate Google Calendar connection' });
     }
   };
-  const updateProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const updateProfile = async (e?: React.MouseEvent | React.FormEvent) => {
+    if (e) e.preventDefault();
+    setIsSavingProfile(true);
     try {
       const profileRef = collection(db, 'profile');
       const snapshot = await getDocs(profileRef)
@@ -787,6 +791,8 @@ export default function Admin({ user }: { user: any }) {
     } catch (error) {
       console.error(error);
       setStatus({ type: 'error', message: 'Failed to update profile' });
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -1279,6 +1285,33 @@ export default function Admin({ user }: { user: any }) {
     });
   };
 
+  const triggerGitHubAction = async () => {
+    if (!profile.githubToken || !profile.githubRepo) return;
+    try {
+      setStatus({ type: 'info', message: 'Triggering GitHub Action build...' });
+      const cleanRepo = profile.githubRepo.replace(/\/$/, '').trim();
+      const [owner, repo] = cleanRepo.split('/');
+      const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/workflows/deploy.yml/dispatches`, {
+        method: 'POST',
+        headers: {
+          'Accept': 'application/vnd.github.v3+json',
+          'Authorization': `token ${profile.githubToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ ref: 'main' })
+      });
+      if (res.ok) {
+        setStatus({ type: 'success', message: 'GitHub Action triggered successfully. Site will update in ~2 minutes.' });
+      } else {
+        const errorText = await res.text();
+        setStatus({ type: 'error', message: `GitHub Action failed: ${errorText}` });
+      }
+    } catch (error) {
+      console.error('Error triggering GitHub action:', error);
+      setStatus({ type: 'error', message: 'Failed to trigger GitHub Action' });
+    }
+  };
+
   const handleSaveBlogPost = async () => {
     if (!blogFormData.title || !blogFormData.slug || !blogFormData.content) {
       setStatus({ type: 'error', message: 'Title, Slug, and Content are required.' });
@@ -1303,6 +1336,9 @@ export default function Admin({ user }: { user: any }) {
         setStatus({ type: 'success', message: 'Blog post published successfully' });
       }
       resetBlogForm();
+      if (blogFormData.status === 'published' && profile.githubToken && profile.githubRepo) {
+        await triggerGitHubAction();
+      }
     } catch (error) {
       handleFirestoreError(error, isEditingBlogPost ? OperationType.UPDATE : OperationType.CREATE, isEditingBlogPost ? `blog_posts/${isEditingBlogPost}` : 'blog_posts');
       setStatus({ type: 'error', message: 'Failed to save blog post' });
@@ -2887,6 +2923,46 @@ export default function Admin({ user }: { user: any }) {
                       Connect
                     </Button>
                   )}
+                </div>
+              </div>
+
+              <div className="p-8 bg-paper rounded-3xl border border-ink/5 space-y-6">
+                <div className="flex items-center space-x-6">
+                  <div className="p-4 bg-white dark:bg-ink/5 rounded-2xl shadow-sm">
+                    <RefreshCcw size={24} className="text-accent" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-serif">Deploy Integration (GitHub Actions)</h3>
+                    <p className="text-xs text-ink/40">Automatically trigger a redeploy of your website when a blog post is published.</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
+                  <div className="space-y-3">
+                    <label className="block text-[10px] uppercase tracking-[0.2em] text-ink/40 font-black">GitHub Repository</label>
+                    <input
+                      type="text"
+                      value={profile.githubRepo || ''}
+                      onChange={(e) => setProfile({ ...profile, githubRepo: e.target.value })}
+                      className="w-full px-6 py-4 bg-surface border border-ink/10 rounded-2xl text-sm focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all"
+                      placeholder="e.g. kianosh/solheim-online"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="block text-[10px] uppercase tracking-[0.2em] text-ink/40 font-black">GitHub Token</label>
+                    <input
+                      type="password"
+                      value={profile.githubToken || ''}
+                      onChange={(e) => setProfile({ ...profile, githubToken: e.target.value })}
+                      className="w-full px-6 py-4 bg-surface border border-ink/10 rounded-2xl text-sm focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all"
+                      placeholder="ghp_..................."
+                    />
+                  </div>
+                </div>
+                <div className="pt-4 flex justify-between items-center">
+                  <p className="text-[10px] uppercase tracking-widest text-ink/40">Requires fine-grained token with Action permissions.</p>
+                  <Button variant="primary" size="sm" onClick={updateProfile} disabled={isSavingProfile}>
+                    {isSavingProfile ? 'Saving...' : 'Save Config'}
+                  </Button>
                 </div>
               </div>
 
