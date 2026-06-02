@@ -20,6 +20,7 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const VisitorTracker = lazy(() => import('./components/VisitorTracker'));
 const HealthTracker = lazy(() => import('./components/HealthTracker'));
 const PrintableCV = lazy(() => import('./components/PrintableCV'));
+const PrintableWriting = lazy(() => import('./components/PrintableWriting'));
 const UserPage = lazy(() => import('./components/UserPage'));
 const Kiaplay = lazy(() => import('./components/Kiaplay'));
 const Library = lazy(() => import('./components/Library'));
@@ -102,7 +103,7 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
     restDelta: 0.001
   });
 
-  const isPrintPage = location.pathname === '/cv/print';
+  const isPrintPage = location.pathname === '/cv/print' || location.pathname.includes('/print');
 
   if (isPrintPage) return null;
 
@@ -437,7 +438,7 @@ const PageWrapper = ({ children }: { children: React.ReactNode }) => {
 const Footer = ({ socials }: { socials: Social[] }) => {
   const location = useLocation();
   const profile = useProfile();
-  if (location.pathname === '/cv/print') return null;
+  if (location.pathname === '/cv/print' || location.pathname.includes('/print')) return null;
 
   const getSocialIcon = (iconName: string, size = 18) => {
     switch (iconName) {
@@ -535,7 +536,7 @@ const MainLayout = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid, show
   socials: Social[] 
 }) => {
   const location = useLocation();
-  const isPrintPage = location.pathname === '/cv/print';
+  const isPrintPage = location.pathname === '/cv/print' || location.pathname.includes('/print');
   const isKiaplayPage = location.pathname === '/kiaplay';
   const { theme } = useContext(ThemeContext);
 
@@ -613,13 +614,14 @@ const AnimatedRoutes = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid }
           <Route path="/recommendations" element={<PageWrapper><Recommendations /></PageWrapper>} />
           <Route path="/availability" element={<PageWrapper><Availability /></PageWrapper>} />
           <Route path="/cv" element={<PageWrapper><CV /></PageWrapper>} />
+          <Route path="/cv/print" element={<PrintableCV />} />
           <Route path="/writings" element={<PageWrapper><Writings /></PageWrapper>} />
           <Route path="/writings/:slug" element={<PageWrapper><Writings /></PageWrapper>} />
+          <Route path="/writings/:slug/print" element={<PrintableWriting />} />
           <Route path="/library" element={<PageWrapper><Library /></PageWrapper>} />
           <Route path="/admin" element={<PageWrapper><Admin user={user} /></PageWrapper>} />
           <Route path="/dashboard" element={isAdmin ? <PageWrapper><Dashboard /></PageWrapper> : <PageWrapper><Home /></PageWrapper>} />
           <Route path="/sampol-dashboard" element={<PageWrapper><SampolDashboard /></PageWrapper>} />
-          <Route path="/cv/print" element={<PrintableCV />} />
           <Route path="/visiting-card" element={<VisitingCard />} />
           <Route path="/fly-bergen" element={<FlyBergen />} />
           <Route path="/expenses" element={isAdmin ? <PageWrapper><Expenses /></PageWrapper> : <PageWrapper><Home /></PageWrapper>} />

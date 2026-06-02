@@ -108,7 +108,7 @@ export default function Writings() {
                 <span>Back to writings</span>
               </Link>
               <button
-                onClick={() => window.print()}
+                onClick={() => navigate(`/writings/${currentPost.slug}/print`)}
                 className="inline-flex items-center space-x-2 text-[10px] uppercase tracking-widest text-ink/40 hover:text-accent transition-colors"
                 title="Print or Save as PDF"
               >
