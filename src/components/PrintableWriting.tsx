@@ -51,6 +51,16 @@ export default function PrintableWriting() {
     return () => unsubscribe();
   }, [slug]);
 
+  useEffect(() => {
+    if (!loading && post) {
+      // Small timeout to allow images to load
+      const timer = setTimeout(() => {
+        window.print();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [loading, post]);
+
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-12 bg-white text-black min-h-screen flex items-center justify-center">

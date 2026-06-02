@@ -68,6 +68,20 @@ export default function Writings() {
     return () => unsubscribe();
   }, [slug]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'p') {
+        if (currentPost) {
+          e.preventDefault();
+          navigate(`/writings/${currentPost.slug}/print`);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [currentPost, navigate]);
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
