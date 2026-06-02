@@ -96,6 +96,8 @@ interface BlogPost {
   excerpt: string;
   author: string;
   imageUrl: string;
+  imageAlt?: string;
+  imageCredit?: string;
   tags: string[];
   status: 'draft' | 'published';
   publishedAt: any;
@@ -1414,9 +1416,9 @@ export default function Admin({ user }: { user: any }) {
             title: page.title.replace('File:', ''),
             url: imageinfo.url,
             thumburl: imageinfo.thumburl || imageinfo.url,
-            credit: extmeta.Artist?.value ? extmeta.Artist.value.replace(/<[^>]+>/g, '') : '',
+            credit: extmeta.Artist?.value || '',
             descriptionUrl: imageinfo.descriptionurl || page.canonicalurl || page.fullurl,
-            attribution: extmeta.AttributionRequired?.value === 'true' ? extmeta.Credit?.value?.replace(/<[^>]+>/g, '') : ''
+            attribution: extmeta.LicenseShortName?.value || ''
           };
         }).filter((p: any) => !!p.url);
         setWikimediaResults(results);
@@ -3113,7 +3115,7 @@ export default function Admin({ user }: { user: any }) {
                         <Button
                           onClick={() => setFilePicker({ 
                             isOpen: true, 
-                            onSelect: (url) => setBlogFormData(prev => ({ ...prev, imageUrl: url })) 
+                            onSelect: (url, alt, credit) => setBlogFormData(prev => ({ ...prev, imageUrl: url, imageAlt: alt || '', imageCredit: credit || '' })) 
                           })}
                           variant="outline"
                           size="sm"
@@ -3121,6 +3123,17 @@ export default function Admin({ user }: { user: any }) {
                           magnetic={true}
                         />
                       </div>
+                      {(blogFormData.imageAlt || blogFormData.imageCredit) && (
+                        <div className="text-xs text-ink/50 mt-2 space-y-1">
+                          {blogFormData.imageAlt && <p>Alt: {blogFormData.imageAlt}</p>}
+                          {blogFormData.imageCredit && (
+                            <div className="flex gap-2">
+                              <span>Credit:</span>
+                              <div dangerouslySetInnerHTML={{ __html: blogFormData.imageCredit }} className="[&_a]:underline [&_a]:hover:text-ink transition-colors" />
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -3620,8 +3633,10 @@ export default function Admin({ user }: { user: any }) {
                   <Button
                     key={result.id}
                     onClick={() => {
-                      const creditText = result.attribution || result.credit ? `Credit: ${result.attribution || result.credit}` : 'Wikimedia Commons';
-                      filePicker.onSelect(result.url, result.title, creditText);
+                      const author = result.credit || 'Unknown Author';
+                      const licenseStr = result.attribution ? ` (${result.attribution})` : '';
+                      const creditHtml = `<a href="${result.descriptionUrl}" target="_blank" rel="noopener noreferrer">Wikimedia Commons</a> / ${author}${licenseStr}`;
+                      filePicker.onSelect(result.url, result.title, creditHtml);
                       setFilePicker(prev => ({ ...prev, isOpen: false }));
                     }}
                     variant="ghost"

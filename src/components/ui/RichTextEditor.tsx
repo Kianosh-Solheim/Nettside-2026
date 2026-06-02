@@ -4,9 +4,9 @@ import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import Link from '@tiptap/extension-link';
 import Image from '@tiptap/extension-image';
+import CharacterCount from '@tiptap/extension-character-count';
 import { Bold, Italic, Link2, Heading1, Heading2, List, Quote, Code, Image as ImageIcon, Maximize, Minimize } from 'lucide-react';
-import { useEffect, useState } from 'react';
-import { createPortal } from 'react-dom';
+import { useEffect, useState, useRef } from 'react';
 
 interface RichTextEditorProps {
   content: string;
@@ -33,6 +33,7 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Start
         openOnClick: false,
       }),
       Image,
+      CharacterCount,
     ],
     content,
     onUpdate: ({ editor }) => {
@@ -67,16 +68,28 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Start
     }
   }, [content, editor]);
 
-  // Handle escape key to exit fullscreen
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Handle fullscreen Native API
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isFullscreen) {
-        setIsFullscreen(false);
-      }
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isFullscreen]);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen().catch((err) => {
+        console.error(err);
+      });
+    } else {
+      document.exitFullscreen().catch(err => {
+        console.error(err);
+      });
+    }
+  };
 
   if (!editor) {
     return null;
@@ -87,19 +100,11 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Start
       const result = await onImageRequest();
       if (result && result.url) {
         if (result.credit) {
-          editor.commands.insertContent([
-            {
-              type: 'image',
-              attrs: { src: result.url, alt: result.alt, title: result.credit }
-            },
-            {
-              type: 'paragraph',
-              content: [{ type: 'text', text: result.credit, marks: [{ type: 'italic' }] }]
-            },
-            {
-              type: 'paragraph'
-            }
-          ]);
+          editor.commands.insertContent(`
+            <img src="${result.url}" alt="${result.alt || ''}">
+            <p style="text-align: center;"><em>${result.credit}</em></p>
+            <p></p>
+          `);
         } else {
           editor.chain().focus().setImage({ src: result.url }).run();
         }
@@ -127,12 +132,12 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Start
   };
 
   const editorNode = (
-    <div className={`relative w-full ${isFullscreen ? 'fixed inset-0 z-[100] bg-surface overflow-y-auto px-4 py-16 md:py-24' : 'transition-all duration-300'}`}>
-      <div className={isFullscreen ? 'max-w-4xl mx-auto relative' : 'relative w-full'}>
+    <div ref={containerRef} className={`relative w-full bg-surface ${isFullscreen ? 'overflow-y-auto px-4 py-16 md:py-24' : 'transition-all duration-300'}`}>
+      <div className={isFullscreen ? 'max-w-4xl mx-auto relative h-full' : 'relative w-full h-full'}>
         <button
           onClick={(e) => {
             e.preventDefault();
-            setIsFullscreen(!isFullscreen);
+            toggleFullscreen();
           }}
           className={`absolute ${isFullscreen ? '-top-12 right-0' : 'top-2 right-2'} z-10 p-2 bg-surface border border-ink/10 rounded-xl text-ink/40 hover:text-ink shadow-sm hover:shadow-md transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest`}
           title={isFullscreen ? "Exit Fullscreen (Esc)" : "Fullscreen"}
@@ -211,6 +216,17 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Start
 
         <EditorContent editor={editor} className="cursor-text w-full" />
         
+        <div className={`pt-4 border-t border-ink/5 flex items-center justify-between text-[10px] uppercase tracking-widest text-ink/40 font-black ${isFullscreen ? 'fixed bottom-0 left-0 right-0 bg-surface/90 backdrop-blur-sm p-4 z-50 shadow-[0_-4px_20px_-10px_rgba(0,0,0,0.1)]' : 'mt-8'}`}>
+          <div className={isFullscreen ? 'max-w-4xl mx-auto w-full flex items-center justify-between' : 'flex items-center justify-between w-full'}>
+            <div>
+              {editor.storage.characterCount.words()} words
+            </div>
+            <div>
+              {editor.storage.characterCount.characters()} characters
+            </div>
+          </div>
+        </div>
+
         <style dangerouslySetInnerHTML={{__html:`
           .is-editor-empty:first-child::before {
             content: attr(data-placeholder);
@@ -239,7 +255,5 @@ export default function RichTextEditor({ content, onChange, placeholder = 'Start
     </div>
   );
 
-  return isFullscreen && typeof document !== 'undefined'
-    ? createPortal(editorNode, document.body)
-    : editorNode;
+  return editorNode;
 }

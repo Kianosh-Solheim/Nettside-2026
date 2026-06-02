@@ -14,6 +14,8 @@ interface BlogPost {
   excerpt: string;
   author: string;
   imageUrl: string;
+  imageAlt?: string;
+  imageCredit?: string;
   tags: string[];
   status: 'draft' | 'published';
   publishedAt: any;
@@ -135,13 +137,21 @@ export default function Writings() {
             </header>
 
             {currentPost.imageUrl && (
-              <div className="aspect-[21/9] rounded-[40px] overflow-hidden mb-16 shadow-2xl border border-ink/5">
-                <img 
-                  src={currentPost.imageUrl} 
-                  alt={currentPost.title} 
-                  className="w-full h-full object-cover"
-                />
-              </div>
+              <figure className="mb-16">
+                <div className="rounded-[40px] overflow-hidden shadow-2xl border border-ink/5 bg-ink/5">
+                  <img 
+                    src={currentPost.imageUrl} 
+                    alt={currentPost.imageAlt || currentPost.title} 
+                    className="w-full h-auto object-contain max-h-[70vh]"
+                  />
+                </div>
+                {currentPost.imageCredit && (
+                  <figcaption 
+                    className="text-sm text-center text-ink/50 italic mt-4 [&_a]:underline [&_a]:hover:text-ink transition-colors"
+                    dangerouslySetInnerHTML={{ __html: currentPost.imageCredit }}
+                  />
+                )}
+              </figure>
             )}
 
             <div className="prose prose-lg prose-p:text-ink prose-headings:text-ink prose-li:text-ink prose-strong:text-ink dark:prose-invert max-w-none prose-headings:font-serif prose-headings:tracking-tight prose-a:text-accent hover:prose-a:opacity-80 transition-all">
