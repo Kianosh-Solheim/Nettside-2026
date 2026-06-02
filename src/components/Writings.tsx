@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db, collection, query, where, orderBy, onSnapshot, handleFirestoreError, OperationType } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, User, Tag, ArrowLeft, ChevronRight, Loader2, BookOpen, Share2 } from 'lucide-react';
+import { Calendar, User, Tag, ArrowLeft, ChevronRight, Loader2, BookOpen, Share2, Printer } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Button from './ui/Button';
@@ -89,7 +89,7 @@ export default function Writings() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-24">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-24 print:p-0 print:m-0 print:max-w-none">
       <AnimatePresence mode="wait">
         {currentPost ? (
           <motion.article
@@ -99,13 +99,23 @@ export default function Writings() {
             exit={{ opacity: 0, y: -20 }}
             className="max-w-4xl mx-auto"
           >
-            <Link 
-              to="/writings" 
-              className="inline-flex items-center space-x-2 text-[10px] uppercase tracking-widest text-ink/40 hover:text-accent transition-colors mb-12 group"
-            >
-              <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-              <span>Back to writings</span>
-            </Link>
+            <div className="flex items-center justify-between mb-12 print:hidden">
+              <Link 
+                to="/writings" 
+                className="inline-flex items-center space-x-2 text-[10px] uppercase tracking-widest text-ink/40 hover:text-accent transition-colors group"
+              >
+                <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
+                <span>Back to writings</span>
+              </Link>
+              <button
+                onClick={() => window.print()}
+                className="inline-flex items-center space-x-2 text-[10px] uppercase tracking-widest text-ink/40 hover:text-accent transition-colors"
+                title="Print or Save as PDF"
+              >
+                <Printer size={14} />
+                <span>Save as PDF</span>
+              </button>
+            </div>
 
             <header className="mb-16">
               <div className="flex flex-wrap gap-3 mb-8">

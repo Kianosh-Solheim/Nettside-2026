@@ -118,7 +118,7 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
   ];
 
   return (
-    <nav className="fixed top-0 w-full bg-paper/80 backdrop-blur-md border-b border-ink/5 z-50">
+    <nav className="fixed top-0 w-full bg-paper/80 backdrop-blur-md border-b border-ink/5 z-50 print:hidden">
       <motion.div
         className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent origin-left"
         style={{ scaleX }}
@@ -454,7 +454,7 @@ const Footer = ({ socials }: { socials: Social[] }) => {
   };
 
   return (
-    <footer className="py-16 border-t border-ink/5 bg-paper/50 backdrop-blur-sm text-center relative z-10">
+    <footer className="py-16 border-t border-ink/5 bg-paper/50 backdrop-blur-sm text-center relative z-10 print:hidden">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex flex-col items-center space-y-6">
           <div className="text-xl font-serif tracking-widest uppercase">
@@ -572,7 +572,7 @@ const MainLayout = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid, show
             display: none !important;
           }
         `}</style>
-        <main className={`flex-grow ${isPrintPage || isKiaplayPage ? '' : 'pt-16'}`}>
+        <main className={`flex-grow ${isPrintPage || isKiaplayPage ? '' : 'pt-16 print:pt-0 print:block'}`}>
           <AnimatedRoutes user={user} canViewAdminHealth={canViewAdminHealth} hasKiaplayAccess={hasKiaplayAccess} adminUid={adminUid} />
         </main>
         
@@ -581,7 +581,7 @@ const MainLayout = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid, show
             <Button
               onClick={scrollToTop}
               icon={ArrowUp}
-              className="fixed bottom-8 right-8 p-4 shadow-lg z-40"
+              className="fixed bottom-8 right-8 p-4 shadow-lg z-40 print:hidden"
               magnetic={true}
             >
               Back to Top
