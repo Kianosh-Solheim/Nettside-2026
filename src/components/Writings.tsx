@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, User, Tag, ArrowLeft, ChevronRight, Loader2, BookOpen, Share2, Printer } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Helmet } from 'react-helmet-async';
 import Button from './ui/Button';
 
 interface BlogPost {
@@ -29,6 +30,27 @@ export default function Writings() {
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentPost, setCurrentPost] = useState<BlogPost | null>(null);
+
+  const handleShare = async () => {
+    if (!currentPost) return;
+    
+    // Web Share API (Mobile native share sheet, desktop support in Safari/Edge)
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: currentPost.title,
+          text: currentPost.excerpt || `Read "${currentPost.title}" by ${currentPost.author}`,
+          url: window.location.href,
+        });
+      } catch (error) {
+        console.error('Error sharing:', error);
+      }
+    } else {
+      // Fallback: Copy Link
+      navigator.clipboard.writeText(window.location.href);
+      alert('Link copied to clipboard!');
+    }
+  };
 
   useEffect(() => {
     const q = query(
@@ -104,6 +126,21 @@ export default function Writings() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-24 print:p-0 print:m-0 print:max-w-none">
+      {currentPost && (
+        <Helmet>
+          <title>{currentPost.title} - Writings</title>
+          <meta name="description" content={currentPost.excerpt} />
+          <meta property="og:title" content={currentPost.title} />
+          <meta property="og:description" content={currentPost.excerpt} />
+          {currentPost.imageUrl && <meta property="og:image" content={currentPost.imageUrl} />}
+          <meta property="og:type" content="article" />
+          <meta property="og:url" content={window.location.href} />
+          <meta name="twitter:card" content={currentPost.imageUrl ? 'summary_large_image' : 'summary'} />
+          <meta name="twitter:title" content={currentPost.title} />
+          <meta name="twitter:description" content={currentPost.excerpt} />
+          {currentPost.imageUrl && <meta name="twitter:image" content={currentPost.imageUrl} />}
+        </Helmet>
+      )}
       <AnimatePresence mode="wait">
         {currentPost ? (
           <motion.article
@@ -198,7 +235,7 @@ export default function Writings() {
                   </div>
                 </div>
                 <div className="flex items-center space-x-3">
-                   <Button variant="ghost" size="sm" icon={Share2} magnetic={true}>Share</Button>
+                   <Button variant="ghost" size="sm" icon={Share2} magnetic={true} onClick={handleShare}>Share</Button>
                 </div>
               </div>
             </footer>
