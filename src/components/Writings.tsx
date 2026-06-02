@@ -212,9 +212,6 @@ export default function Writings() {
           >
             <div className="text-center mb-24">
               <h1 className="text-5xl md:text-7xl font-serif tracking-tight mb-6">Collected Writings</h1>
-              <p className="text-sm md:text-base text-ink/60 max-w-2xl mx-auto leading-relaxed">
-                Essays on politics, systems, and the intersection of traditional institutions with technology.
-              </p>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
