@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, db, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, serverTimestamp, signInWithPopup, googleProvider, auth, storage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, handleFirestoreError, OperationType, getDocs, listAll, getMetadata, getDocFromServer } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Edit2, Save, X, LogIn, AlertCircle, CheckCircle2, Search, Book as BookIcon, Film, Tv, Loader2, Upload, File as FileIcon, Image as ImageIcon, Copy, ExternalLink as ExternalLinkIcon, ArrowUpDown, Mail, Briefcase, GraduationCap, Heart, Calendar as CalendarIcon, RefreshCcw, Users, User, Check, Share2, MailOpen, XCircle, BookOpen } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, LogIn, AlertCircle, CheckCircle2, Search, Book as BookIcon, Film, Tv, Loader2, Upload, File as FileIcon, Image as ImageIcon, Copy, ExternalLink as ExternalLinkIcon, ArrowUpDown, Mail, Briefcase, GraduationCap, Heart, Calendar as CalendarIcon, RefreshCcw, Users, User, Check, Share2, MailOpen, XCircle, BookOpen, Activity } from 'lucide-react';
 import Button from './ui/Button';
 import RichTextEditor from './ui/RichTextEditor';
 import Expenses from './Expenses';
@@ -105,8 +105,16 @@ interface BlogPost {
   updatedAt: any;
 }
 
+interface PageStat {
+  id: string;
+  path: string;
+  views: number;
+  durationSeconds: number;
+}
+
 export default function Admin({ user }: { user: any }) {
-  const [activeTab, setActiveTab] = useState<'recommendations' | 'cv' | 'socials' | 'files' | 'messages' | 'integrations' | 'users' | 'meetings' | 'expenses' | 'measured-words' | 'memberships' | 'writings'>('recommendations');
+  const [activeTab, setActiveTab] = useState<'oversikt' | 'recommendations' | 'cv' | 'socials' | 'files' | 'messages' | 'integrations' | 'users' | 'meetings' | 'expenses' | 'measured-words' | 'memberships' | 'writings'>('oversikt');
+  const [pageStats, setPageStats] = useState<PageStat[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [cvSections, setCvSections] = useState<CVSection[]>([]);
   const [socials, setSocials] = useState<Social[]>([]);
@@ -327,6 +335,15 @@ export default function Admin({ user }: { user: any }) {
       setIsCalendarConnected(snapshot.exists());
     }, (error) => handleFirestoreError(error, OperationType.GET, 'config/google_calendar_tokens'));
 
+    const qPageStats = query(collection(db, 'pageStats'), orderBy('views', 'desc'));
+    const unsubscribePageStats = onSnapshot(qPageStats, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      })) as PageStat[];
+      setPageStats(data);
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'pageStats'));
+
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
         setStatus({ type: 'success', message: 'Google Calendar connected successfully!' });
@@ -345,6 +362,7 @@ export default function Admin({ user }: { user: any }) {
       unsubscribeUsers();
       unsubscribeUserPages();
       unsubscribeConfig();
+      unsubscribePageStats();
       window.removeEventListener('message', handleMessage);
     };
   }, [isAdmin]);
@@ -1489,6 +1507,7 @@ export default function Admin({ user }: { user: any }) {
                 style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='currentColor'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`, backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1.5rem center', backgroundSize: '1.2rem' }}
               >
                 {[
+                  { id: 'oversikt', label: 'Oversikt' },
                   { id: 'recommendations', label: 'Recommendations' },
                   { id: 'cv', label: 'CV Editor' },
                   { id: 'socials', label: 'Socials' },
@@ -1513,6 +1532,7 @@ export default function Admin({ user }: { user: any }) {
             <nav className="hidden lg:flex flex-col gap-1.5 p-3 bg-paper border border-ink/5 rounded-[40px] shadow-inner relative group">
               <div className="absolute inset-0 bg-accent/[0.02] rounded-[40px] pointer-events-none" />
               {[
+                { id: 'oversikt', label: 'Oversikt', icon: Activity },
                 { id: 'recommendations', label: 'Recommendations', icon: BookIcon },
                 { id: 'cv', label: 'CV Editor', icon: User },
                 { id: 'socials', label: 'Socials', icon: Share2 },
@@ -1579,7 +1599,51 @@ export default function Admin({ user }: { user: any }) {
               exit={{ opacity: 0, x: -20 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
             >
-              {activeTab === 'recommendations' ? (
+              {activeTab === 'oversikt' ? (
+                <div className="space-y-12 max-w-7xl mx-auto">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-8 px-4">
+                    <div>
+                      <h2 className="text-4xl font-serif mb-2">Metrics Overview</h2>
+                      <p className="text-[10px] uppercase tracking-[0.2em] font-black text-ink/40">Page views and time spent</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-surface rounded-[48px] border border-ink/5 shadow-sm p-8 md:p-12 overflow-hidden">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left border-collapse">
+                        <thead>
+                          <tr className="border-b border-ink/5">
+                            <th className="pb-4 text-[10px] uppercase tracking-widest font-black text-ink/40">Page Path</th>
+                            <th className="pb-4 text-[10px] uppercase tracking-widest font-black text-ink/40 text-right">Accumulated Views</th>
+                            <th className="pb-4 text-[10px] uppercase tracking-widest font-black text-ink/40 text-right">Summarized Duration</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-ink/5">
+                          {pageStats.map(stat => {
+                            const minutes = Math.floor(stat.durationSeconds / 60);
+                            const seconds = stat.durationSeconds % 60;
+                            const durationString = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+                            return (
+                              <tr key={stat.id} className="group hover:bg-ink/5 transition-colors">
+                                <td className="py-4 font-mono text-sm group-hover:text-accent transition-colors">{stat.path}</td>
+                                <td className="py-4 text-right font-medium">{stat.views.toLocaleString()}</td>
+                                <td className="py-4 text-right text-ink/60">{durationString}</td>
+                              </tr>
+                            );
+                          })}
+                          {pageStats.length === 0 && (
+                            <tr>
+                              <td colSpan={3} className="py-12 text-center text-ink/40 italic">
+                                No visitor stats tracked yet.
+                              </td>
+                            </tr>
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              ) : activeTab === 'recommendations' ? (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-16">
           {/* Left Column: Search & Form */}
           <div className="lg:col-span-1 space-y-8">

@@ -17,6 +17,7 @@ const CV = lazy(() => import('./components/CV'));
 const Admin = lazy(() => import('./components/Admin'));
 const Writings = lazy(() => import('./components/Writings'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
+const VisitorTracker = lazy(() => import('./components/VisitorTracker'));
 const HealthTracker = lazy(() => import('./components/HealthTracker'));
 const PrintableCV = lazy(() => import('./components/PrintableCV'));
 const UserPage = lazy(() => import('./components/UserPage'));
@@ -925,6 +926,9 @@ export default function App() {
         <ProfileContext.Provider value={profile}>
           <SocialsContext.Provider value={socials}>
             <Router basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+              <Suspense fallback={null}>
+                <VisitorTracker />
+              </Suspense>
               <MainLayout 
                 user={user} 
                 canViewAdminHealth={canViewAdminHealth}

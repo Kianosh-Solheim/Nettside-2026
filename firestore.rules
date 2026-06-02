@@ -319,6 +319,13 @@ service cloud.firestore {
              (!('createdAt' in data) || data.createdAt is timestamp);
     }
 
+    function isValidPageStat(data) {
+      return data.keys().hasAll(['path', 'views', 'durationSeconds']) &&
+             data.path is string && data.path.size() > 0 && data.path.size() < 500 &&
+             data.views is number &&
+             data.durationSeconds is number;
+    }
+
     function isValidAirlineLogo(data) {
       return data.keys().hasAll(['airlineCode', 'logoData']) &&
              data.airlineCode is string && data.airlineCode.size() > 0 && data.airlineCode.size() < 10 &&
@@ -635,6 +642,14 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    match /pageStats/{statId} {
+      allow read: if isAdmin();
+      allow create: if isValidPageStat(request.resource.data);
+      allow update: if (
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['views', 'durationSeconds'])
+      );
+    }
+    
     match /memberships/{membershipId}/roles/{roleId} {
       allow read: if isAdmin();
       allow create, update: if isAdmin() && isValidMembershipRole(request.resource.data);
