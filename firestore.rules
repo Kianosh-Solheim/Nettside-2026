@@ -392,6 +392,21 @@ service cloud.firestore {
              (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
+    function isValidBlogPost(data) {
+      return data.keys().hasAll(['title', 'slug', 'content', 'status']) &&
+             data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
+             data.slug is string && data.slug.size() > 0 && data.slug.size() < 500 &&
+             data.content is string && data.content.size() > 0 && data.content.size() < 100000 &&
+             data.status in ['draft', 'published'] &&
+             (!('excerpt' in data) || (data.excerpt is string && data.excerpt.size() < 2000)) &&
+             (!('author' in data) || (data.author is string && data.author.size() < 200)) &&
+             (!('imageUrl' in data) || (data.imageUrl == "" || isValidUrl(data.imageUrl))) &&
+             (!('tags' in data) || (data.tags is list && data.tags.size() < 50)) &&
+             (!('publishedAt' in data) || data.publishedAt == null || data.publishedAt is timestamp) &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
+    }
+
     function isValidBook(data) {
       let allowedFields = [
         'title', 'subtitle', 'author', 'authors', 'location', 'isbn', 'genre', 'description', 
@@ -429,6 +444,12 @@ service cloud.firestore {
     // ===============================================================
     // Rules
     // ===============================================================
+
+    match /blog_posts/{postId} {
+      allow read: if resource.data.status == 'published' || isAdmin();
+      allow create, update: if isAdmin() && isValidBlogPost(request.resource.data);
+      allow delete: if isAdmin();
+    }
 
     match /health_logs/{logId} {
       allow read: if isOwner(resource.data.userId) || isAdmin() || (canViewAdminHealth(request.auth.uid) && isAdminOwned(resource.data.userId));

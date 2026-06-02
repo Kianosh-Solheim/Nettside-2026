@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { useState, useEffect, createContext, useContext, useRef, lazy, Suspense } from 'react';
 import { auth, onAuthStateChanged, signOut, signInWithPopup, googleProvider, db, collection, onSnapshot, query, orderBy, where, doc, getDocFromServer, setDoc, serverTimestamp, handleFirestoreError, OperationType } from './firebase';
 import { motion, AnimatePresence, useMotionValue, useSpring, useMotionTemplate, useScroll } from 'framer-motion';
-import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar, LayoutDashboard, Loader2, DollarSign } from 'lucide-react';
+import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar, LayoutDashboard, Loader2, DollarSign, BookOpen } from 'lucide-react';
 import { BlueskyIcon } from './components/Icons';
 import Magnetic from './components/Magnetic';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -15,6 +15,7 @@ const Home = lazy(() => import('./components/Home'));
 const Recommendations = lazy(() => import('./components/Recommendations'));
 const CV = lazy(() => import('./components/CV'));
 const Admin = lazy(() => import('./components/Admin'));
+const Writings = lazy(() => import('./components/Writings'));
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const HealthTracker = lazy(() => import('./components/HealthTracker'));
 const PrintableCV = lazy(() => import('./components/PrintableCV'));
@@ -109,6 +110,7 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
   const navLinks = [
     { name: 'Home', path: '/', icon: <HomeIcon size={18} /> },
     { name: 'CV', path: '/cv', icon: <FileText size={18} /> },
+    { name: 'Writings', path: '/writings', icon: <BookOpen size={18} /> },
     ...(user ? [{ name: 'Library', path: '/library', icon: <Book size={18} /> }] : []),
     { name: 'Recommendations', path: '/recommendations', icon: <Film size={18} /> },
     { name: 'Availability', path: '/availability', icon: <Calendar size={18} /> },
@@ -458,7 +460,7 @@ const Footer = ({ socials }: { socials: Social[] }) => {
             {(profile.name || 'Kianosh F. Solheim').split(' ').map(n => n[0]).join('. ')}
           </div>
           <div className="flex flex-wrap justify-center gap-x-8 gap-y-4">
-            {['Home', 'Recommendations', 'CV', 'Fly-Bergen', 'Contact', 'SAMPOL-Dashboard'].map((item) => (
+            {['Home', 'Recommendations', 'CV', 'Writings', 'Fly-Bergen', 'Contact', 'SAMPOL-Dashboard'].map((item) => (
               <Link
                 key={item}
                 to={
@@ -610,6 +612,8 @@ const AnimatedRoutes = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid }
           <Route path="/recommendations" element={<PageWrapper><Recommendations /></PageWrapper>} />
           <Route path="/availability" element={<PageWrapper><Availability /></PageWrapper>} />
           <Route path="/cv" element={<PageWrapper><CV /></PageWrapper>} />
+          <Route path="/writings" element={<PageWrapper><Writings /></PageWrapper>} />
+          <Route path="/writings/:slug" element={<PageWrapper><Writings /></PageWrapper>} />
           <Route path="/library" element={<PageWrapper><Library /></PageWrapper>} />
           <Route path="/admin" element={<PageWrapper><Admin user={user} /></PageWrapper>} />
           <Route path="/dashboard" element={isAdmin ? <PageWrapper><Dashboard /></PageWrapper> : <PageWrapper><Home /></PageWrapper>} />

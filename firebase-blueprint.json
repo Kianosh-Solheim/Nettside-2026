@@ -471,9 +471,32 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["membershipId", "amount", "date"]
+    },
+    "BlogPost": {
+      "title": "Blog Post",
+      "description": "An article or blog post.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the post" },
+        "slug": { "type": "string", "description": "URL-friendly slug" },
+        "content": { "type": "string", "description": "Markdown content of the post" },
+        "excerpt": { "type": "string", "description": "Short summary" },
+        "author": { "type": "string", "description": "Author name" },
+        "imageUrl": { "type": "string", "format": "uri", "description": "Featured image URL" },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["draft", "published"] },
+        "publishedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "slug", "content", "status"]
     }
   },
   "firestore": {
+    "/blog_posts/{postId}": {
+      "schema": "BlogPost",
+      "description": "Public blog posts and articles."
+    },
     "/recommendations/{recommendationId}": {
       "schema": "Recommendation",
       "description": "Public recommendations list."

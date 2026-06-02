@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, db, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, serverTimestamp, signInWithPopup, googleProvider, auth, storage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, handleFirestoreError, OperationType, getDocs, listAll, getMetadata, getDocFromServer } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Edit2, Save, X, LogIn, AlertCircle, CheckCircle2, Search, Book as BookIcon, Film, Tv, Loader2, Upload, File as FileIcon, Image as ImageIcon, Copy, ExternalLink as ExternalLinkIcon, ArrowUpDown, Mail, Briefcase, GraduationCap, Heart, Calendar as CalendarIcon, RefreshCcw, Users, User, Check, Share2, MailOpen, XCircle } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, LogIn, AlertCircle, CheckCircle2, Search, Book as BookIcon, Film, Tv, Loader2, Upload, File as FileIcon, Image as ImageIcon, Copy, ExternalLink as ExternalLinkIcon, ArrowUpDown, Mail, Briefcase, GraduationCap, Heart, Calendar as CalendarIcon, RefreshCcw, Users, User, Check, Share2, MailOpen, XCircle, BookOpen } from 'lucide-react';
 import Button from './ui/Button';
+import RichTextEditor from './ui/RichTextEditor';
 import Expenses from './Expenses';
 import MeasuredWords from './MeasuredWords';
 import Memberships from './Memberships';
@@ -87,8 +88,23 @@ interface Message {
   read: boolean;
 }
 
+interface BlogPost {
+  id: string;
+  title: string;
+  slug: string;
+  content: string;
+  excerpt: string;
+  author: string;
+  imageUrl: string;
+  tags: string[];
+  status: 'draft' | 'published';
+  publishedAt: any;
+  createdAt: any;
+  updatedAt: any;
+}
+
 export default function Admin({ user }: { user: any }) {
-  const [activeTab, setActiveTab] = useState<'recommendations' | 'cv' | 'socials' | 'files' | 'messages' | 'integrations' | 'users' | 'meetings' | 'expenses' | 'measured-words' | 'memberships'>('recommendations');
+  const [activeTab, setActiveTab] = useState<'recommendations' | 'cv' | 'socials' | 'files' | 'messages' | 'integrations' | 'users' | 'meetings' | 'expenses' | 'measured-words' | 'memberships' | 'writings'>('recommendations');
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [cvSections, setCvSections] = useState<CVSection[]>([]);
   const [socials, setSocials] = useState<Social[]>([]);
@@ -99,6 +115,22 @@ export default function Admin({ user }: { user: any }) {
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userPages, setUserPages] = useState<Record<string, any>>({});
   const [allMeetings, setAllMeetings] = useState<any[]>([]);
+  const [blogPosts, setBlogPosts] = useState<BlogPost[]>([]);
+  const [isEditingBlogPost, setIsEditingBlogPost] = useState<string | null>(null);
+  const [filePickerTab, setFilePickerTab] = useState<'upload' | 'wikimedia'>('upload');
+  const [wikimediaSearch, setWikimediaSearch] = useState('');
+  const [wikimediaResults, setWikimediaResults] = useState<any[]>([]);
+  const [isSearchingWikimedia, setIsSearchingWikimedia] = useState(false);
+  const [blogFormData, setBlogFormData] = useState<Partial<BlogPost>>({
+    title: '',
+    slug: '',
+    content: '',
+    excerpt: '',
+    author: '',
+    imageUrl: '',
+    tags: [],
+    status: 'draft'
+  });
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileSortOption, setFileSortOption] = useState<'newest' | 'oldest' | 'name-asc' | 'name-desc' | 'size-asc' | 'size-desc'>('newest');
@@ -139,7 +171,7 @@ export default function Admin({ user }: { user: any }) {
   const [timetableBoards, setTimetableBoards] = useState<any[]>([]);
   const [filePicker, setFilePicker] = useState<{
     isOpen: boolean;
-    onSelect: (url: string) => void;
+    onSelect: (url: string, alt?: string, credit?: string) => void;
   }>({
     isOpen: false,
     onSelect: () => {}
@@ -191,6 +223,21 @@ export default function Admin({ user }: { user: any }) {
   const [movieSearchResults, setMovieSearchResults] = useState<any[]>([]);
 
   const isAdmin = user?.email === 'kianoshsolheim@gmail.com' || user?.email === 'kianosh@solheim.online';
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const q = query(collection(db, 'blog_posts'), orderBy('createdAt', 'desc'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      setBlogPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
+    }, (error) => handleFirestoreError(error, OperationType.LIST, 'blog_posts'));
+    return unsubscribe;
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (profile.name && !blogFormData.author) {
+      setBlogFormData(prev => ({ ...prev, author: profile.name }));
+    }
+  }, [profile.name]);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -938,7 +985,10 @@ export default function Admin({ user }: { user: any }) {
         } catch (err: any) {
           console.warn(`Could not list path: "${folderPath}"`, err);
           if (err.code === 'storage/unauthorized') {
-            throw new Error(`Permission denied for folder "${folderPath || 'root'}". Please update your Firebase Storage rules to allow "list" access.`);
+            // Log but don't throw, so we can check other top-level folders
+            console.error(`Permission denied for folder "${folderPath || 'root'}". Check Storage Rules.`);
+          } else {
+            throw err;
           }
         }
       };
@@ -947,7 +997,11 @@ export default function Admin({ user }: { user: any }) {
       const pathsToCheck = ['', 'uploads', 'images', 'documents', 'assets'];
       for (const path of pathsToCheck) {
         setStatus({ type: 'info', message: `Checking folder: ${path || 'root'}...` });
-        await processFolder(path);
+        try {
+          await processFolder(path);
+        } catch (e: any) {
+          console.error(`Failed to process path "${path}":`, e);
+        }
       }
 
       setStatus({ type: 'success', message: `Sync complete. Added ${addedCount} new files.` });
@@ -1191,6 +1245,69 @@ export default function Admin({ user }: { user: any }) {
     setTimeout(() => setStatus(null), 2000);
   };
 
+  const resetBlogForm = () => {
+    setIsEditingBlogPost(null);
+    setBlogFormData({
+      title: '',
+      slug: '',
+      content: '',
+      excerpt: '',
+      author: profile.name,
+      imageUrl: '',
+      tags: [],
+      status: 'draft'
+    });
+  };
+
+  const handleSaveBlogPost = async () => {
+    if (!blogFormData.title || !blogFormData.slug || !blogFormData.content) {
+      setStatus({ type: 'error', message: 'Title, Slug, and Content are required.' });
+      return;
+    }
+
+    try {
+      const data = {
+        ...blogFormData,
+        updatedAt: serverTimestamp(),
+        publishedAt: blogFormData.status === 'published' ? (blogFormData.publishedAt || serverTimestamp()) : null
+      };
+
+      if (isEditingBlogPost && isEditingBlogPost !== 'new') {
+        await updateDoc(doc(db, 'blog_posts', isEditingBlogPost), data);
+        setStatus({ type: 'success', message: 'Blog post updated successfully' });
+      } else {
+        await addDoc(collection(db, 'blog_posts'), {
+          ...data,
+          createdAt: serverTimestamp()
+        });
+        setStatus({ type: 'success', message: 'Blog post published successfully' });
+      }
+      resetBlogForm();
+    } catch (error) {
+      handleFirestoreError(error, isEditingBlogPost ? OperationType.UPDATE : OperationType.CREATE, isEditingBlogPost ? `blog_posts/${isEditingBlogPost}` : 'blog_posts');
+      setStatus({ type: 'error', message: 'Failed to save blog post' });
+    }
+  };
+
+  const handleDeleteBlogPost = async (id: string) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Blog Post',
+      message: 'Are you sure you want to permanently delete this blog post? This action cannot be undone.',
+      onConfirm: async () => {
+        try {
+          await deleteDoc(doc(db, 'blog_posts', id));
+          setStatus({ type: 'success', message: 'Blog post deleted successfully' });
+        } catch (error) {
+          handleFirestoreError(error, OperationType.DELETE, `blog_posts/${id}`);
+          setStatus({ type: 'error', message: 'Failed to delete blog post' });
+        } finally {
+          setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        }
+      }
+    });
+  };
+
   const formatFileSize = (bytes: number) => {
     if (bytes === 0) return '0 Bytes';
     const k = 1024;
@@ -1279,6 +1396,41 @@ export default function Admin({ user }: { user: any }) {
     );
   }
 
+  const searchWikimedia = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!wikimediaSearch.trim()) return;
+    
+    setIsSearchingWikimedia(true);
+    try {
+      const url = `https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(wikimediaSearch)}&gsrnamespace=6&gsrlimit=20&prop=imageinfo|info&iiprop=url|extmetadata&iiurlwidth=500&format=json&origin=*`;
+      const res = await fetch(url);
+      const data = await res.json();
+      if (data.query?.pages) {
+        const results = Object.values(data.query.pages).map((page: any) => {
+          const imageinfo = page.imageinfo?.[0] || {};
+          const extmeta = imageinfo.extmetadata || {};
+          return {
+            id: page.pageid,
+            title: page.title.replace('File:', ''),
+            url: imageinfo.url,
+            thumburl: imageinfo.thumburl || imageinfo.url,
+            credit: extmeta.Artist?.value ? extmeta.Artist.value.replace(/<[^>]+>/g, '') : '',
+            descriptionUrl: imageinfo.descriptionurl || page.canonicalurl || page.fullurl,
+            attribution: extmeta.AttributionRequired?.value === 'true' ? extmeta.Credit?.value?.replace(/<[^>]+>/g, '') : ''
+          };
+        }).filter((p: any) => !!p.url);
+        setWikimediaResults(results);
+      } else {
+        setWikimediaResults([]);
+      }
+    } catch (error) {
+      console.error("Wikimedia search failed:", error);
+      setStatus({ type: 'error', message: 'Failed to search Wikimedia.' });
+    } finally {
+      setIsSearchingWikimedia(false);
+    }
+  };
+
   const filteredMessages = messages.filter(msg => {
     if (messageFilter === 'unread') return !msg.read;
     if (messageFilter === 'read') return msg.read;
@@ -1344,6 +1496,7 @@ export default function Admin({ user }: { user: any }) {
                   { id: 'expenses', label: 'Expenses' },
                   { id: 'memberships', label: 'Memberships' },
                   { id: 'measured-words', label: 'Measured Words' },
+                  { id: 'writings', label: 'Writings Editor' },
                   { id: 'integrations', label: 'Integrations' },
                   { id: 'users', label: 'Users' }
                 ].map((tab) => (
@@ -1368,6 +1521,7 @@ export default function Admin({ user }: { user: any }) {
                 { id: 'memberships', label: 'Memberships', icon: Users },
                 { id: 'measured-words', label: 'Measured Words', icon: Edit2 },
                 { id: 'integrations', label: 'Integrations', icon: RefreshCcw },
+                { id: 'writings', label: 'Writings Editor', icon: BookOpen },
                 { id: 'users', label: 'User Directory', icon: User }
               ].map((tab) => (
                 <button
@@ -2844,6 +2998,238 @@ export default function Admin({ user }: { user: any }) {
         <div className="max-w-7xl mx-auto">
           <Memberships />
         </div>
+      ) : activeTab === 'writings' ? (
+        <div className="max-w-7xl mx-auto space-y-12">
+          <div className="flex flex-col lg:flex-row items-start justify-between gap-8">
+            <div>
+              <h2 className="text-4xl font-serif mb-2">Collected Writings</h2>
+              <p className="text-ink/40 text-[10px] uppercase tracking-[0.2em] font-black">Manage your essays and articles</p>
+            </div>
+            {!isEditingBlogPost && (
+              <Button
+                onClick={() => {
+                  resetBlogForm();
+                  setIsEditingBlogPost('new');
+                }}
+                variant="primary"
+                size="lg"
+                magnetic={true}
+                className="px-8 py-4 rounded-2xl shadow-xl shadow-accent/20"
+                icon={Plus}
+              >
+                Create New Writing
+              </Button>
+            )}
+          </div>
+
+          <AnimatePresence mode="wait">
+            {isEditingBlogPost ? (
+              <motion.div
+                key="editor"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="bg-surface p-8 md:p-12 rounded-[48px] border border-ink/5 shadow-2xl relative overflow-hidden"
+              >
+                <div className="absolute top-0 right-0 w-64 h-64 bg-accent/[0.03] rounded-full -mr-32 -mt-32 blur-3xl pointer-events-none" />
+                
+                <div className="flex items-center justify-between mb-12 relative z-10">
+                  <h3 className="text-2xl font-serif">
+                    {isEditingBlogPost === 'new' ? 'New Writing' : 'Edit Writing'}
+                  </h3>
+                  <Button onClick={resetBlogForm} variant="ghost" size="sm" icon={X} magnetic={true} />
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 relative z-10">
+                  <div className="space-y-8">
+                    <div className="space-y-2">
+                      <label className="block text-[10px] uppercase tracking-widest text-ink/30 font-black">Writing Title</label>
+                      <input
+                        className="w-full bg-paper border border-ink/10 rounded-2xl px-6 py-4 text-lg font-serif focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all"
+                        value={blogFormData.title}
+                        onChange={(e) => {
+                          const title = e.target.value;
+                          const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+                          setBlogFormData(prev => ({ ...prev, title, slug }));
+                        }}
+                        placeholder="Enter a compelling title..."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-[10px] uppercase tracking-widest text-ink/30 font-black">Slug (URL Path)</label>
+                      <div className="flex items-center space-x-2">
+                        <span className="text-[10px] text-ink/20 font-mono">/writings/</span>
+                        <input
+                          className="flex-grow bg-paper border border-ink/10 rounded-2xl px-6 py-4 text-sm font-mono focus:outline-none focus:border-accent transition-all"
+                          value={blogFormData.slug}
+                          onChange={(e) => setBlogFormData(prev => ({ ...prev, slug: e.target.value }))}
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-8">
+                      <div className="space-y-2">
+                        <label className="block text-[10px] uppercase tracking-widest text-ink/30 font-black">Author</label>
+                        <input
+                          className="w-full bg-paper border border-ink/10 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-accent transition-all"
+                          value={blogFormData.author}
+                          onChange={(e) => setBlogFormData(prev => ({ ...prev, author: e.target.value }))}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <label className="block text-[10px] uppercase tracking-widest text-ink/30 font-black">Status</label>
+                        <select
+                          className="w-full bg-paper border border-ink/10 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-accent transition-all appearance-none cursor-pointer"
+                          value={blogFormData.status}
+                          onChange={(e) => setBlogFormData(prev => ({ ...prev, status: e.target.value as any }))}
+                        >
+                          <option value="draft">Draft</option>
+                          <option value="published">Published</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-[10px] uppercase tracking-widest text-ink/30 font-black">Excerpt / Summary</label>
+                      <textarea
+                        className="w-full bg-paper border border-ink/10 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-accent transition-all resize-none"
+                        rows={3}
+                        value={blogFormData.excerpt}
+                        onChange={(e) => setBlogFormData(prev => ({ ...prev, excerpt: e.target.value }))}
+                        placeholder="A short summary for list views..."
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <label className="block text-[10px] uppercase tracking-widest text-ink/30 font-black">Feature Image URL</label>
+                      <div className="flex gap-4">
+                        <input
+                          className="flex-grow bg-paper border border-ink/10 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-accent transition-all"
+                          value={blogFormData.imageUrl}
+                          onChange={(e) => setBlogFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                          placeholder="https://..."
+                        />
+                        <Button
+                          onClick={() => setFilePicker({ 
+                            isOpen: true, 
+                            onSelect: (url) => setBlogFormData(prev => ({ ...prev, imageUrl: url })) 
+                          })}
+                          variant="outline"
+                          size="sm"
+                          icon={ImageIcon}
+                          magnetic={true}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-8">
+                    <div className="space-y-2 flex flex-col h-full">
+                      <label className="block text-[10px] uppercase tracking-widest text-ink/30 font-black">Content</label>
+                      <div className="bg-paper border border-ink/10 rounded-3xl p-6 min-h-[400px]">
+                        <RichTextEditor
+                          content={blogFormData.content || ''}
+                          onChange={(html) => setBlogFormData(prev => ({ ...prev, content: html }))}
+                          placeholder="Begin writing..."
+                          onImageRequest={() => {
+                            return new Promise((resolve) => {
+                              setFilePicker({
+                                isOpen: true,
+                                onSelect: (url, alt, credit) => resolve({ url, alt, credit })
+                              });
+                            });
+                          }}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-12 pt-10 border-t border-ink/5 flex items-center justify-end space-x-6 relative z-10">
+                  <Button onClick={resetBlogForm} variant="ghost" size="lg" magnetic={true}>Cancel</Button>
+                  <Button onClick={handleSaveBlogPost} variant="primary" size="lg" icon={Save} magnetic={true} className="px-12">
+                    {isEditingBlogPost === 'new' ? 'Publish Writing' : 'Save Changes'}
+                  </Button>
+                </div>
+              </motion.div>
+            ) : (
+              <motion.div
+                key="list"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-8"
+              >
+                {blogPosts.map((post) => (
+                  <motion.div
+                    key={post.id}
+                    layout
+                    className="bg-surface rounded-[40px] border border-ink/5 shadow-sm overflow-hidden group hover:shadow-2xl hover:border-accent/10 transition-all duration-700"
+                  >
+                    <div className="aspect-[16/9] relative bg-ink/5">
+                      {post.imageUrl && (
+                        <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
+                      )}
+                      <div className="absolute top-6 left-6">
+                        <span className={`px-4 py-1.5 rounded-full text-[8px] uppercase tracking-widest font-black shadow-lg backdrop-blur-md ${
+                          post.status === 'published' ? 'bg-emerald-500/90 text-white' : 'bg-orange-500/90 text-white'
+                        }`}>
+                          {post.status}
+                        </span>
+                      </div>
+                    </div>
+                    
+                    <div className="p-8 space-y-6">
+                      <div className="space-y-3">
+                        <h4 className="text-xl font-serif line-clamp-1">{post.title}</h4>
+                        <p className="text-[10px] text-ink/40 uppercase tracking-widest line-clamp-2 leading-relaxed">
+                          {post.excerpt || 'No excerpt provided.'}
+                        </p>
+                      </div>
+
+                      <div className="pt-6 border-t border-ink/5 flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <Button
+                            onClick={() => {
+                              setIsEditingBlogPost(post.id);
+                              setBlogFormData(post);
+                            }}
+                            variant="ghost"
+                            size="sm"
+                            icon={Edit2}
+                            magnetic={true}
+                            className="text-ink/40 hover:text-accent hover:bg-accent/5 p-3 rounded-xl transition-all"
+                          />
+                          <Button 
+                            onClick={() => handleDeleteBlogPost(post.id)}
+                            variant="ghost" 
+                            size="sm" 
+                            icon={Trash2} 
+                            magnetic={true}
+                            className="text-ink/20 hover:text-red-500 hover:bg-red-50 p-3 rounded-xl transition-all"
+                          />
+                        </div>
+                        <div className="text-[9px] uppercase tracking-[0.2em] text-ink/20 font-black">
+                          {post.createdAt?.toDate().toLocaleDateString() || 'Recently'}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {!isEditingBlogPost && blogPosts.length === 0 && (
+            <div className="text-center py-40 border-2 border-dashed border-ink/5 rounded-[48px] bg-ink/[0.01]">
+              <div className="p-6 bg-ink/5 rounded-3xl w-20 h-20 mx-auto mb-6 flex items-center justify-center text-ink/20">
+                <BookOpen size={40} />
+              </div>
+              <p className="text-ink/30 text-[10px] uppercase tracking-[0.3em] font-black">No pieces in your library.</p>
+            </div>
+          )}
+        </div>
       ) : activeTab === 'measured-words' ? (
         <div className="max-w-7xl mx-auto">
           <MeasuredWords />
@@ -3089,33 +3475,49 @@ export default function Admin({ user }: { user: any }) {
               <ImageIcon size={24} className="sm:w-7 sm:h-7" />
             </div>
             <div>
-              <h3 className="text-xl sm:text-2xl font-serif leading-tight">File Manager</h3>
-              <p className="text-[9px] sm:text-[10px] uppercase tracking-widest text-ink/40">Select or upload an asset</p>
+              <h3 className="text-xl sm:text-2xl font-serif leading-tight">Asset Selection</h3>
+              <p className="text-[9px] sm:text-[10px] uppercase tracking-widest text-ink/40">Choose from library or search Wikimedia</p>
             </div>
           </div>
           <div className="flex items-center space-x-2 sm:space-x-4">
+            <div className="flex bg-ink/5 rounded-full p-1 mr-2">
+              <button
+                onClick={() => setFilePickerTab('upload')}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${filePickerTab === 'upload' ? 'bg-surface text-ink shadow-sm' : 'text-ink/40 hover:text-ink'}`}
+              >
+                My Files
+              </button>
+              <button
+                onClick={() => setFilePickerTab('wikimedia')}
+                className={`px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest transition-all ${filePickerTab === 'wikimedia' ? 'bg-surface text-ink shadow-sm' : 'text-ink/40 hover:text-ink'}`}
+              >
+                Wikimedia
+              </button>
+            </div>
+            {filePickerTab === 'upload' && (
+              <Button
+                variant="primary"
+                size="sm"
+                magnetic={true}
+                className="relative flex-1 sm:flex-none py-2.5"
+                icon={Upload}
+              >
+                Upload
+                <input
+                  type="file"
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                  onChange={handleFileUpload}
+                  accept="image/*"
+                />
+              </Button>
+            )}
             <Button
-              variant="primary"
-              size="sm"
-              magnetic={true}
-              className="relative flex-1 sm:flex-none py-2.5"
-              icon={Upload}
-            >
-              Upload New
-              <input
-                type="file"
-                className="absolute inset-0 opacity-0 cursor-pointer"
-                onChange={handleFileUpload}
-                accept="image/*"
-              />
-            </Button>
-            <Button
-              onClick={() => setFilePicker(prev => ({ ...prev, isOpen: false }))}
+              onClick={() => { setFilePickerTab('upload'); setFilePicker(prev => ({ ...prev, isOpen: false })); }}
               variant="ghost"
               size="sm"
               icon={X}
               magnetic={true}
-              className="p-2 sm:p-3 hover:bg-ink/5 rounded-full transition-colors"
+              className="p-2 sm:p-3 hover:bg-ink/5 rounded-full transition-colors hidden sm:flex"
             />
           </div>
         </div>
@@ -3137,47 +3539,113 @@ export default function Admin({ user }: { user: any }) {
         )}
 
         <div className="flex-grow overflow-y-auto pr-2 custom-scrollbar">
-          {files.length === 0 ? (
-            <div className="h-64 flex flex-col items-center justify-center text-ink/20 space-y-4">
-              <ImageIcon size={48} />
-              <p className="text-xs uppercase tracking-widest">No files uploaded yet</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
-            {sortedFiles.map((file) => (
-              <Button
-                key={file.id}
-                onClick={() => {
-                  filePicker.onSelect(file.url);
-                  setFilePicker(prev => ({ ...prev, isOpen: false }));
-                }}
-                variant="ghost"
-                className="group relative aspect-square bg-paper rounded-2xl border border-ink/5 overflow-hidden hover:border-accent transition-all"
-                magnetic={true}
-              >
-                {file.type.startsWith('image/') ? (
-                  <img
-                    src={file.url}
-                    alt={file.name}
-                    className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all font-black"
-                    referrerPolicy="no-referrer"
-                  />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-ink/20 group-hover:text-accent/20 transition-colors">
-                    <FileIcon size={32} />
+          {filePickerTab === 'upload' ? (
+            files.length === 0 ? (
+              <div className="h-64 flex flex-col items-center justify-center text-ink/20 space-y-4">
+                <ImageIcon size={48} />
+                <p className="text-xs uppercase tracking-widest">No files uploaded yet</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+              {sortedFiles.map((file) => (
+                <Button
+                  key={file.id}
+                  onClick={() => {
+                    filePicker.onSelect(file.url);
+                    setFilePicker(prev => ({ ...prev, isOpen: false }));
+                  }}
+                  variant="ghost"
+                  className="group relative aspect-square bg-paper rounded-2xl border border-ink/5 overflow-hidden hover:border-accent transition-all w-full h-full"
+                  magnetic={true}
+                >
+                  {file.type.startsWith('image/') ? (
+                    <img
+                      src={file.url}
+                      alt={file.name}
+                      className="absolute inset-0 w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all font-black"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="absolute inset-0 w-full h-full flex items-center justify-center text-ink/20 group-hover:text-accent/20 transition-colors">
+                      <FileIcon size={32} />
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-accent/0 group-hover:bg-accent/10 transition-all flex items-center justify-center">
+                    <span className="opacity-0 group-hover:opacity-100 bg-surface text-accent px-3 py-1 rounded-full text-[8px] uppercase tracking-widest shadow-sm transform translate-y-2 group-hover:translate-y-0 transition-all font-black">
+                      Select
+                    </span>
                   </div>
-                )}
-                <div className="absolute inset-0 bg-accent/0 group-hover:bg-accent/10 transition-all flex items-center justify-center">
-                  <span className="opacity-0 group-hover:opacity-100 bg-surface text-accent px-3 py-1 rounded-full text-[8px] uppercase tracking-widest font-black shadow-sm transform translate-y-2 group-hover:translate-y-0 transition-all font-black">
-                    Select
-                  </span>
-                </div>
-                <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
-                  <p className="text-[9px] text-white truncate font-medium">{file.name}</p>
-                  <p className="text-[7px] text-white/60 uppercase tracking-widest">{formatFileSize(file.size)}</p>
-                </div>
-              </Button>
-            ))}
+                  <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+                    <p className="text-[9px] text-white truncate font-medium relative top-0">{file.name}</p>
+                    <p className="text-[7px] text-white/60 uppercase tracking-widest relative top-0">{formatFileSize(file.size)}</p>
+                  </div>
+                </Button>
+              ))}
+            </div>
+          )
+        ) : (
+          <div className="flex flex-col space-y-6">
+            <form onSubmit={searchWikimedia} className="relative">
+              <input
+                type="text"
+                placeholder="Search Wikimedia Commons..."
+                value={wikimediaSearch}
+                onChange={(e) => setWikimediaSearch(e.target.value)}
+                className="w-full bg-paper border border-ink/10 rounded-2xl pl-12 pr-4 py-4 text-sm font-medium focus:border-accent outline-none ring-accent/20 transition-all"
+              />
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/40" size={20} />
+              <button
+                type="submit"
+                disabled={isSearchingWikimedia}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-xs uppercase tracking-widest font-black text-accent disabled:opacity-50"
+              >
+                {isSearchingWikimedia ? 'Searching...' : 'Search'}
+              </button>
+            </form>
+
+            {wikimediaResults.length === 0 && !isSearchingWikimedia && (
+              <div className="h-48 flex flex-col items-center justify-center text-ink/20 space-y-4">
+                <ImageIcon size={48} />
+                <p className="text-xs uppercase tracking-widest">Search for public domain images</p>
+              </div>
+            )}
+
+            {isSearchingWikimedia ? (
+              <div className="h-48 flex items-center justify-center">
+                <Loader2 size={32} className="text-ink/20 animate-spin" />
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
+                {wikimediaResults.map((result) => (
+                  <Button
+                    key={result.id}
+                    onClick={() => {
+                      const creditText = result.attribution || result.credit ? `Credit: ${result.attribution || result.credit}` : 'Wikimedia Commons';
+                      filePicker.onSelect(result.url, result.title, creditText);
+                      setFilePicker(prev => ({ ...prev, isOpen: false }));
+                    }}
+                    variant="ghost"
+                    className="group relative aspect-square bg-paper rounded-2xl border border-ink/5 overflow-hidden hover:border-accent transition-all w-full h-full"
+                    magnetic={true}
+                  >
+                    <img
+                      src={result.thumburl}
+                      alt={result.title}
+                      className="absolute inset-0 w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all font-black"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-accent/0 group-hover:bg-accent/10 transition-all flex items-center justify-center">
+                      <span className="opacity-0 group-hover:opacity-100 bg-surface text-accent px-3 py-1 rounded-full text-[8px] uppercase tracking-widest shadow-sm transform translate-y-2 group-hover:translate-y-0 transition-all font-black">
+                        Select
+                      </span>
+                    </div>
+                    <div className="absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 via-black/40 to-transparent">
+                      <p className="text-[7px] text-white/80 line-clamp-2 leading-tight uppercase relative top-0">{result.title}</p>
+                    </div>
+                  </Button>
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
