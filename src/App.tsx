@@ -1,8 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { useState, useEffect, createContext, useContext, useRef, lazy, Suspense } from 'react';
 import { auth, onAuthStateChanged, signOut, signInWithPopup, googleProvider, db, collection, onSnapshot, query, orderBy, where, doc, getDocFromServer, setDoc, serverTimestamp, handleFirestoreError, OperationType } from './firebase';
-import { motion, AnimatePresence, useMotionValue, useSpring, useMotionTemplate, useScroll } from 'framer-motion';
-import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar, LayoutDashboard, Loader2, DollarSign, BookOpen } from 'lucide-react';
+import { motion, AnimatePresence, useMotionValue, useSpring, useMotionTemplate, useScroll, MotionConfig } from 'framer-motion';
+import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar, LayoutDashboard, Loader2, DollarSign, BookOpen, Monitor } from 'lucide-react';
 import { BlueskyIcon } from './components/Icons';
 import Magnetic from './components/Magnetic';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -68,12 +68,19 @@ const SocialsContext = createContext<Social[]>([]);
 export const useProfile = () => useContext(ProfileContext);
 export const useSocials = () => useContext(SocialsContext);
 
+// Local context for Retro Mode
+export const RetroContext = createContext<{isRetro: boolean; toggleRetro: () => void}>({
+  isRetro: false,
+  toggleRetro: () => {}
+});
+
 const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, canViewAdminHealth: boolean, hasKiaplayAccess: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isSectionHovered, setIsSectionHovered] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useContext(ThemeContext);
+  const { isRetro, toggleRetro } = useContext(RetroContext);
   const profile = useProfile();
   const location = useLocation();
   const { scrollYProgress } = useScroll();
@@ -150,6 +157,16 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
               </Link>
             ))}
             
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleRetro}
+              aria-label="Toggle retro mode"
+              magnetic={true}
+              className={isRetro ? 'text-accent' : 'text-ink/60'}
+            >
+              <Monitor size={18} />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -288,6 +305,16 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center space-x-4">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={toggleRetro}
+              aria-label="Toggle retro mode"
+              magnetic={true}
+              className={isRetro ? 'text-accent' : 'text-ink/60'}
+            >
+              <Monitor size={18} />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -754,6 +781,8 @@ const LoadingScreen = ({ theme }: { theme: string }) => {
   );
 };
 
+let hasPlayedStartupSound = false;
+
 export default function App() {
   const [user, setUser] = useState<any>(null);
   const [canViewAdminHealth, setCanViewAdminHealth] = useState(false);
@@ -780,6 +809,12 @@ export default function App() {
       return prefersDark ? 'dark' : 'light';
     }
     return 'light';
+  });
+  const [isRetro, setIsRetro] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('retro') === 'true';
+    }
+    return false;
   });
   const [socials, setSocials] = useState<Social[]>([]);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -910,8 +945,111 @@ export default function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
+  useEffect(() => {
+    localStorage.setItem('retro', isRetro.toString());
+    
+    let audioCtx: AudioContext | null = null;
+    
+    const attemptStartupSound = async () => {
+      if (!hasPlayedStartupSound && isRetro) {
+        try {
+          if (!audioCtx) {
+            audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          }
+          if (audioCtx.state === 'suspended') {
+            await audioCtx.resume();
+          }
+          if (audioCtx.state === 'running') {
+            const ctxTime = audioCtx.currentTime;
+            
+            const startRiff = (freq: number, offset: number, duration: number) => {
+              const osc = audioCtx!.createOscillator();
+              const gain = audioCtx!.createGain();
+              osc.type = 'triangle';
+              osc.frequency.setValueAtTime(freq, ctxTime + offset);
+              gain.gain.setValueAtTime(0, ctxTime + offset);
+              gain.gain.linearRampToValueAtTime(0.1, ctxTime + offset + 0.1);
+              gain.gain.exponentialRampToValueAtTime(0.001, ctxTime + offset + duration);
+              osc.connect(gain);
+              gain.connect(audioCtx!.destination);
+              osc.start(ctxTime + offset);
+              osc.stop(ctxTime + offset + duration);
+            };
+            
+            // Soaring startup chord
+            startRiff(392.00, 0, 1.0);     // G4
+            startRiff(523.25, 0.1, 1.5);   // C5
+            startRiff(659.25, 0.2, 2.0);   // E5
+            startRiff(783.99, 0.3, 2.5);   // G5
+
+            hasPlayedStartupSound = true;
+            document.removeEventListener('click', attemptStartupSound);
+            document.removeEventListener('keydown', attemptStartupSound);
+          }
+        } catch (e) {}
+      }
+    };
+    
+    const playRetroClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (target.closest('button, a, input[type="button"], input[type="submit"], [role="button"]')) {
+        try {
+          if (!audioCtx) {
+            audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+          }
+          if (audioCtx.state === 'suspended') {
+            audioCtx.resume();
+          }
+          const oscillator = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+          
+          oscillator.type = 'square';
+          oscillator.frequency.setValueAtTime(800, audioCtx.currentTime);
+          oscillator.frequency.exponentialRampToValueAtTime(200, audioCtx.currentTime + 0.05);
+          
+          gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
+          gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+          
+          oscillator.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+          
+          oscillator.start();
+          oscillator.stop(audioCtx.currentTime + 0.05);
+        } catch (err) {
+          // Ignore
+        }
+      }
+    };
+
+    if (isRetro) {
+      document.documentElement.classList.add('retro');
+      document.addEventListener('click', playRetroClick);
+      
+      if (!hasPlayedStartupSound) {
+        document.addEventListener('click', attemptStartupSound, { once: true });
+        document.addEventListener('keydown', attemptStartupSound, { once: true });
+        attemptStartupSound(); // try immediately if user already interacted
+      }
+    } else {
+      document.documentElement.classList.remove('retro');
+      document.removeEventListener('click', playRetroClick);
+      document.removeEventListener('click', attemptStartupSound);
+      document.removeEventListener('keydown', attemptStartupSound);
+    }
+    
+    return () => {
+      document.removeEventListener('click', playRetroClick);
+      document.removeEventListener('click', attemptStartupSound);
+      document.removeEventListener('keydown', attemptStartupSound);
+    };
+  }, [isRetro]);
+
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  const toggleRetro = () => {
+    setIsRetro(prev => !prev);
   };
 
   const scrollToTop = () => {
@@ -925,25 +1063,29 @@ export default function App() {
   return (
     <ErrorBoundary>
       <ThemeContext.Provider value={{ theme, toggleTheme }}>
-        <ProfileContext.Provider value={profile}>
-          <SocialsContext.Provider value={socials}>
-            <Router basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-              <Suspense fallback={null}>
-                <VisitorTracker />
-              </Suspense>
-              <MainLayout 
-                user={user} 
-                canViewAdminHealth={canViewAdminHealth}
-                hasKiaplayAccess={hasKiaplayAccess}
-                adminUid={adminUid}
-                showScrollTop={showScrollTop} 
-                scrollToTop={scrollToTop} 
-                background={background} 
-                socials={socials}
-              />
-            </Router>
-          </SocialsContext.Provider>
-        </ProfileContext.Provider>
+        <RetroContext.Provider value={{ isRetro, toggleRetro }}>
+          <ProfileContext.Provider value={profile}>
+            <SocialsContext.Provider value={socials}>
+              <MotionConfig reducedMotion={isRetro ? "always" : "user"}>
+                <Router basename={import.meta.env.BASE_URL.replace(/\/$/, '')}>
+                  <Suspense fallback={null}>
+                    <VisitorTracker />
+                  </Suspense>
+                  <MainLayout 
+                    user={user} 
+                    canViewAdminHealth={canViewAdminHealth}
+                    hasKiaplayAccess={hasKiaplayAccess}
+                    adminUid={adminUid}
+                    showScrollTop={showScrollTop} 
+                    scrollToTop={scrollToTop} 
+                    background={background} 
+                    socials={socials}
+                  />
+                </Router>
+              </MotionConfig>
+            </SocialsContext.Provider>
+          </ProfileContext.Provider>
+        </RetroContext.Provider>
       </ThemeContext.Provider>
     </ErrorBoundary>
   );

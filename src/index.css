@@ -97,6 +97,199 @@ body {
 .markdown-body strong { @apply font-bold; }
 .markdown-body em { @apply italic; }
 
+/* Retro Windows 95 Theme */
+html.retro {
+  --paper: #c0c0c0;
+  --paper-rgb: 192, 192, 192;
+  --surface: #c0c0c0;
+  --surface-rgb: 192, 192, 192;
+  --ink: #000000;
+  --ink-rgb: 0, 0, 0;
+  --accent: #000080;
+  --accent-rgb: 0, 0, 128;
+  --font-serif: "MS Sans Serif", Tahoma, sans-serif;
+  --font-sans: "MS Sans Serif", Tahoma, sans-serif;
+  --font-bebas: "MS Sans Serif", Tahoma, sans-serif;
+  cursor: url('/regular-mouse-43.png') 0 0, default !important;
+}
+
+html.retro body {
+  background-color: #008080 !important;
+  color: #000000 !important;
+  background-image: none !important;
+}
+
+html.retro * {
+  cursor: inherit;
+  border-radius: 0 !important;
+  letter-spacing: normal !important;
+  transition: none !important;
+  animation: none !important;
+  transform: none !important;
+}
+
+html.retro a, html.retro button, html.retro input, html.retro select, html.retro textarea {
+  cursor: url('/click-mouse-43.png') 13 4, pointer !important;
+}
+
+html.retro .loading, html.retro [disabled], html.retro [aria-busy="true"] {
+  cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="14" height="20" viewBox="0 0 14 20" shape-rendering="crispEdges"><path stroke="black" fill="white" d="M0,0 h14 v3 h-2 v3 h-2 v2 h-1 v4 h1 v2 h2 v3 h2 v3 h-14 v-3 h2 v-3 h2 v-2 h1 v-4 h-1 v-2 h-2 v-3 h-2 z"/></svg>') 7 10, wait !important;
+}
+
+html.retro svg {
+  shape-rendering: crispEdges !important;
+}
+
+html.retro .lucide {
+  stroke-width: 2 !important;
+}
+
+html.retro [class*="blur"], html.retro .shadow-accent\/20:not(button):not(a), html.retro [class*="shadow"]:not(button):not(a):not(nav):not(footer) {
+  box-shadow: none !important;
+  background: none !important;
+  backdrop-filter: none !important;
+}
+
+html.retro nav[class], html.retro footer[class] {
+  background-color: #c0c0c0 !important;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf !important;
+  border-bottom: none !important;
+}
+
+html.retro .bg-paper[class], html.retro .bg-surface[class] {
+  background-color: #c0c0c0 !important;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+html.retro button[class], html.retro .Button[class], html.retro a[role="button"][class] {
+  background-color: #c0c0c0 !important;
+  color: #000 !important;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf !important;
+  border: none !important;
+  border-radius: 0 !important;
+  text-transform: none !important;
+  letter-spacing: normal !important;
+  font-weight: normal !important;
+  padding: 4px 8px !important;
+  min-height: auto !important;
+  min-width: auto !important;
+  width: auto !important;
+  display: inline-flex !important;
+}
+
+html.retro button[class]:active, html.retro .Button[class]:active, html.retro a[role="button"][class]:active {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080 !important;
+  padding-top: 5px !important;
+  padding-left: 9px !important;
+  padding-right: 7px !important;
+  padding-bottom: 3px !important;
+  transform: none !important;
+}
+
+html.retro input, html.retro textarea, html.retro select {
+  background-color: #fff !important;
+  color: #000 !important;
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080 !important;
+  border: none !important;
+  border-radius: 0 !important;
+}
+
+html.retro input:focus, html.retro textarea:focus, html.retro select:focus, html.retro button[class]:focus, html.retro a[role="button"][class]:focus, html.retro [tabindex="0"]:focus {
+  outline: 1px dotted #000000 !important;
+  outline-offset: -4px !important;
+}
+
+html.retro *:focus {
+  --tw-ring-color: transparent !important;
+  --tw-ring-shadow: transparent !important;
+  --tw-ring-offset-shadow: transparent !important;
+}
+
+html.retro h1, html.retro h2, html.retro h3, html.retro h4, html.retro h5, html.retro h6 {
+  font-family: var(--font-sans) !important;
+  font-weight: bold !important;
+  text-transform: none !important;
+}
+
+html.retro .text-ink\/60, html.retro .text-ink\/40, html.retro .text-ink\/30, html.retro .text-ink\/50, html.retro .text-ink\/20 {
+  color: #333 !important;
+}
+
+html.retro a:not(nav a):not(button) {
+  color: #0000ff !important;
+  text-decoration: underline !important;
+}
+
+html.retro footer {
+  background-color: #c0c0c0 !important;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf !important;
+}
+
+html.retro ::-webkit-scrollbar, html.retro .custom-scrollbar::-webkit-scrollbar, html.retro ::-webkit-scrollbar-corner {
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+  background: #dfdfdf !important;
+}
+
+html.retro ::-webkit-scrollbar-track, html.retro .custom-scrollbar::-webkit-scrollbar-track {
+  background: #dfdfdf !important;
+  border-left: 1px solid #808080 !important;
+  border-top: 1px solid #808080 !important;
+}
+
+html.retro ::-webkit-scrollbar-corner {
+  background: #c0c0c0 !important;
+}
+
+html.retro ::-webkit-scrollbar-thumb, html.retro .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #c0c0c0 !important;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf !important;
+  border-radius: 0 !important;
+}
+
+html.retro ::-webkit-scrollbar-button:single-button, html.retro .custom-scrollbar::-webkit-scrollbar-button:single-button {
+  background: #c0c0c0 !important;
+  display: block !important;
+  height: 16px !important;
+  width: 16px !important;
+  box-shadow: inset -1px -1px #0a0a0a, inset 1px 1px #fff, inset -2px -2px #808080, inset 2px 2px #dfdfdf !important;
+}
+
+html.retro ::-webkit-scrollbar-button:single-button:active, html.retro .custom-scrollbar::-webkit-scrollbar-button:single-button:active {
+  box-shadow: inset -1px -1px #fff, inset 1px 1px #0a0a0a, inset -2px -2px #dfdfdf, inset 2px 2px #808080 !important;
+}
+
+html.retro ::-webkit-scrollbar-button:single-button:vertical:decrement, html.retro .custom-scrollbar::-webkit-scrollbar-button:single-button:vertical:decrement {
+  background-image: url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M4 10h8L8 5z" fill="black"/></svg>') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+html.retro ::-webkit-scrollbar-button:single-button:vertical:increment, html.retro .custom-scrollbar::-webkit-scrollbar-button:single-button:vertical:increment {
+  background-image: url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M4 6h8L8 11z" fill="black"/></svg>') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+html.retro ::-webkit-scrollbar-button:single-button:horizontal:decrement, html.retro .custom-scrollbar::-webkit-scrollbar-button:single-button:horizontal:decrement {
+  background-image: url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M10 4v8L5 8z" fill="black"/></svg>') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+html.retro ::-webkit-scrollbar-button:single-button:horizontal:increment, html.retro .custom-scrollbar::-webkit-scrollbar-button:single-button:horizontal:increment {
+  background-image: url('data:image/svg+xml;utf8,<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg"><path d="M6 4v8l5-4z" fill="black"/></svg>') !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+}
+
+html.retro, html.retro * {
+  scrollbar-color: #c0c0c0 #dfdfdf;
+}
+
 @layer utilities {
   .animate-ticker {
     animation: ticker 40s linear infinite;

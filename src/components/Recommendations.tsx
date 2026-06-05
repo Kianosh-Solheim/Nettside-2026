@@ -26,7 +26,8 @@ export default function Recommendations() {
   const [movieSearchResults, setMovieSearchResults] = useState<any[]>([]);
   const [bookSearchResults, setBookSearchResults] = useState<any[]>([]);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
-  const [personalizedMovies, setPersonalizedMovies] = useState<any[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const [formData, setFormData] = useState<Partial<Recommendation>>({
     title: '',
@@ -56,28 +57,9 @@ export default function Recommendations() {
       setLoading(false);
     });
 
-    const adminEmails = ['kianoshsolheim@gmail.com', 'kianosh@solheim.online'];
-    const qAdmin = query(collection(db, 'users'), orderBy('email'), where('email', 'in', adminEmails));
-    
-    let unsubscribeAdminPage: (() => void) | undefined;
-
-    const unsubscribeAdminUser = onSnapshot(qAdmin, (snapshot) => {
-      if (!snapshot.empty) {
-        const adminId = snapshot.docs[0].id;
-        unsubscribeAdminPage = onSnapshot(doc(db, 'user_pages', adminId), (pageDoc) => {
-          if (pageDoc.exists()) {
-            const data = pageDoc.data();
-            setPersonalizedMovies(data.movieRecommendations || []);
-          }
-        });
-      }
-    });
-
     return () => {
       unsubscribeAuth();
       unsubscribeRecs();
-      unsubscribeAdminUser();
-      if (unsubscribeAdminPage) unsubscribeAdminPage();
     };
   }, []);
 
@@ -230,7 +212,18 @@ export default function Recommendations() {
     );
   }
 
-  const groupedRecommendations = recommendations.reduce((acc, rec) => {
+  const filteredRecommendations = recommendations.filter(rec => {
+    const matchesCategory = selectedCategory ? (selectedCategory === 'All' ? true : rec.category === selectedCategory) : true;
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = !searchQuery || 
+      rec.title.toLowerCase().includes(searchLower) || 
+      rec.author.toLowerCase().includes(searchLower) ||
+      (rec.description && rec.description.toLowerCase().includes(searchLower));
+    
+    return matchesCategory && matchesSearch;
+  });
+
+  const groupedRecommendations = filteredRecommendations.reduce((acc, rec) => {
     if (!acc[rec.category]) acc[rec.category] = [];
     acc[rec.category].push(rec);
     return acc;
@@ -254,6 +247,37 @@ export default function Recommendations() {
             {isAdding ? 'Close Editor' : 'Add Entry'}
           </Button>
         )}
+      </div>
+
+      <div className="mb-16 flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="relative w-full md:w-96 shrink-0">
+          <Search className="absolute left-6 top-1/2 transform -translate-y-1/2 text-ink/30" size={20} />
+          <input
+            type="text"
+            placeholder="Search titles, authors, or keywords..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-14 pr-6 py-4 bg-surface border border-ink/10 rounded-full text-sm focus:outline-none focus:border-accent transition-all ring-1 ring-ink/5 focus:ring-accent/10"
+          />
+        </div>
+        <div className="flex gap-2 w-full md:w-auto overflow-x-auto custom-scrollbar pb-4 md:pb-0 -ml-4 pl-4 md:ml-0 md:pl-0 pr-4 md:pr-0">
+          {['All', 'Books', 'Movies & Shows', 'Video & Media', 'Apps'].map((cat) => {
+            const isActive = selectedCategory === cat || (cat === 'All' && !selectedCategory);
+            return (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat === 'All' ? null : cat)}
+                className={`flex-shrink-0 px-6 py-3 rounded-full text-[10px] font-black tracking-widest uppercase transition-all duration-300 whitespace-nowrap ${
+                  isActive
+                    ? 'bg-accent text-white shadow-lg shadow-accent/20 scale-100' 
+                    : 'bg-surface border border-ink/5 text-ink/50 hover:bg-ink/5 hover:text-ink scale-[0.98]'
+                }`}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       <AnimatePresence>
@@ -448,8 +472,24 @@ export default function Recommendations() {
       </AnimatePresence>
 
       <div className="space-y-24">
-        {Object.entries(groupedRecommendations).sort(([a], [b]) => a.localeCompare(b)).map(([category, items]) => (
-          <section key={category} className="group/section">
+        {Object.keys(groupedRecommendations).length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <Search className="text-ink/10 mb-4" size={48} />
+            <h3 className="text-2xl font-serif mb-2">No recommendations found</h3>
+            <p className="text-ink/40 text-sm">Try adjusting your search keywords or clearing your filters.</p>
+            {(searchQuery || selectedCategory) && (
+              <Button
+                variant="ghost"
+                className="mt-6 uppercase text-[10px] tracking-widest font-black"
+                onClick={() => { setSearchQuery(''); setSelectedCategory('All'); }}
+              >
+                Clear all filters
+              </Button>
+            )}
+          </div>
+        ) : (
+          Object.entries(groupedRecommendations).sort(([a], [b]) => a.localeCompare(b)).map(([category, items]) => (
+            <section key={category} className="group/section">
             <div className="flex flex-col md:flex-row md:items-center gap-6 mb-12 border-b border-ink/5 pb-8">
               <div className="w-16 h-16 rounded-3xl bg-accent/10 flex items-center justify-center text-accent ring-1 ring-accent/5 shadow-inner">
                 {getCategoryIcon(category)}
@@ -504,7 +544,8 @@ export default function Recommendations() {
               ))}
             </div>
           </section>
-        ))}
+        ))
+        )}
       </div>
 
       <AnimatePresence>

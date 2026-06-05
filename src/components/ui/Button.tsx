@@ -61,7 +61,7 @@ export default function Button({
   );
 
   const buttonElement = to ? (
-    <Link to={to} className={combinedClassName}>
+    <Link to={to} className={combinedClassName} role="button" {...(props as any)}>
       {content}
     </Link>
   ) : (

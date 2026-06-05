@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, db, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, serverTimestamp, signInWithPopup, googleProvider, auth, storage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, handleFirestoreError, OperationType, getDocs, listAll, getMetadata, getDocFromServer } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, Trash2, Edit2, Save, X, LogIn, AlertCircle, CheckCircle2, Search, Book as BookIcon, Film, Tv, Loader2, Upload, File as FileIcon, Image as ImageIcon, Copy, ExternalLink as ExternalLinkIcon, ArrowUpDown, Mail, Briefcase, GraduationCap, Heart, Calendar as CalendarIcon, RefreshCcw, Users, User, Check, Share2, MailOpen, XCircle, BookOpen, Activity } from 'lucide-react';
+import { Plus, Trash2, Edit2, Save, X, LogIn, AlertCircle, CheckCircle2, Search, Book as BookIcon, Film, Tv, Loader2, Upload, File as FileIcon, Image as ImageIcon, Copy, ExternalLink as ExternalLinkIcon, ArrowUpDown, Mail, Briefcase, GraduationCap, Heart, Calendar as CalendarIcon, RefreshCcw, Users, User, Check, Share2, MailOpen, XCircle, BookOpen, Activity, Globe } from 'lucide-react';
 import Button from './ui/Button';
 import RichTextEditor from './ui/RichTextEditor';
 import Expenses from './Expenses';
@@ -143,6 +143,7 @@ export default function Admin({ user }: { user: any }) {
     tags: [],
     status: 'draft'
   });
+  const [triggerDeployOnSave, setTriggerDeployOnSave] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [fileSortOption, setFileSortOption] = useState<'newest' | 'oldest' | 'name-asc' | 'name-desc' | 'size-asc' | 'size-desc'>('newest');
@@ -1336,7 +1337,7 @@ export default function Admin({ user }: { user: any }) {
         setStatus({ type: 'success', message: 'Blog post published successfully' });
       }
       resetBlogForm();
-      if (blogFormData.status === 'published' && profile.githubToken && profile.githubRepo) {
+      if (blogFormData.status === 'published' && triggerDeployOnSave && profile.githubToken && profile.githubRepo) {
         await triggerGitHubAction();
       }
     } catch (error) {
@@ -3272,6 +3273,57 @@ export default function Admin({ user }: { user: any }) {
                               <div dangerouslySetInnerHTML={{ __html: blogFormData.imageCredit }} className="[&_a]:underline [&_a]:hover:text-ink transition-colors" />
                             </div>
                           )}
+                        </div>
+                      )}
+
+                      <div className="mt-8 bg-surface rounded-3xl p-6 border border-ink/10">
+                        <h4 className="text-[10px] uppercase tracking-widest text-ink/40 font-black mb-4 flex items-center gap-2">
+                          <Globe size={12} />
+                          Social Media Link Preview
+                        </h4>
+                        <div className="bg-paper rounded-2xl overflow-hidden border border-ink/10 max-w-sm">
+                          {blogFormData.imageUrl ? (
+                            <div className="aspect-[1.91/1] w-full bg-ink/5 overflow-hidden">
+                              <img src={blogFormData.imageUrl} alt="Preview" className="w-full h-full object-cover" />
+                            </div>
+                          ) : (
+                            <div className="aspect-[1.91/1] w-full bg-ink/5 flex items-center justify-center text-ink/20 border-b border-ink/10">
+                              <ImageIcon size={32} />
+                            </div>
+                          )}
+                          <div className="p-4 bg-paper border-t border-ink/5">
+                            <p className="text-[10px] uppercase tracking-wider text-ink/40 text-ellipsis overflow-hidden whitespace-nowrap mb-1">
+                              solheim.online
+                            </p>
+                            <h5 className="font-serif text-sm text-ink truncate mb-1">
+                              {blogFormData.title || "Page Title"} - Kianosh F. Solheim
+                            </h5>
+                            <p className="text-xs text-ink/60 line-clamp-2">
+                              {blogFormData.excerpt || "A description of the page..."}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="text-[10px] text-ink/50 mt-4 leading-relaxed max-w-sm">
+                          This is a rough preview of how it will look on platforms like LinkedIn, Twitter, or iMessage.
+                          <br /><br />
+                          <strong>Remember:</strong> LinkedIn caches link previews for 7 days. If you've already shared it there and change the image now, you MUST use the <a href="https://www.linkedin.com/post-inspector/" target="_blank" rel="noreferrer" className="text-accent hover:underline">LinkedIn Post Inspector</a> to force it to rescrape your website.
+                        </p>
+                      </div>
+
+                      {profile.githubToken && profile.githubRepo && (
+                        <div className="mt-6 flex flex-col gap-2 p-6 bg-accent/5 rounded-3xl border border-accent/10 cursor-pointer hover:bg-accent/10 transition-colors" onClick={() => setTriggerDeployOnSave(!triggerDeployOnSave)}>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <RefreshCcw size={16} className={triggerDeployOnSave ? "text-accent" : "text-ink/30"} />
+                              <span className="text-sm font-medium">Trigger Site Rebuild (GitHub Actions)</span>
+                            </div>
+                            <div className={`w-12 h-6 rounded-full transition-colors relative flex items-center px-1 ${triggerDeployOnSave ? 'bg-accent' : 'bg-ink/20'}`}>
+                              <div className={`w-4 h-4 rounded-full bg-white transition-transform ${triggerDeployOnSave ? 'translate-x-6' : 'translate-x-0'}`} />
+                            </div>
+                          </div>
+                          <p className="text-[10px] text-ink/50 ml-7 leading-relaxed flex-grow">
+                            A fresh site build is <strong>required</strong> for the Link Preview changes to take effect! Leave this ON unless you are making multiple small edits rapidly.
+                          </p>
                         </div>
                       )}
                     </div>
