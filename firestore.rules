@@ -650,6 +650,12 @@ service cloud.firestore {
       );
     }
     
+    match /page_visits/{visitId} {
+      allow read: if isAdmin();
+      allow create: if true;
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['durationSeconds']);
+    }
+    
     match /memberships/{membershipId}/roles/{roleId} {
       allow read: if isAdmin();
       allow create, update: if isAdmin() && isValidMembershipRole(request.resource.data);

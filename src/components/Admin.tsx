@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { collection, db, addDoc, updateDoc, deleteDoc, doc, query, orderBy, onSnapshot, serverTimestamp, signInWithPopup, googleProvider, auth, storage, ref, uploadBytes, uploadBytesResumable, getDownloadURL, deleteObject, handleFirestoreError, OperationType, getDocs, listAll, getMetadata, getDocFromServer } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -102,6 +102,7 @@ interface BlogPost {
   imageCredit?: string;
   tags: string[];
   status: 'draft' | 'published';
+  unlisted?: boolean;
   publishedAt: any;
   createdAt: any;
   updatedAt: any;
@@ -117,6 +118,8 @@ interface PageStat {
 export default function Admin({ user }: { user: any }) {
   const [activeTab, setActiveTab] = useState<'oversikt' | 'recommendations' | 'cv' | 'socials' | 'files' | 'messages' | 'integrations' | 'users' | 'meetings' | 'expenses' | 'measured-words' | 'memberships' | 'writings'>('oversikt');
   const [pageStats, setPageStats] = useState<PageStat[]>([]);
+  const [pageVisits, setPageVisits] = useState<any[]>([]);
+  const [metricsTimeFilter, setMetricsTimeFilter] = useState<'all' | 'month' | 'week' | 'day'>('all');
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [cvSections, setCvSections] = useState<CVSection[]>([]);
   const [socials, setSocials] = useState<Social[]>([]);
@@ -141,7 +144,8 @@ export default function Admin({ user }: { user: any }) {
     author: '',
     imageUrl: '',
     tags: [],
-    status: 'draft'
+    status: 'draft',
+    unlisted: false
   });
   const [triggerDeployOnSave, setTriggerDeployOnSave] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -348,6 +352,15 @@ export default function Admin({ user }: { user: any }) {
       setPageStats(data);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'pageStats'));
 
+    const qPageVisits = query(collection(db, 'page_visits'), orderBy('timestamp', 'desc'));
+    const unsubscribePageVisits = onSnapshot(qPageVisits, (snapshot) => {
+      const data = snapshot.docs.map(doc => ({
+        ...doc.data(),
+        id: doc.id
+      }));
+      setPageVisits(data);
+    }, (error) => console.warn('Failed to load page visits', error));
+
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
         setStatus({ type: 'success', message: 'Google Calendar connected successfully!' });
@@ -367,9 +380,43 @@ export default function Admin({ user }: { user: any }) {
       unsubscribeUserPages();
       unsubscribeConfig();
       unsubscribePageStats();
+      unsubscribePageVisits();
       window.removeEventListener('message', handleMessage);
     };
   }, [isAdmin]);
+
+  const filteredPageStats = useMemo(() => {
+    if (metricsTimeFilter === 'all') {
+      return pageStats.sort((a, b) => b.views - a.views);
+    }
+    
+    const now = new Date();
+    let cutoff = new Date();
+    if (metricsTimeFilter === 'day') {
+      cutoff.setDate(now.getDate() - 1);
+    } else if (metricsTimeFilter === 'week') {
+      cutoff.setDate(now.getDate() - 7);
+    } else if (metricsTimeFilter === 'month') {
+      cutoff.setMonth(now.getMonth() - 1);
+    }
+    const cutoffTime = cutoff.getTime();
+    
+    const recentVisits = pageVisits.filter(v => {
+      const vTime = v.timestamp?.toMillis?.() || 0;
+      return vTime >= cutoffTime;
+    });
+    
+    const agg: Record<string, PageStat> = {};
+    recentVisits.forEach(v => {
+      if (!agg[v.path]) {
+        agg[v.path] = { id: v.path, path: v.path, views: 0, durationSeconds: 0 };
+      }
+      agg[v.path].views += 1;
+      agg[v.path].durationSeconds += (v.durationSeconds || 0);
+    });
+    
+    return Object.values(agg).sort((a, b) => b.views - a.views);
+  }, [pageStats, pageVisits, metricsTimeFilter]);
 
   const handleSearch = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1282,7 +1329,8 @@ export default function Admin({ user }: { user: any }) {
       author: profile.name,
       imageUrl: '',
       tags: [],
-      status: 'draft'
+      status: 'draft',
+      unlisted: false
     });
   };
 
@@ -1643,6 +1691,18 @@ export default function Admin({ user }: { user: any }) {
                       <h2 className="text-4xl font-serif mb-2">Metrics Overview</h2>
                       <p className="text-[10px] uppercase tracking-[0.2em] font-black text-ink/40">Page views and time spent</p>
                     </div>
+                    <div>
+                      <select
+                        value={metricsTimeFilter}
+                        onChange={(e) => setMetricsTimeFilter(e.target.value as any)}
+                        className="bg-paper border border-ink/10 rounded-2xl px-6 py-3 text-sm focus:outline-none focus:border-accent transition-all appearance-none cursor-pointer"
+                      >
+                        <option value="all">All Time</option>
+                        <option value="month">Last Month</option>
+                        <option value="week">Last Week</option>
+                        <option value="day">Last 24 Hours</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="bg-surface rounded-[48px] border border-ink/5 shadow-sm p-8 md:p-12 overflow-hidden">
@@ -1656,7 +1716,7 @@ export default function Admin({ user }: { user: any }) {
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-ink/5">
-                          {pageStats.map(stat => {
+                          {filteredPageStats.map(stat => {
                             const minutes = Math.floor(stat.durationSeconds / 60);
                             const seconds = stat.durationSeconds % 60;
                             const durationString = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
@@ -1668,7 +1728,7 @@ export default function Admin({ user }: { user: any }) {
                               </tr>
                             );
                           })}
-                          {pageStats.length === 0 && (
+                          {filteredPageStats.length === 0 && (
                             <tr>
                               <td colSpan={3} className="py-12 text-center text-ink/40 italic">
                                 No visitor stats tracked yet.
@@ -3222,14 +3282,25 @@ export default function Admin({ user }: { user: any }) {
                       </div>
                       <div className="space-y-2">
                         <label className="block text-[10px] uppercase tracking-widest text-ink/30 font-black">Status</label>
-                        <select
-                          className="w-full bg-paper border border-ink/10 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-accent transition-all appearance-none cursor-pointer"
-                          value={blogFormData.status}
-                          onChange={(e) => setBlogFormData(prev => ({ ...prev, status: e.target.value as any }))}
-                        >
-                          <option value="draft">Draft</option>
-                          <option value="published">Published</option>
-                        </select>
+                        <div className="flex items-center gap-4">
+                          <select
+                            className="bg-paper border border-ink/10 rounded-2xl px-6 py-4 text-sm focus:outline-none focus:border-accent transition-all appearance-none cursor-pointer flex-1"
+                            value={blogFormData.status}
+                            onChange={(e) => setBlogFormData(prev => ({ ...prev, status: e.target.value as any }))}
+                          >
+                            <option value="draft">Draft</option>
+                            <option value="published">Published</option>
+                          </select>
+                          <label className="flex items-center space-x-2 cursor-pointer whitespace-nowrap">
+                            <input
+                              type="checkbox"
+                              checked={blogFormData.unlisted || false}
+                              onChange={(e) => setBlogFormData(prev => ({ ...prev, unlisted: e.target.checked }))}
+                              className="w-4 h-4 text-accent border-ink/20 rounded focus:ring-accent accent-accent"
+                            />
+                            <span className="text-xs text-ink/60">Unlisted (Hide from list)</span>
+                          </label>
+                        </div>
                       </div>
                     </div>
 
@@ -3376,12 +3447,17 @@ export default function Admin({ user }: { user: any }) {
                       {post.imageUrl && (
                         <img src={post.imageUrl} alt={post.title} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700" />
                       )}
-                      <div className="absolute top-6 left-6">
+                      <div className="absolute top-6 left-6 flex flex-wrap gap-2">
                         <span className={`px-4 py-1.5 rounded-full text-[8px] uppercase tracking-widest font-black shadow-lg backdrop-blur-md ${
                           post.status === 'published' ? 'bg-emerald-500/90 text-white' : 'bg-orange-500/90 text-white'
                         }`}>
                           {post.status}
                         </span>
+                        {post.unlisted && (
+                          <span className="px-4 py-1.5 rounded-full text-[8px] uppercase tracking-widest font-black shadow-lg backdrop-blur-md bg-ink/80 text-white">
+                            Unlisted
+                          </span>
+                        )}
                       </div>
                     </div>
                     

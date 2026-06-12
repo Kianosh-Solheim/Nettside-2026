@@ -19,6 +19,7 @@ interface BlogPost {
   imageCredit?: string;
   tags: string[];
   status: 'draft' | 'published';
+  unlisted?: boolean;
   publishedAt: any;
   createdAt: any;
   updatedAt: any;
@@ -252,7 +253,7 @@ export default function Writings() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-12">
-              {posts.map((post, index) => (
+              {posts.filter(p => !p.unlisted).map((post, index) => (
                 <motion.div
                   key={post.id}
                   initial={{ opacity: 0, y: 20 }}
@@ -302,7 +303,7 @@ export default function Writings() {
               ))}
             </div>
 
-            {posts.length === 0 && (
+            {posts.filter(p => !p.unlisted).length === 0 && (
               <div className="text-center py-40 bg-ink/[0.02] rounded-[40px] border border-dashed border-ink/10">
                 <BookOpen size={48} className="mx-auto text-ink/10 mb-6" />
                 <p className="text-[10px] uppercase tracking-widest text-ink/40 font-black">No pieces published yet</p>

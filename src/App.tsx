@@ -160,16 +160,6 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
             <Button
               variant="ghost"
               size="sm"
-              onClick={toggleRetro}
-              aria-label="Toggle retro mode"
-              magnetic={true}
-              className={isRetro ? 'text-accent' : 'text-ink/60'}
-            >
-              <Monitor size={18} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="sm"
               onClick={toggleTheme}
               aria-label="Toggle theme"
               magnetic={true}
@@ -305,16 +295,6 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={toggleRetro}
-              aria-label="Toggle retro mode"
-              magnetic={true}
-              className={isRetro ? 'text-accent' : 'text-ink/60'}
-            >
-              <Monitor size={18} />
-            </Button>
             <Button
               variant="ghost"
               size="sm"
@@ -465,6 +445,7 @@ const PageWrapper = ({ children }: { children: React.ReactNode }) => {
 const Footer = ({ socials }: { socials: Social[] }) => {
   const location = useLocation();
   const profile = useProfile();
+  const { isRetro, toggleRetro } = useContext(RetroContext);
   if (location.pathname === '/cv/print' || location.pathname.includes('/print')) return null;
 
   const getSocialIcon = (iconName: string, size = 18) => {
@@ -543,6 +524,17 @@ const Footer = ({ socials }: { socials: Social[] }) => {
             )}
           </div>
           <div className="h-px w-12 bg-accent/20" />
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleRetro}
+            aria-label="Toggle retro mode"
+            magnetic={true}
+            className={`flex items-center space-x-2 ${isRetro ? 'text-accent' : 'text-ink/40 hover:text-accent'}`}
+          >
+            <Monitor size={14} />
+            <span className="text-[10px] uppercase tracking-widest">{isRetro ? 'Disable Retro Mode' : 'Enable Retro Mode'}</span>
+          </Button>
           <p className="text-[10px] uppercase tracking-[0.2em] text-ink/40">
             &copy; {new Date().getFullYear()} {profile.name} &bull; {profile.role}
           </p>
