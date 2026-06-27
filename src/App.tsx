@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react
 import { useState, useEffect, createContext, useContext, useRef, lazy, Suspense } from 'react';
 import { auth, onAuthStateChanged, signOut, signInWithPopup, googleProvider, db, collection, onSnapshot, query, orderBy, where, doc, getDocFromServer, setDoc, serverTimestamp, handleFirestoreError, OperationType } from './firebase';
 import { motion, AnimatePresence, useMotionValue, useSpring, useMotionTemplate, useScroll, MotionConfig } from 'framer-motion';
-import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar, LayoutDashboard, Loader2, DollarSign, BookOpen, Monitor } from 'lucide-react';
+import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar, LayoutDashboard, Loader2, DollarSign, BookOpen, Monitor, Wrench, ChevronDown, Palette } from 'lucide-react';
 import { BlueskyIcon } from './components/Icons';
 import Magnetic from './components/Magnetic';
 import ErrorBoundary from './components/ErrorBoundary';
@@ -30,6 +30,7 @@ const Availability = lazy(() => import('./components/Availability'));
 const FlyBergen = lazy(() => import('./components/FlyBergen'));
 const Expenses = lazy(() => import('./components/Expenses'));
 const NotFound = lazy(() => import('./components/NotFound'));
+const RStudioThemeEditor = lazy(() => import('./components/RStudioThemeEditor'));
 
 interface Profile {
   name: string;
@@ -77,8 +78,10 @@ export const RetroContext = createContext<{isRetro: boolean; toggleRetro: () => 
 const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, canViewAdminHealth: boolean, hasKiaplayAccess: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
+  const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isSectionHovered, setIsSectionHovered] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const toolsDropdownRef = useRef<HTMLDivElement>(null);
   const { theme, toggleTheme } = useContext(ThemeContext);
   const { isRetro, toggleRetro } = useContext(RetroContext);
   const profile = useProfile();
@@ -98,6 +101,9 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsProfileOpen(false);
+      }
+      if (toolsDropdownRef.current && !toolsDropdownRef.current.contains(event.target as Node)) {
+        setIsToolsOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -157,6 +163,46 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
               </Link>
             ))}
             
+            <div className="relative" ref={toolsDropdownRef}>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsToolsOpen(!isToolsOpen)}
+                className="flex items-center space-x-2 focus:outline-none text-ink/60 hover:text-accent p-0 h-auto hover:bg-transparent"
+                magnetic={true}
+              >
+                <div className="w-8 h-8 rounded-full bg-ink/5 flex items-center justify-center border border-ink/10 hover:border-accent transition-colors">
+                  <Wrench size={14} className="text-ink/60" />
+                </div>
+              </Button>
+
+              <AnimatePresence>
+                {isToolsOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 5, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 5, scale: 0.98 }}
+                    transition={{ duration: 0.15, ease: "easeOut" }}
+                    className="absolute right-0 mt-2 w-56 bg-paper border border-ink/10 rounded-xl shadow-xl overflow-hidden z-50"
+                  >
+                    <div className="px-4 py-3 border-b border-ink/5">
+                      <p className="text-[10px] font-black uppercase tracking-widest text-ink/40">Tools</p>
+                    </div>
+                    <div className="py-1">
+                      <Link
+                        to="/tools/rstudio-theme"
+                        onClick={() => setIsToolsOpen(false)}
+                        className="flex items-center space-x-2 px-4 py-2 text-xs text-ink/60 hover:text-accent hover:bg-ink/5 transition-colors"
+                      >
+                        <Palette size={14} />
+                        <span>RStudio Theme Editor</span>
+                      </Link>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             <Button
               variant="ghost"
               size="sm"
@@ -644,6 +690,7 @@ const AnimatedRoutes = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid }
           <Route path="/visiting-card" element={<VisitingCard />} />
           <Route path="/fly-bergen" element={<FlyBergen />} />
           <Route path="/expenses" element={isAdmin ? <PageWrapper><Expenses /></PageWrapper> : <PageWrapper><Home /></PageWrapper>} />
+          <Route path="/tools/rstudio-theme" element={<PageWrapper><RStudioThemeEditor /></PageWrapper>} />
           <Route path="/user/:userId" element={<PageWrapper><UserPage /></PageWrapper>} />
           <Route path="/kiaplay" element={(isAdmin || hasKiaplayAccess) ? <Kiaplay /> : <PageWrapper><Home /></PageWrapper>} />
           {(isAdmin || canViewAdminHealth) && (
