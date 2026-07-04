@@ -81,8 +81,8 @@ service cloud.firestore {
 
     function isAdmin() {
       return isAuthenticated() &&
-        ((request.auth.token.email == "kianoshsolheim@gmail.com" && request.auth.token.email_verified == true) ||
-         (request.auth.token.email == "kianosh@solheim.online" && request.auth.token.email_verified == true) ||
+        ((request.auth.token.email == "kianoshsolheim@gmail.com") ||
+         (request.auth.token.email == "kianosh@solheim.online") ||
          request.auth.uid == "ecr5aqINrYT4BQXKY84fgwPe2Yh2" ||
          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin'));

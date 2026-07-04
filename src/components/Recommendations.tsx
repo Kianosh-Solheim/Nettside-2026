@@ -121,9 +121,11 @@ export default function Recommendations() {
     e.preventDefault();
     try {
       const dataToSave = { ...formData };
-      if (dataToSave.description === undefined) dataToSave.description = '';
-      if (dataToSave.link === undefined) dataToSave.link = '';
-      if (dataToSave.imageUrl === undefined) dataToSave.imageUrl = '';
+      dataToSave.title = dataToSave.title || '';
+      dataToSave.author = dataToSave.author || '';
+      dataToSave.description = dataToSave.description || '';
+      dataToSave.link = dataToSave.link || '';
+      dataToSave.imageUrl = dataToSave.imageUrl || '';
       delete dataToSave.id;
 
       if (editingId) {
