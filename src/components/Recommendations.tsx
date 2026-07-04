@@ -46,10 +46,17 @@ export default function Recommendations() {
     const q = query(collection(db, 'recommendations'), orderBy('createdAt', 'desc'));
     
     const unsubscribeRecs = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as Recommendation[];
+      const data = snapshot.docs.map(doc => {
+        const docData = doc.data();
+        let cat = docData.category;
+        if (cat === 'Movies & Shows') cat = 'Movies';
+        
+        return {
+          ...docData,
+          category: cat,
+          id: doc.id
+        };
+      }) as Recommendation[];
       setRecommendations(data);
       setLoading(false);
     }, (error) => {
@@ -68,8 +75,17 @@ export default function Recommendations() {
     setIsSearchingMovies(true);
     try {
       const omdbKey = import.meta.env.VITE_OMDB_API_KEY;
-      const response = await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(formData.title)}&type=movie&apikey=${omdbKey || 'b054da29'}`);
-      if (!response.ok) throw new Error(`Movies API failed: ${response.statusText}`);
+      let actualKey = omdbKey || 'b054da29';
+      if (actualKey.includes('apikey=')) {
+        actualKey = actualKey.split('apikey=')[1].split('&')[0];
+      }
+      const type = formData.category === 'Shows' ? 'series' : 'movie';
+      let response = await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(formData.title)}&type=${type}&apikey=${actualKey}`);
+      if (!response.ok && response.status === 401 && actualKey !== 'b054da29') {
+        // Fallback to default key if user's key is invalid
+        response = await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(formData.title)}&type=${type}&apikey=b054da29`);
+      }
+      if (!response.ok) throw new Error(`Movies API failed: ${response.status} ${response.statusText}`);
       const data = await response.json();
       if (data.Response === 'False') {
         setMovieSearchResults([]);
@@ -104,15 +120,21 @@ export default function Recommendations() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const dataToSave = { ...formData };
+      if (dataToSave.description === undefined) dataToSave.description = '';
+      if (dataToSave.link === undefined) dataToSave.link = '';
+      if (dataToSave.imageUrl === undefined) dataToSave.imageUrl = '';
+      delete dataToSave.id;
+
       if (editingId) {
         await updateDoc(doc(db, 'recommendations', editingId), {
-          ...formData,
+          ...dataToSave,
           updatedAt: serverTimestamp()
         });
         setStatus({ type: 'success', message: 'Updated successfully' });
       } else {
         await addDoc(collection(db, 'recommendations'), {
-          ...formData,
+          ...dataToSave,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
@@ -120,8 +142,9 @@ export default function Recommendations() {
       }
       resetForm();
       setTimeout(() => setStatus(null), 3000);
-    } catch (error) {
-      setStatus({ type: 'error', message: 'Failed to save' });
+    } catch (error: any) {
+      console.error("Error saving recommendation:", error);
+      setStatus({ type: 'error', message: `Failed to save: ${error.message}` });
     }
   };
 
@@ -182,7 +205,8 @@ export default function Recommendations() {
   const getCategoryIcon = (catName: string) => {
     switch (catName) {
       case 'Books': return <Book size={20} />;
-      case 'Movies & Shows': return <Film size={20} />;
+      case 'Movies': return <Film size={20} />;
+      case 'Shows': return <Tv size={20} />;
       case 'Video & Media': return <Video size={20} />;
       case 'Apps': return <AppWindow size={20} />;
       default: return <Book size={20} />;
@@ -261,7 +285,7 @@ export default function Recommendations() {
           />
         </div>
         <div className="flex gap-2 w-full md:w-auto overflow-x-auto custom-scrollbar pb-4 md:pb-0 -ml-4 pl-4 md:ml-0 md:pl-0 pr-4 md:pr-0">
-          {['All', 'Books', 'Movies & Shows', 'Video & Media', 'Apps'].map((cat) => {
+          {['All', 'Books', 'Movies', 'Shows', 'Video & Media', 'Apps'].map((cat) => {
             const isActive = selectedCategory === cat || (cat === 'All' && !selectedCategory);
             return (
               <button
@@ -296,6 +320,17 @@ export default function Recommendations() {
                 <h2 className="text-3xl font-serif">{editingId ? 'Edit Entry' : 'New Entry'}</h2>
               </div>
               
+              {status && status.type === 'error' && (
+                <div className="p-4 bg-accent/10 text-accent rounded-2xl text-sm font-medium">
+                  {status.message}
+                </div>
+              )}
+              {status && status.type === 'success' && (
+                <div className="p-4 bg-green-500/10 text-green-600 rounded-2xl text-sm font-medium">
+                  {status.message}
+                </div>
+              )}
+              
               <form onSubmit={handleSubmit} className="space-y-8">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
@@ -309,11 +344,11 @@ export default function Recommendations() {
                         className="flex-grow px-6 py-4 bg-paper border border-ink/5 rounded-2xl text-base focus:outline-none focus:border-accent transition-all ring-1 ring-ink/5 focus:ring-accent/10"
                         placeholder="e.g. Leviathan"
                       />
-                      {(formData.category === 'Movies & Shows' || formData.category === 'Books') && (
+                      {(formData.category === 'Movies' || formData.category === 'Shows' || formData.category === 'Books') && (
                         <Button
                           type="button"
-                          onClick={formData.category === 'Movies & Shows' ? handleSearchMovies : handleSearchBooks}
-                          isLoading={formData.category === 'Movies & Shows' ? isSearchingMovies : isSearchingBooks}
+                          onClick={formData.category === 'Movies' || formData.category === 'Shows' ? handleSearchMovies : handleSearchBooks}
+                          isLoading={formData.category === 'Movies' || formData.category === 'Shows' ? isSearchingMovies : isSearchingBooks}
                           variant="outline"
                           className="px-6 rounded-2xl border-accent/20 text-accent font-black text-[10px] tracking-widest uppercase hover:bg-accent/5"
                           icon={Search}
@@ -336,7 +371,7 @@ export default function Recommendations() {
                   </div>
                 </div>
 
-                {formData.category === 'Movies & Shows' && movieSearchResults.length > 0 && (
+                {(formData.category === 'Movies' || formData.category === 'Shows') && movieSearchResults.length > 0 && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 p-6 bg-accent/5 rounded-[32px] border border-accent/10">
                     <label className="text-[10px] uppercase tracking-[0.2em] text-accent font-black">Quick Results</label>
                     <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 max-h-80 overflow-y-auto p-2 custom-scrollbar">
@@ -415,7 +450,8 @@ export default function Recommendations() {
                       className="w-full px-6 py-4 bg-paper border border-ink/5 rounded-2xl text-base focus:outline-none focus:border-accent transition-all appearance-none ring-1 ring-ink/5 focus:ring-accent/10 [color-scheme:dark]"
                     >
                       <option value="Books" className="bg-paper text-ink">Books</option>
-                      <option value="Movies & Shows" className="bg-paper text-ink">Movies & Shows</option>
+                      <option value="Movies" className="bg-paper text-ink">Movies</option>
+                      <option value="Shows" className="bg-paper text-ink">Shows</option>
                       <option value="Video & Media" className="bg-paper text-ink">Video & Media</option>
                       <option value="Apps" className="bg-paper text-ink">Apps</option>
                     </select>

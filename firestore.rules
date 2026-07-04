@@ -165,7 +165,7 @@ service cloud.firestore {
       return data.keys().hasAll(['title', 'author', 'category']) &&
              data.title is string && data.title.size() > 0 && data.title.size() < 500 &&
              data.author is string && data.author.size() > 0 && data.author.size() < 200 &&
-             data.category in ['Books', 'Movies & Shows', 'Video & Media', 'Apps'] &&
+             data.category in ['Books', 'Movies & Shows', 'Movies', 'Shows', 'Video & Media', 'Apps'] &&
              (!('description' in data) || (data.description is string && data.description.size() < 5000)) &&
              (!('link' in data) || (data.link == "" || isValidUrl(data.link))) &&
              (!('imageUrl' in data) || (data.imageUrl == "" || isValidUrl(data.imageUrl))) &&
