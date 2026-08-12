@@ -5,6 +5,7 @@ import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import { db, collection, onSnapshot, query, orderBy, handleFirestoreError, OperationType } from '../firebase';
 import Button from './ui/Button';
+import PrintableCV from './PrintableCV';
 
 interface CVItem {
   title: string;
@@ -137,8 +138,9 @@ export default function CV() {
   }
 
   return (
-    <div className="min-h-screen text-ink selection:bg-accent/30 overflow-x-hidden transition-colors duration-300 dark:text-ink">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-20 lg:py-32">
+    <>
+      <div className="print:hidden min-h-screen text-ink selection:bg-accent/30 overflow-x-hidden transition-colors duration-300 dark:text-ink">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 md:px-8 py-12 sm:py-20 lg:py-32">
         
         {/* Header Section */}
         <header className="text-center mb-12 sm:mb-16 md:mb-32 space-y-4 sm:space-y-6 md:space-y-8 flex flex-col justify-center">
@@ -326,5 +328,9 @@ export default function CV() {
         </main>
       </div>
     </div>
+    <div className="hidden print:block print:w-full print:m-0 print:p-0">
+      <PrintableCV />
+    </div>
+    </>
   );
 }

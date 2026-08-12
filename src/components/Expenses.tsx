@@ -41,6 +41,30 @@ const INCOME_TYPES = ["Salary", "Dividend", "Side Hustle", "Other"] as const;
 
 const COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
 
+const parseLocalDate = (dateStr: string) => {
+  if (!dateStr) return new Date();
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  }
+  return new Date(dateStr);
+};
+
+const getLocalDateString = (date: Date = new Date()) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getDefaultDateForView = (viewDate: Date) => {
+  const today = new Date();
+  if (viewDate.getFullYear() === today.getFullYear() && viewDate.getMonth() === today.getMonth()) {
+    return getLocalDateString(today);
+  }
+  return getLocalDateString(new Date(viewDate.getFullYear(), viewDate.getMonth(), 1));
+};
+
 export default function Expenses() {
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [incomes, setIncomes] = useState<Income[]>([]);
@@ -68,7 +92,7 @@ export default function Expenses() {
     amount: '',
     category: 'Rent' as Expense['category'],
     recurring: 'One-time' as Expense['recurring'],
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalDateString(),
     status: 'unpaid' as Expense['status'],
     description: ''
   });
@@ -76,12 +100,25 @@ export default function Expenses() {
   const [incomeData, setIncomeData] = useState({
     title: '',
     amount: '',
-    date: new Date().toISOString().split('T')[0],
+    date: getLocalDateString(),
     type: 'Salary' as Income['type'],
     recurring: 'One-time' as Income['recurring']
   });
 
   const [budgetData, setBudgetData] = useState<Record<string, string>>({});
+
+  // Sync form default dates with the currently viewed period
+  useEffect(() => {
+    if (showAddForm && !editingId) {
+      setFormData(prev => ({ ...prev, date: getDefaultDateForView(currentDate) }));
+    }
+  }, [showAddForm, currentDate, editingId]);
+
+  useEffect(() => {
+    if (showIncomeForm) {
+      setIncomeData(prev => ({ ...prev, date: getDefaultDateForView(currentDate) }));
+    }
+  }, [showIncomeForm, currentDate]);
 
   useEffect(() => {
     const unsubscribeExpenses = onSnapshot(query(collection(db, 'expenses'), orderBy('date', 'desc')), (snapshot) => {
@@ -137,24 +174,24 @@ export default function Expenses() {
 
   const getOccurrences = (items: (Expense | Income)[], rangeStart: Date, rangeEnd: Date) => {
     const realInRange = items.filter(item => {
-      const d = new Date(item.date);
+      const d = parseLocalDate(item.date);
       return d >= rangeStart && d <= rangeEnd;
     });
 
     const projected: any[] = [];
-    const recurringTemplates = items.filter(item => item.recurring !== 'One-time');
+    const recurringTemplates = items.filter(item => item.recurring && item.recurring !== 'One-time');
     
     // Group by title to find the "original" start date/template
     const templatesByTitle = new Map<string, any>();
     recurringTemplates.forEach(item => {
       const key = `${item.title}-${(item as any).category || (item as any).type}`;
-      if (!templatesByTitle.has(key) || new Date(item.date) < new Date(templatesByTitle.get(key).date)) {
+      if (!templatesByTitle.has(key) || parseLocalDate(item.date) < parseLocalDate(templatesByTitle.get(key).date)) {
         templatesByTitle.set(key, item);
       }
     });
 
     templatesByTitle.forEach(template => {
-      let current = new Date(template.date);
+      let current = parseLocalDate(template.date);
       
       // Safety break to prevent infinite loops or excessive calculations
       let iterations = 0;
@@ -162,11 +199,18 @@ export default function Expenses() {
 
       while (current <= rangeEnd && iterations < MAX_ITERATIONS) {
         iterations++;
-        const dateStr = current.toISOString().split('T')[0];
+        const year = current.getFullYear();
+        const month = String(current.getMonth() + 1).padStart(2, '0');
+        const day = String(current.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
         
         if (current >= rangeStart) {
-          const alreadyExists = realInRange.some(r => r.title === template.title && r.date === dateStr);
-          if (!alreadyExists && current > new Date(template.date)) {
+          const alreadyExists = realInRange.some(r => {
+            const sameTitle = r.title === template.title;
+            const sameTypeOrCategory = ((r as any).category || (r as any).type) === ((template as any).category || (template as any).type);
+            return sameTitle && sameTypeOrCategory && r.date === dateStr;
+          });
+          if (!alreadyExists && current > parseLocalDate(template.date)) {
             projected.push({
               ...template,
               id: `projected-${template.id}-${dateStr}`,
@@ -189,7 +233,7 @@ export default function Expenses() {
       }
     });
 
-    return [...realInRange, ...projected].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    return [...realInRange, ...projected].sort((a, b) => parseLocalDate(a.date).getTime() - parseLocalDate(b.date).getTime());
   };
 
   const currentPeriodExpenses = useMemo(() => {
@@ -204,7 +248,7 @@ export default function Expenses() {
     return CATEGORIES.map(cat => {
       const spent = currentPeriodExpenses
         .filter(e => e.category === cat)
-        .reduce((sum, e) => sum + e.amount, 0);
+        .reduce((sum, e) => sum + Number(e.amount || 0), 0);
       
       let budget = budgets.find(b => b.category === cat)?.amount || 0;
       // Adjust budget display for scale
@@ -215,8 +259,8 @@ export default function Expenses() {
     });
   }, [currentPeriodExpenses, budgets, scale]);
 
-  const totalExpenses = currentPeriodExpenses.reduce((sum, e) => sum + e.amount, 0);
-  const totalIncome = currentPeriodIncomes.reduce((sum, i) => sum + i.amount, 0);
+  const totalExpenses = currentPeriodExpenses.reduce((sum, e) => sum + Number(e.amount || 0), 0);
+  const totalIncome = currentPeriodIncomes.reduce((sum, i) => sum + Number(i.amount || 0), 0);
   const netSavings = totalIncome - totalExpenses;
 
   // Actions
@@ -361,7 +405,7 @@ export default function Expenses() {
           title: '',
           amount: '',
           category: 'Other',
-          date: new Date().toISOString().split('T')[0],
+          date: getDefaultDateForView(currentDate),
           recurring: 'One-time',
           status: 'unpaid',
           description: ''
@@ -388,7 +432,7 @@ export default function Expenses() {
       setIncomeData({
         title: '',
         amount: '',
-        date: new Date().toISOString().split('T')[0],
+        date: getDefaultDateForView(currentDate),
         type: 'Salary' as Income['type'],
         recurring: 'One-time' as Income['recurring']
       });
@@ -591,14 +635,14 @@ export default function Expenses() {
           <motion.div initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="mb-12">
             <form onSubmit={handleIncomeSubmit} className="bg-paper border border-ink/5 rounded-2xl p-8 shadow-xl grid grid-cols-1 md:grid-cols-6 gap-6">
               <input value={incomeData.title} onChange={e => setIncomeData({...incomeData, title: e.target.value})} placeholder="Income Source" required className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none" />
-              <input value={incomeData.amount} onChange={e => setIncomeData({...incomeData, amount: e.target.value})} type="number" placeholder="Amount" required className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none" />
+              <input value={incomeData.amount} onChange={e => setIncomeData({...incomeData, amount: e.target.value})} type="number" min="0" step="any" placeholder="Amount" required className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none" />
               <select value={incomeData.type} onChange={e => setIncomeData({...incomeData, type: e.target.value as any})} className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none">
                 {INCOME_TYPES.map(t => <option key={t} value={t} className="bg-surface text-ink">{t}</option>)}
               </select>
               <select value={incomeData.recurring} onChange={e => setIncomeData({...incomeData, recurring: e.target.value as any})} className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none">
                 {RECURRING_OPTIONS.map(o => <option key={o} value={o} className="bg-surface text-ink">{o}</option>)}
               </select>
-              <input value={incomeData.date} onChange={e => setIncomeData({...incomeData, date: e.target.value})} type="date" className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none" />
+              <input value={incomeData.date} onChange={e => setIncomeData({...incomeData, date: e.target.value})} type="date" required className="bg-surface border border-ink/5 text-ink p-3 rounded-xl outline-none" />
               <div className="flex gap-2">
                 <Button type="submit" variant="primary" className="flex-1">Save</Button>
                 <Button type="button" onClick={() => setShowIncomeForm(false)} variant="secondary">Cancel</Button>
@@ -651,7 +695,7 @@ export default function Expenses() {
                     <div>
                       <h4 className="font-medium">{expense.title}</h4>
                       <div className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-ink/40">
-                        <span className="flex items-center gap-1"><Calendar size={10} /> {new Date(expense.date).toLocaleDateString('default', { day: 'numeric', month: 'short' })}</span>
+                        <span className="flex items-center gap-1"><Calendar size={10} /> {parseLocalDate(expense.date).toLocaleDateString('default', { day: 'numeric', month: 'short' })}</span>
                         <span className="flex items-center gap-1">{getCategoryIcon(expense.category)} {expense.category}</span>
                         {expense.recurring !== 'One-time' && <span className="flex items-center gap-1 text-accent bg-accent/5 px-2 rounded-full"><RefreshCw size={8} /> {expense.recurring}</span>}
                         {expense.isProjected && <span className="bg-ink/5 px-2 rounded-full italic">Projected</span>}
@@ -695,7 +739,7 @@ export default function Expenses() {
                     <div>
                       <h4 className="font-medium">{income.title}</h4>
                       <div className="flex items-center gap-3 text-[10px] uppercase tracking-widest text-ink/40">
-                        <span className="flex items-center gap-1"><Calendar size={10} /> {new Date(income.date).toLocaleDateString('default', { day: 'numeric', month: 'short' })}</span>
+                        <span className="flex items-center gap-1"><Calendar size={10} /> {parseLocalDate(income.date).toLocaleDateString('default', { day: 'numeric', month: 'short' })}</span>
                         <span>{income.type}</span>
                         {income.recurring !== 'One-time' && <span className="flex items-center gap-1 text-emerald-500 bg-emerald-500/5 px-2 rounded-full"><RefreshCw size={8} /> {income.recurring}</span>}
                         {income.isProjected && <span className="bg-ink/5 px-2 rounded-full italic">Projected</span>}
