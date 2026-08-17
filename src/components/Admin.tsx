@@ -19,7 +19,7 @@ interface Recommendation {
   id: string;
   title: string;
   author: string;
-  category: 'Books' | 'Movies & Shows' | 'Video & Media' | 'Apps';
+  category: 'Books' | 'Movies & Shows' | 'Video & Media' | 'Apps' | 'Podcasts';
   description?: string;
   link?: string;
   imageUrl?: string;
@@ -31,7 +31,7 @@ interface SearchResult {
   description: string;
   link: string;
   imageUrl: string;
-  category: 'Books' | 'Movies & Shows' | 'Video & Media' | 'Apps';
+  category: 'Books' | 'Movies & Shows' | 'Video & Media' | 'Apps' | 'Podcasts';
 }
 
 interface CVItem {
@@ -235,7 +235,7 @@ export default function Admin({ user }: { user: any }) {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [searchType, setSearchType] = useState<'Books' | 'Movies & Shows' | 'Video & Media' | 'Apps'>('Books');
+  const [searchType, setSearchType] = useState<'Books' | 'Movies & Shows' | 'Video & Media' | 'Apps' | 'Podcasts'>('Books');
   const [isFetchingYouTube, setIsFetchingYouTube] = useState(false);
   const [isSearchingMovies, setIsSearchingMovies] = useState(false);
   const [movieSearchResults, setMovieSearchResults] = useState<any[]>([]);
@@ -539,6 +539,21 @@ export default function Admin({ user }: { user: any }) {
         }));
         setSearchResults(results);
         if (results.length === 0) setStatus({ type: 'error', message: 'No apps found.' });
+      } else if (searchType === 'Podcasts') {
+        const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(searchQuery)}&entity=podcast&limit=5`);
+        if (!response.ok) throw new Error('Podcasts API failed');
+        const data = await response.json();
+        
+        const results: SearchResult[] = (data.results || []).map((item: any) => ({
+          title: item.collectionName,
+          author: item.artistName || 'Unknown Creator',
+          description: item.collectionName,
+          link: item.collectionViewUrl,
+          imageUrl: item.artworkUrl600 || item.artworkUrl100 || '',
+          category: 'Podcasts'
+        }));
+        setSearchResults(results);
+        if (results.length === 0) setStatus({ type: 'error', message: 'No podcasts found.' });
       }
     } catch (error) {
       console.error('Search error:', error);
@@ -1760,7 +1775,8 @@ export default function Admin({ user }: { user: any }) {
                     { id: 'Books', label: 'Books' },
                     { id: 'Movies & Shows', label: 'Movies' },
                     { id: 'Video & Media', label: 'Media' },
-                    { id: 'Apps', label: 'Apps' }
+                    { id: 'Apps', label: 'Apps' },
+                    { id: 'Podcasts', label: 'Podcasts' }
                   ].map((type) => (
                     <Button
                       key={type.id}
@@ -1943,6 +1959,7 @@ export default function Admin({ user }: { user: any }) {
                         <option value="Movies & Shows">Movies & Shows</option>
                         <option value="Video & Media">Video & Media</option>
                         <option value="Apps">Apps</option>
+                        <option value="Podcasts">Podcasts</option>
                       </select>
                       <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-ink/20">
                         <ArrowUpDown size={14} />

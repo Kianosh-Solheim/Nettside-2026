@@ -7,7 +7,7 @@
       "properties": {
         "title": { "type": "string", "description": "Title of the work" },
         "author": { "type": "string", "description": "Author, director, or creator" },
-        "category": { "type": "string", "enum": ["Books", "Movies & Shows", "Video & Media", "Apps"], "description": "Type of recommendation" },
+        "category": { "type": "string", "enum": ["Books", "Movies & Shows", "Movies", "Shows", "Video & Media", "Apps", "Podcasts"], "description": "Type of recommendation" },
         "description": { "type": "string", "description": "Personal note or summary" },
         "link": { "type": "string", "format": "uri", "description": "Optional link to the work" },
         "imageUrl": { "type": "string", "format": "uri", "description": "Optional image URL" },

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Book, Film, Tv, ExternalLink, AppWindow, Video, Plus, Search, X, Check, Loader2, Edit2, Trash2, Save, Info } from 'lucide-react';
+import { Book, Film, Tv, ExternalLink, AppWindow, Video, Plus, Search, X, Check, Loader2, Edit2, Trash2, Save, Info, Podcast, ChevronDown, ChevronUp } from 'lucide-react';
 import { db, collection, onSnapshot, query, orderBy, handleFirestoreError, OperationType, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, auth, where } from '../firebase';
 import Button from './ui/Button';
 
@@ -23,11 +23,30 @@ export default function Recommendations() {
   const [selectedItem, setSelectedItem] = useState<Recommendation | null>(null);
   const [isSearchingMovies, setIsSearchingMovies] = useState(false);
   const [isSearchingBooks, setIsSearchingBooks] = useState(false);
+  const [isSearchingPodcasts, setIsSearchingPodcasts] = useState(false);
   const [movieSearchResults, setMovieSearchResults] = useState<any[]>([]);
   const [bookSearchResults, setBookSearchResults] = useState<any[]>([]);
+  const [podcastSearchResults, setPodcastSearchResults] = useState<any[]>([]);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({});
+  const [isMobile, setIsMobile] = useState(() => typeof window !== 'undefined' ? window.innerWidth < 768 : false);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const toggleCategoryExpand = (category: string) => {
+    setExpandedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
 
   const [formData, setFormData] = useState<Partial<Recommendation>>({
     title: '',
@@ -117,6 +136,22 @@ export default function Recommendations() {
     }
   };
 
+  const handleSearchPodcasts = async () => {
+    if (!formData.title) return;
+    setIsSearchingPodcasts(true);
+    try {
+      const response = await fetch(`https://itunes.apple.com/search?term=${encodeURIComponent(formData.title)}&entity=podcast&limit=12`);
+      if (!response.ok) throw new Error('Podcasts API failed');
+      const data = await response.json();
+      setPodcastSearchResults(data.results || []);
+    } catch (error) {
+      console.error("Error searching podcasts:", error);
+      setStatus({ type: 'error', message: 'Podcasts search failed' });
+    } finally {
+      setIsSearchingPodcasts(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
@@ -132,14 +167,14 @@ export default function Recommendations() {
         await updateDoc(doc(db, 'recommendations', editingId), {
           ...dataToSave,
           updatedAt: serverTimestamp()
-        });
+        }).catch(error => handleFirestoreError(error, OperationType.UPDATE, `recommendations/${editingId}`));
         setStatus({ type: 'success', message: 'Updated successfully' });
       } else {
         await addDoc(collection(db, 'recommendations'), {
           ...dataToSave,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
-        });
+        }).catch(error => handleFirestoreError(error, OperationType.CREATE, 'recommendations'));
         setStatus({ type: 'success', message: 'Added successfully' });
       }
       resetForm();
@@ -156,7 +191,8 @@ export default function Recommendations() {
     console.log('[Recommendations] Starting handleDelete for ID:', id);
     try {
       setStatus({ type: 'success', message: 'Initiating deletion...' });
-      await deleteDoc(doc(db, 'recommendations', id));
+      await deleteDoc(doc(db, 'recommendations', id))
+        .catch(error => handleFirestoreError(error, OperationType.DELETE, `recommendations/${id}`));
       console.log('[Recommendations] deleteDoc resolved successfully for:', id);
       setStatus({ type: 'success', message: 'Deleted successfully' });
       setDeleteConfirmation(null);
@@ -211,6 +247,7 @@ export default function Recommendations() {
       case 'Shows': return <Tv size={20} />;
       case 'Video & Media': return <Video size={20} />;
       case 'Apps': return <AppWindow size={20} />;
+      case 'Podcasts': return <Podcast size={20} />;
       default: return <Book size={20} />;
     }
   };
@@ -346,11 +383,11 @@ export default function Recommendations() {
                         className="flex-grow px-6 py-4 bg-paper border border-ink/5 rounded-2xl text-base focus:outline-none focus:border-accent transition-all ring-1 ring-ink/5 focus:ring-accent/10"
                         placeholder="e.g. Leviathan"
                       />
-                      {(formData.category === 'Movies' || formData.category === 'Shows' || formData.category === 'Books') && (
+                      {(formData.category === 'Movies' || formData.category === 'Shows' || formData.category === 'Books' || formData.category === 'Podcasts') && (
                         <Button
                           type="button"
-                          onClick={formData.category === 'Movies' || formData.category === 'Shows' ? handleSearchMovies : handleSearchBooks}
-                          isLoading={formData.category === 'Movies' || formData.category === 'Shows' ? isSearchingMovies : isSearchingBooks}
+                          onClick={formData.category === 'Movies' || formData.category === 'Shows' ? handleSearchMovies : formData.category === 'Podcasts' ? handleSearchPodcasts : handleSearchBooks}
+                          isLoading={formData.category === 'Movies' || formData.category === 'Shows' ? isSearchingMovies : formData.category === 'Podcasts' ? isSearchingPodcasts : isSearchingBooks}
                           variant="outline"
                           className="px-6 rounded-2xl border-accent/20 text-accent font-black text-[10px] tracking-widest uppercase hover:bg-accent/5"
                           icon={Search}
@@ -443,6 +480,43 @@ export default function Recommendations() {
                   </motion.div>
                 )}
 
+                {formData.category === 'Podcasts' && podcastSearchResults.length > 0 && (
+                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 p-6 bg-accent/5 rounded-[32px] border border-accent/10">
+                    <label className="text-[10px] uppercase tracking-[0.2em] text-accent font-black">Search Results</label>
+                    <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4 max-h-80 overflow-y-auto p-2 custom-scrollbar">
+                      {podcastSearchResults.map((item, idx) => {
+                        const posterUrl = item.artworkUrl600 || item.artworkUrl100 || '';
+                        const isSelected = formData.imageUrl === posterUrl;
+                        return (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => setFormData({ 
+                              ...formData, 
+                              imageUrl: posterUrl,
+                              title: item.collectionName || formData.title,
+                              author: item.artistName || formData.author,
+                              link: item.collectionViewUrl || formData.link
+                            })}
+                            className={`relative aspect-square rounded-xl overflow-hidden border-2 transition-all ${
+                              isSelected ? 'border-accent ring-4 ring-accent/20 scale-95 shadow-lg' : 'border-transparent hover:border-accent/40 grayscale hover:grayscale-0'
+                            }`}
+                          >
+                            {posterUrl ? (
+                              <img src={posterUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="w-full h-full bg-ink/5 flex items-center justify-center text-[10px] font-black text-center p-2 uppercase tracking-tighter leading-none">
+                                {item.collectionName}
+                              </div>
+                            )}
+                            {isSelected && <div className="absolute inset-0 bg-accent/20 flex items-center justify-center"><Check className="text-accent" size={24} /></div>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-3">
                     <label className="text-[10px] uppercase tracking-[0.2em] text-ink/40 font-black">Category</label>
@@ -456,6 +530,7 @@ export default function Recommendations() {
                       <option value="Shows" className="bg-paper text-ink">Shows</option>
                       <option value="Video & Media" className="bg-paper text-ink">Video & Media</option>
                       <option value="Apps" className="bg-paper text-ink">Apps</option>
+                      <option value="Podcasts" className="bg-paper text-ink">Podcasts</option>
                     </select>
                   </div>
                   <div className="space-y-3">
@@ -526,63 +601,103 @@ export default function Recommendations() {
             )}
           </div>
         ) : (
-          Object.entries(groupedRecommendations).sort(([a], [b]) => a.localeCompare(b)).map(([category, items]) => (
-            <section key={category} className="group/section">
-            <div className="flex flex-col md:flex-row md:items-center gap-6 mb-12 border-b border-ink/5 pb-8">
-              <div className="w-16 h-16 rounded-3xl bg-accent/10 flex items-center justify-center text-accent ring-1 ring-accent/5 shadow-inner">
-                {getCategoryIcon(category)}
-              </div>
-              <div>
-                <h2 className="text-4xl font-serif font-medium">{category}</h2>
-                <div className="flex items-center gap-2 mt-1">
-                  <div className="w-1.5 h-1.5 rounded-full bg-accent" />
-                  <p className="text-[10px] uppercase tracking-[0.3em] font-black text-ink/30 italic">{items.length} works collected</p>
-                </div>
-              </div>
-            </div>
+          Object.entries(groupedRecommendations).sort(([a], [b]) => a.localeCompare(b)).map(([category, items]) => {
+            const limit = isMobile ? 4 : 5;
+            const isExpanded = !!expandedCategories[category];
+            const hasMore = items.length > limit;
+            const displayedItems = (hasMore && !isExpanded) ? items.slice(0, limit) : items;
 
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 lg:gap-12">
-              {items.map((item) => (
-                <motion.div 
-                  key={item.id}
-                  layoutId={item.id}
-                  onClick={() => setSelectedItem(item)}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  whileInView={{ opacity: 1, scale: 1 }}
-                  viewport={{ once: true }}
-                  whileHover={{ y: -8 }}
-                  className="group cursor-pointer"
-                >
-                  <div className={`relative mb-4 rounded-[24px] overflow-hidden bg-surface border border-ink/5 shadow-md shadow-ink/5 group-hover:shadow-2xl group-hover:shadow-accent/10 transition-all duration-500 ring-1 ring-ink/5 ${item.category === 'Apps' ? 'aspect-square' : 'aspect-auto'}`}>
-                    {item.imageUrl ? (
-                      <img 
-                        src={item.imageUrl} 
-                        alt={item.title} 
-                        className={`w-full transition-all duration-700 ease-[0.22, 1, 0.36, 1] group-hover:scale-105 grayscale-[0.3] group-hover:grayscale-0 ${item.category === 'Apps' ? 'h-full object-cover' : 'h-auto'}`} 
-                        referrerPolicy="no-referrer" 
-                      />
-                    ) : (
-                      <div className="w-full aspect-[3/4] flex items-center justify-center p-6 text-center">
-                        <Book className="text-ink/10" size={48} />
-                      </div>
-                    )}
-                    
-                    <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-6">
-                      <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl text-white self-center transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                        <Info size={20} />
+            return (
+              <section key={category} className="group/section">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-12 border-b border-ink/5 pb-8">
+                  <div className="flex items-center gap-6">
+                    <div className="w-16 h-16 rounded-3xl bg-accent/10 flex items-center justify-center text-accent ring-1 ring-accent/5 shadow-inner">
+                      {getCategoryIcon(category)}
+                    </div>
+                    <div>
+                      <h2 className="text-4xl font-serif font-medium">{category}</h2>
+                      <div className="flex items-center gap-2 mt-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-accent" />
+                        <p className="text-[10px] uppercase tracking-[0.3em] font-black text-ink/30 italic">{items.length} works collected</p>
                       </div>
                     </div>
                   </div>
-                  
-                  <div className="px-1 text-center">
-                    <h3 className="text-sm font-serif group-hover:text-accent transition-colors leading-tight mb-1 truncate">{item.title}</h3>
-                    <p className="text-[9px] uppercase tracking-widest text-ink/30 font-black">{item.author}</p>
+
+                  {hasMore && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleCategoryExpand(category)}
+                      className="self-start md:self-auto rounded-full px-5 py-2.5 text-xs uppercase tracking-widest font-black border-ink/10 text-ink/70 hover:text-accent hover:border-accent/40 transition-all shadow-sm"
+                      icon={isExpanded ? ChevronUp : ChevronDown}
+                      magnetic={true}
+                    >
+                      {isExpanded ? 'Show less' : `Show all (${items.length})`}
+                    </Button>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8 lg:gap-12">
+                  {displayedItems.map((item) => (
+                    <motion.div 
+                      key={item.id}
+                      layout
+                      layoutId={item.id}
+                      onClick={() => setSelectedItem(item)}
+                      initial={{ opacity: 0, scale: 0.9 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={{ duration: 0.3 }}
+                      whileHover={{ y: -8 }}
+                      className="group cursor-pointer"
+                    >
+                      <div className={`relative mb-4 rounded-[24px] overflow-hidden bg-surface border border-ink/5 shadow-md shadow-ink/5 group-hover:shadow-2xl group-hover:shadow-accent/10 transition-all duration-500 ring-1 ring-ink/5 ${item.category === 'Apps' || item.category === 'Podcasts' ? 'aspect-square' : 'aspect-auto'}`}>
+                        {item.imageUrl ? (
+                          <img 
+                            src={item.imageUrl} 
+                            alt={item.title} 
+                            className={`w-full transition-all duration-700 ease-[0.22, 1, 0.36, 1] group-hover:scale-105 grayscale-[0.3] group-hover:grayscale-0 ${item.category === 'Apps' || item.category === 'Podcasts' ? 'h-full object-cover' : 'h-auto'}`} 
+                            referrerPolicy="no-referrer" 
+                          />
+                        ) : (
+                          <div className="w-full aspect-[3/4] flex items-center justify-center p-6 text-center">
+                            <Book className="text-ink/10" size={48} />
+                          </div>
+                        )}
+                        
+                        <div className="absolute inset-0 bg-gradient-to-t from-ink/90 via-ink/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-6">
+                          <div className="p-3 bg-white/10 backdrop-blur-md rounded-2xl text-white self-center transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
+                            <Info size={20} />
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="px-1 text-center">
+                        <h3 className="text-sm font-serif group-hover:text-accent transition-colors leading-tight mb-1 truncate">{item.title}</h3>
+                        <p className="text-[9px] uppercase tracking-widest text-ink/30 font-black">{item.author}</p>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+
+                {hasMore && (
+                  <div className="mt-12 flex justify-center">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="md"
+                      onClick={() => toggleCategoryExpand(category)}
+                      className="rounded-full px-8 py-3 text-xs uppercase tracking-widest font-black border border-ink/10 hover:border-accent/40 text-ink/60 hover:text-accent bg-surface/50 hover:bg-accent/5 transition-all shadow-sm group"
+                      icon={isExpanded ? ChevronUp : ChevronDown}
+                      magnetic={true}
+                    >
+                      {isExpanded ? 'Show less' : `Show all (${items.length})`}
+                    </Button>
                   </div>
-                </motion.div>
-              ))}
-            </div>
-          </section>
-        ))
+                )}
+              </section>
+            );
+          })
         )}
       </div>
 
@@ -618,7 +733,7 @@ export default function Recommendations() {
                   <img 
                     src={selectedItem.imageUrl} 
                     alt={selectedItem.title} 
-                    className={`w-full ${selectedItem.category === 'Apps' ? 'h-full object-cover' : 'h-auto max-h-full object-contain'}`} 
+                    className={`w-full ${selectedItem.category === 'Apps' || selectedItem.category === 'Podcasts' ? 'h-full object-cover' : 'h-auto max-h-full object-contain'}`} 
                     referrerPolicy="no-referrer" 
                   />
                 ) : (
