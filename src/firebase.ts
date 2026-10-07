@@ -51,8 +51,9 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null, silent: boolean = false) {
+  const errorMessage = error instanceof Error ? error.message : String(error);
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errorMessage,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -70,8 +71,13 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     path
   }
   console.error('Firestore Error: ', JSON.stringify(errInfo));
-  if (!silent) {
+  
+  // Don't throw for quota errors to prevent crashing the entire app
+  const isQuotaError = errorMessage.toLowerCase().includes('quota limit exceeded') || errorMessage.toLowerCase().includes('quota exceeded');
+  if (!silent && !isQuotaError) {
     throw new Error(JSON.stringify(errInfo));
+  } else if (isQuotaError) {
+    console.warn('Firebase Quota Exceeded. The app will continue to run but data may not load or save until the quota resets or billing is enabled.');
   }
 }
 

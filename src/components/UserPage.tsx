@@ -4,7 +4,16 @@ import { auth, db, doc, onSnapshot, updateDoc, serverTimestamp, handleFirestoreE
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Film, Phone, MapPin, User as UserIcon, Save, Plus, Trash2, Edit2, ExternalLink, X, Check, XCircle, Mail, HandHelping, RotateCcw, BookOpen } from 'lucide-react';
 import Button from './ui/Button';
-import { Book } from '../types/library';
+
+interface Book {
+  id: string;
+  title: string;
+  author?: string;
+  authors?: { firstName: string; lastName: string }[];
+  location?: { room: string; bookshelf: string; shelfLevel: number; position: number };
+  coverUrl?: string;
+  borrowedAt?: any;
+}
 
 interface UserPageData {
   userId: string;

@@ -2,19 +2,54 @@
   "entities": {
     "Recommendation": {
       "title": "Recommendation",
-      "description": "A book, movie, or media recommendation.",
+      "description": "A public recommendation for a book, movie, show, video, app, or podcast.",
       "type": "object",
       "properties": {
         "title": { "type": "string", "description": "Title of the work" },
         "author": { "type": "string", "description": "Author, director, or creator" },
-        "category": { "type": "string", "enum": ["Books", "Movies & Shows", "Movies", "Shows", "Video & Media", "Apps", "Podcasts"], "description": "Type of recommendation" },
-        "description": { "type": "string", "description": "Personal note or summary" },
+        "category": { "type": "string", "enum": ["Books", "Movies", "Shows", "Movies & Shows", "Video & Media", "YouTube", "Apps", "Podcasts"] },
+        "description": { "type": "string", "description": "Personal review or notes" },
         "link": { "type": "string", "format": "uri", "description": "Optional link to the work" },
         "imageUrl": { "type": "string", "format": "uri", "description": "Optional image URL" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
       "required": ["title", "author", "category"]
+    },
+    "PrivateRecommendation": {
+      "title": "PrivateRecommendation",
+      "description": "A private shared recommendation from a phone call conversation.",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the work" },
+        "type": { "type": "string", "enum": ["Movie", "TV Series", "YouTube Video", "Documentary", "Book", "Article", "Podcast", "Music", "Website", "Other"] },
+        "recommendedBy": { "type": "string", "enum": ["owner", "friend"] },
+        "dateRecommended": { "type": "string", "format": "date" },
+        "callDate": { "type": "string", "format": "date" },
+        "status": { "type": "string", "enum": ["Not Seen", "Planning to Watch/Read/Listen", "Seen/Finished"] },
+        "description": { "type": "string", "description": "Short description or note from the call" },
+        "review": { "type": "string", "description": "Personal comment or review after checking it out" },
+        "rating": { "type": "integer", "description": "Optional 1-5 rating" },
+        "creator": { "type": "string", "description": "Author, director, or creator" },
+        "link": { "type": "string", "format": "uri", "description": "Optional link to the work" },
+        "imageUrl": { "type": "string", "format": "uri", "description": "Optional image URL" },
+        "completedAt": { "type": "string", "format": "date" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["title", "type", "recommendedBy", "dateRecommended", "callDate", "status"]
+    },
+    "RecommendationsConfig": {
+      "title": "RecommendationsConfig",
+      "description": "Configuration for the private shared recommendations area.",
+      "type": "object",
+      "properties": {
+        "password": { "type": "string" },
+        "ownerName": { "type": "string" },
+        "friendName": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["password", "ownerName", "friendName"]
     },
     "User": {
       "title": "User",
@@ -500,6 +535,14 @@
     "/recommendations/{recommendationId}": {
       "schema": "Recommendation",
       "description": "Public recommendations list."
+    },
+    "/private_recommendations/{recommendationId}": {
+      "schema": "PrivateRecommendation",
+      "description": "Private shared recommendations list for /a."
+    },
+    "/recommendations_settings/{configId}": {
+      "schema": "RecommendationsConfig",
+      "description": "Password and display name settings for private recommendations."
     },
     "/users/{userId}": {
       "schema": "User",

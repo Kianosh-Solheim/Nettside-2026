@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route, Link, useLocation } from 'react-router-dom';
 import { useState, useEffect, createContext, useContext, useRef, lazy, Suspense } from 'react';
-import { auth, onAuthStateChanged, signOut, signInWithPopup, googleProvider, db, collection, onSnapshot, query, orderBy, where, doc, getDocFromServer, setDoc, serverTimestamp, handleFirestoreError, OperationType } from './firebase';
+import { auth, onAuthStateChanged, signOut, signInWithPopup, googleProvider, db, collection, onSnapshot, query, orderBy, where, doc, getDocFromServer, setDoc, serverTimestamp, handleFirestoreError, OperationType, getDocs } from './firebase';
 import { motion, AnimatePresence, useMotionValue, useSpring, useMotionTemplate, useScroll, MotionConfig } from 'framer-motion';
 import { LogIn, LogOut, Menu, X, Book, Film, Tv, FileText, Home as HomeIcon, Plus, Trash2, Edit2, Sun, Moon, ArrowUp, Linkedin, Twitter, Github, Mail, Instagram, Facebook, Youtube, Share2, Activity, User, Cloud, Calendar, LayoutDashboard, Loader2, DollarSign, BookOpen, Monitor, Wrench, ChevronDown, Palette } from 'lucide-react';
 import { BlueskyIcon } from './components/Icons';
@@ -13,6 +13,7 @@ import { ThemeContext } from './contexts/ThemeContext';
 // Lazy loaded components
 const Home = lazy(() => import('./components/Home'));
 const Recommendations = lazy(() => import('./components/Recommendations'));
+const PrivateRecommendations = lazy(() => import('./components/PrivateRecommendations'));
 const CV = lazy(() => import('./components/CV'));
 const Admin = lazy(() => import('./components/Admin'));
 const Writings = lazy(() => import('./components/Writings'));
@@ -23,12 +24,10 @@ const PrintableCV = lazy(() => import('./components/PrintableCV'));
 const PrintableWriting = lazy(() => import('./components/PrintableWriting'));
 const UserPage = lazy(() => import('./components/UserPage'));
 const Kiaplay = lazy(() => import('./components/Kiaplay'));
-const Library = lazy(() => import('./components/Library'));
 const VisitingCard = lazy(() => import('./components/VisitingCard'));
 const SampolDashboard = lazy(() => import('./components/SampolDashboard'));
 const Availability = lazy(() => import('./components/Availability'));
 const FlyBergen = lazy(() => import('./components/FlyBergen'));
-const Expenses = lazy(() => import('./components/Expenses'));
 const NotFound = lazy(() => import('./components/NotFound'));
 const RStudioThemeEditor = lazy(() => import('./components/RStudioThemeEditor'));
 
@@ -126,7 +125,6 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
     { name: 'Home', path: '/', icon: <HomeIcon size={18} /> },
     { name: 'CV', path: '/cv', icon: <FileText size={18} /> },
     { name: 'Writings', path: '/writings', icon: <BookOpen size={18} /> },
-    ...(user ? [{ name: 'Library', path: '/library', icon: <Book size={18} /> }] : []),
     { name: 'Recommendations', path: '/recommendations', icon: <Film size={18} /> },
     { name: 'Availability', path: '/availability', icon: <Calendar size={18} /> },
   ];
@@ -270,16 +268,6 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
                         )}
                         {isAdmin && (
                           <Link
-                            to="/expenses"
-                            onClick={() => setIsProfileOpen(false)}
-                            className="flex items-center space-x-2 px-4 py-2 text-xs text-ink/60 hover:text-accent hover:bg-ink/5 transition-colors"
-                          >
-                            <DollarSign size={14} />
-                            <span>Expenses</span>
-                          </Link>
-                        )}
-                        {isAdmin && (
-                          <Link
                             to="/admin"
                             onClick={() => setIsProfileOpen(false)}
                             className="flex items-center space-x-2 px-4 py-2 text-xs text-ink/60 hover:text-accent hover:bg-ink/5 transition-colors"
@@ -404,16 +392,6 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
                     >
                       <LayoutDashboard size={18} />
                       <span>Dashboard</span>
-                    </Link>
-                  )}
-                  {isAdmin && (
-                    <Link
-                      to="/expenses"
-                      onClick={() => setIsOpen(false)}
-                      className="flex items-center space-x-3 text-xs uppercase tracking-widest text-ink/60"
-                    >
-                      <DollarSign size={18} />
-                      <span>Expenses</span>
                     </Link>
                   )}
                   {isAdmin && (
@@ -677,19 +655,18 @@ const AnimatedRoutes = ({ user, canViewAdminHealth, hasKiaplayAccess, adminUid }
         <Routes location={location} key={location.pathname}>
           <Route path="/" element={<PageWrapper><Home /></PageWrapper>} />
           <Route path="/recommendations" element={<PageWrapper><Recommendations /></PageWrapper>} />
+          <Route path="/a" element={<PageWrapper><PrivateRecommendations /></PageWrapper>} />
           <Route path="/availability" element={<PageWrapper><Availability /></PageWrapper>} />
           <Route path="/cv" element={<PageWrapper><CV /></PageWrapper>} />
           <Route path="/cv/print" element={<PrintableCV />} />
           <Route path="/writings" element={<PageWrapper><Writings /></PageWrapper>} />
           <Route path="/writings/:slug" element={<PageWrapper><Writings /></PageWrapper>} />
           <Route path="/writings/:slug/print" element={<PrintableWriting />} />
-          <Route path="/library" element={<PageWrapper><Library /></PageWrapper>} />
           <Route path="/admin" element={<PageWrapper><Admin user={user} /></PageWrapper>} />
           <Route path="/dashboard" element={isAdmin ? <PageWrapper><Dashboard /></PageWrapper> : <PageWrapper><Home /></PageWrapper>} />
           <Route path="/sampol-dashboard" element={<PageWrapper><SampolDashboard /></PageWrapper>} />
           <Route path="/visiting-card" element={<VisitingCard />} />
           <Route path="/fly-bergen" element={<FlyBergen />} />
-          <Route path="/expenses" element={isAdmin ? <PageWrapper><Expenses /></PageWrapper> : <PageWrapper><Home /></PageWrapper>} />
           <Route path="/tools/rstudio-theme" element={<PageWrapper><RStudioThemeEditor /></PageWrapper>} />
           <Route path="/user/:userId" element={<PageWrapper><UserPage /></PageWrapper>} />
           <Route path="/kiaplay" element={(isAdmin || hasKiaplayAccess) ? <Kiaplay /> : <PageWrapper><Home /></PageWrapper>} />
@@ -945,25 +922,25 @@ export default function App() {
 
     // Find admin UID
     const qAdmin = query(collection(db, 'users'), where('email', 'in', ADMIN_EMAILS));
-    const unsubscribeAdmin = onSnapshot(qAdmin, (snapshot) => {
+    getDocs(qAdmin).then((snapshot) => {
       if (!snapshot.empty) {
         setAdminUid(snapshot.docs[0].id);
       }
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users', true));
+    }).catch(error => handleFirestoreError(error, OperationType.LIST, 'users', true));
 
-    const unsubscribeProfile = onSnapshot(collection(db, 'profile'), (snapshot) => {
+    getDocs(collection(db, 'profile')).then((snapshot) => {
       if (!snapshot.empty) {
         setProfile(snapshot.docs[0].data() as Profile);
       }
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'profile'));
+    }).catch(error => handleFirestoreError(error, OperationType.GET, 'profile'));
 
-    const unsubscribeSocials = onSnapshot(query(collection(db, 'socials'), orderBy('order', 'asc')), (snapshot) => {
+    getDocs(query(collection(db, 'socials'), orderBy('order', 'asc'))).then((snapshot) => {
       const data = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as Social[];
       setSocials(data);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'socials'));
+    }).catch(error => handleFirestoreError(error, OperationType.LIST, 'socials'));
 
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 400);
@@ -973,9 +950,6 @@ export default function App() {
     return () => {
       unsubscribe();
       if (unsubscribeUserDoc) unsubscribeUserDoc();
-      unsubscribeAdmin();
-      unsubscribeProfile();
-      unsubscribeSocials();
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);

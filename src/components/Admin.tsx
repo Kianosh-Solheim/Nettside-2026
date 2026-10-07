@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, Edit2, Save, X, LogIn, AlertCircle, CheckCircle2, Search, Book as BookIcon, Film, Tv, Loader2, Upload, File as FileIcon, Image as ImageIcon, Copy, ExternalLink as ExternalLinkIcon, ArrowUpDown, Mail, Briefcase, GraduationCap, Heart, Calendar as CalendarIcon, RefreshCcw, Users, User, Check, Share2, MailOpen, XCircle, BookOpen, Activity, Globe } from 'lucide-react';
 import Button from './ui/Button';
 import RichTextEditor from './ui/RichTextEditor';
-import Expenses from './Expenses';
 import MeasuredWords from './MeasuredWords';
 import Memberships from './Memberships';
+import Recommendations from './Recommendations';
+import PrivateRecommendations from './PrivateRecommendations';
 
 const CV_CATEGORIES = [
   { title: 'Work Experience', icon: Briefcase },
@@ -116,7 +117,7 @@ interface PageStat {
 }
 
 export default function Admin({ user }: { user: any }) {
-  const [activeTab, setActiveTab] = useState<'oversikt' | 'recommendations' | 'cv' | 'socials' | 'files' | 'messages' | 'integrations' | 'users' | 'meetings' | 'expenses' | 'measured-words' | 'memberships' | 'writings'>('oversikt');
+  const [activeTab, setActiveTab] = useState<'oversikt' | 'recommendations' | 'private-recommendations' | 'cv' | 'socials' | 'files' | 'messages' | 'integrations' | 'users' | 'meetings' | 'measured-words' | 'memberships' | 'writings'>('oversikt');
   const [pageStats, setPageStats] = useState<PageStat[]>([]);
   const [pageVisits, setPageVisits] = useState<any[]>([]);
   const [metricsTimeFilter, setMetricsTimeFilter] = useState<'all' | 'month' | 'week' | 'day'>('all');
@@ -196,11 +197,12 @@ export default function Admin({ user }: { user: any }) {
   });
 
   useEffect(() => {
+    if (activeTab !== 'integrations') return;
     const unsub = onSnapshot(query(collection(db, 'timetable_boards'), orderBy('order', 'asc')), (snapshot) => {
       setTimetableBoards(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     });
     return unsub;
-  }, []);
+  }, [activeTab]);
 
   const addTimetableBoard = async () => {
     try {
@@ -243,13 +245,13 @@ export default function Admin({ user }: { user: any }) {
   const isAdmin = user?.email === 'kianoshsolheim@gmail.com' || user?.email === 'kianosh@solheim.online';
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!isAdmin || activeTab !== 'writings') return;
     const q = query(collection(db, 'blog_posts'), orderBy('createdAt', 'desc'));
     const unsubscribe = onSnapshot(q, (snapshot) => {
       setBlogPosts(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as BlogPost)));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'blog_posts'));
     return unsubscribe;
-  }, [isAdmin]);
+  }, [isAdmin, activeTab]);
 
   useEffect(() => {
     if (profile.name && !blogFormData.author) {
@@ -257,17 +259,19 @@ export default function Admin({ user }: { user: any }) {
     }
   }, [profile.name]);
 
+  // Profile is used in oversikt and for default author in writings
   useEffect(() => {
-    if (!isAdmin) return;
-    const q = query(collection(db, 'recommendations'), orderBy('createdAt', 'desc'));
-    const unsubscribeRecs = onSnapshot(q, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      })) as Recommendation[];
-      setRecommendations(data);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'recommendations'));
+    if (!isAdmin || (activeTab !== 'oversikt' && activeTab !== 'writings')) return;
+    const unsubscribeProfile = onSnapshot(collection(db, 'profile'), (snapshot) => {
+      if (!snapshot.empty) {
+        setProfile({ ...snapshot.docs[0].data(), id: snapshot.docs[0].id } as any);
+      }
+    }, (error) => handleFirestoreError(error, OperationType.GET, 'profile'));
+    return unsubscribeProfile;
+  }, [isAdmin, activeTab]);
 
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'cv') return;
     const qCV = query(collection(db, 'cv'), orderBy('order', 'asc'));
     const unsubscribeCV = onSnapshot(qCV, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
@@ -276,13 +280,11 @@ export default function Admin({ user }: { user: any }) {
       })) as CVSection[];
       setCvSections(data);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'cv'));
+    return unsubscribeCV;
+  }, [isAdmin, activeTab]);
 
-    const unsubscribeProfile = onSnapshot(collection(db, 'profile'), (snapshot) => {
-      if (!snapshot.empty) {
-        setProfile({ ...snapshot.docs[0].data(), id: snapshot.docs[0].id } as any);
-      }
-    }, (error) => handleFirestoreError(error, OperationType.GET, 'profile'));
-
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'socials') return;
     const qSocials = query(collection(db, 'socials'), orderBy('order', 'asc'));
     const unsubscribeSocials = onSnapshot(qSocials, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
@@ -291,7 +293,11 @@ export default function Admin({ user }: { user: any }) {
       })) as Social[];
       setSocials(data);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'socials'));
+    return unsubscribeSocials;
+  }, [isAdmin, activeTab]);
 
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'files') return;
     const qFiles = query(collection(db, 'files'), orderBy('createdAt', 'desc'));
     const unsubscribeFiles = onSnapshot(qFiles, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
@@ -300,7 +306,11 @@ export default function Admin({ user }: { user: any }) {
       })) as FileMetadata[];
       setFiles(data);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'files'));
+    return unsubscribeFiles;
+  }, [isAdmin, activeTab]);
 
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'messages') return;
     const qMessages = query(collection(db, 'messages'), orderBy('createdAt', 'desc'));
     const unsubscribeMessages = onSnapshot(qMessages, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
@@ -309,17 +319,26 @@ export default function Admin({ user }: { user: any }) {
       })) as Message[];
       setMessages(data);
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'messages'));
+    return unsubscribeMessages;
+  }, [isAdmin, activeTab]);
 
-    const qUsers = query(collection(db, 'users'), orderBy('email', 'asc'));
-    const unsubscribeUsers = onSnapshot(qUsers, (snapshot) => {
-      const data = snapshot.docs.map(doc => ({
-        ...doc.data(),
-        id: doc.id
-      }));
-      setUsers(data);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'users'));
+  useEffect(() => {
+    if (!isAdmin || (activeTab !== 'users' && activeTab !== 'meetings')) return;
+    let unsubUsers: (() => void) | undefined;
+    let unsubUserPages: (() => void) | undefined;
 
-    const unsubscribeUserPages = onSnapshot(collection(db, 'user_pages'), (snapshot) => {
+    if (activeTab === 'users') {
+      const qUsers = query(collection(db, 'users'), orderBy('email', 'asc'));
+      unsubUsers = onSnapshot(qUsers, (snapshot) => {
+        const data = snapshot.docs.map(doc => ({
+          ...doc.data(),
+          id: doc.id
+        }));
+        setUsers(data);
+      }, (error) => handleFirestoreError(error, OperationType.LIST, 'users'));
+    }
+
+    unsubUserPages = onSnapshot(collection(db, 'user_pages'), (snapshot) => {
       const meetings: any[] = [];
       const pages: Record<string, any> = {};
       snapshot.docs.forEach(doc => {
@@ -339,10 +358,22 @@ export default function Admin({ user }: { user: any }) {
       setAllMeetings(meetings.sort((a, b) => new Date(b.updatedAt || b.date).getTime() - new Date(a.updatedAt || a.date).getTime()));
     }, (error) => handleFirestoreError(error, OperationType.LIST, 'user_pages'));
 
+    return () => {
+      if (unsubUsers) unsubUsers();
+      if (unsubUserPages) unsubUserPages();
+    };
+  }, [isAdmin, activeTab]);
+
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'integrations') return;
     const unsubscribeConfig = onSnapshot(doc(db, 'config', 'google_calendar_tokens'), (snapshot) => {
       setIsCalendarConnected(snapshot.exists());
     }, (error) => handleFirestoreError(error, OperationType.GET, 'config/google_calendar_tokens'));
+    return unsubscribeConfig;
+  }, [isAdmin, activeTab]);
 
+  useEffect(() => {
+    if (!isAdmin || activeTab !== 'oversikt') return;
     const qPageStats = query(collection(db, 'pageStats'), orderBy('views', 'desc'));
     const unsubscribePageStats = onSnapshot(qPageStats, (snapshot) => {
       const data = snapshot.docs.map(doc => ({
@@ -361,6 +392,14 @@ export default function Admin({ user }: { user: any }) {
       setPageVisits(data);
     }, (error) => console.warn('Failed to load page visits', error));
 
+    return () => {
+      unsubscribePageStats();
+      unsubscribePageVisits();
+    };
+  }, [isAdmin, activeTab]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
     const handleMessage = (event: MessageEvent) => {
       if (event.data?.type === 'GOOGLE_AUTH_SUCCESS') {
         setStatus({ type: 'success', message: 'Google Calendar connected successfully!' });
@@ -368,21 +407,7 @@ export default function Admin({ user }: { user: any }) {
       }
     };
     window.addEventListener('message', handleMessage);
-
-    return () => {
-      unsubscribeRecs();
-      unsubscribeCV();
-      unsubscribeProfile();
-      unsubscribeSocials();
-      unsubscribeFiles();
-      unsubscribeMessages();
-      unsubscribeUsers();
-      unsubscribeUserPages();
-      unsubscribeConfig();
-      unsubscribePageStats();
-      unsubscribePageVisits();
-      window.removeEventListener('message', handleMessage);
-    };
+    return () => window.removeEventListener('message', handleMessage);
   }, [isAdmin]);
 
   const filteredPageStats = useMemo(() => {
@@ -1608,13 +1633,13 @@ export default function Admin({ user }: { user: any }) {
               >
                 {[
                   { id: 'oversikt', label: 'Oversikt' },
-                  { id: 'recommendations', label: 'Recommendations' },
+                  { id: 'recommendations', label: 'Public Recommendations' },
+                  { id: 'private-recommendations', label: 'Private Recs (/a)' },
                   { id: 'cv', label: 'CV Editor' },
                   { id: 'socials', label: 'Socials' },
                   { id: 'files', label: 'Files' },
                   { id: 'messages', label: 'Messages', count: messages.filter(m => !m.read).length },
                   { id: 'meetings', label: 'Meetings', count: allMeetings.filter(m => m.status === 'pending').length },
-                  { id: 'expenses', label: 'Expenses' },
                   { id: 'memberships', label: 'Memberships' },
                   { id: 'measured-words', label: 'Measured Words' },
                   { id: 'writings', label: 'Writings Editor' },
@@ -1633,13 +1658,13 @@ export default function Admin({ user }: { user: any }) {
               <div className="absolute inset-0 bg-accent/[0.02] rounded-[40px] pointer-events-none" />
               {[
                 { id: 'oversikt', label: 'Oversikt', icon: Activity },
-                { id: 'recommendations', label: 'Recommendations', icon: BookIcon },
+                { id: 'recommendations', label: 'Public Recs', icon: BookIcon },
+                { id: 'private-recommendations', label: 'Private Recs (/a)', icon: Film },
                 { id: 'cv', label: 'CV Editor', icon: User },
                 { id: 'socials', label: 'Socials', icon: Share2 },
                 { id: 'files', label: 'File Library', icon: ImageIcon },
                 { id: 'messages', label: 'Messages', icon: Mail, count: messages.filter(m => !m.read).length },
                 { id: 'meetings', label: 'Meetings', icon: CalendarIcon, count: allMeetings.filter(m => m.status === 'pending').length },
-                { id: 'expenses', label: 'Expenses', icon: ArrowUpDown },
                 { id: 'memberships', label: 'Memberships', icon: Users },
                 { id: 'measured-words', label: 'Measured Words', icon: Edit2 },
                 { id: 'integrations', label: 'Integrations', icon: RefreshCcw },
@@ -1756,368 +1781,12 @@ export default function Admin({ user }: { user: any }) {
                   </div>
                 </div>
               ) : activeTab === 'recommendations' ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 lg:gap-16">
-          {/* Left Column: Search & Form */}
-          <div className="lg:col-span-1 space-y-8">
-            {/* Search Section */}
-            <div className="bg-surface p-6 md:p-8 rounded-[32px] border border-ink/5 shadow-sm relative overflow-hidden group">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full -mr-16 -mt-16 blur-3xl group-hover:bg-accent/10 transition-colors duration-700" />
-              
-              <h2 className="text-xl font-serif mb-6 flex items-center relative z-10">
-                <div className="p-2 bg-accent/10 rounded-xl mr-3 text-accent">
-                  <Search size={18} />
-                </div>
-                Search & Import
-              </h2>
-              
-                <div className="flex flex-wrap gap-2 mb-6 relative z-10">
-                  {[
-                    { id: 'Books', label: 'Books' },
-                    { id: 'Movies & Shows', label: 'Movies' },
-                    { id: 'Video & Media', label: 'Media' },
-                    { id: 'Apps', label: 'Apps' },
-                    { id: 'Podcasts', label: 'Podcasts' }
-                  ].map((type) => (
-                    <Button
-                      key={type.id}
-                      onClick={() => setSearchType(type.id as any)}
-                      variant={searchType === type.id ? 'primary' : 'outline'}
-                      size="sm"
-                      className={`flex-1 min-w-[80px] rounded-xl transition-all font-black ${
-                        searchType === type.id ? 'shadow-md shadow-accent/10' : 'text-ink/40 border-ink/10'
-                      }`}
-                      magnetic={true}
-                    >
-                      {type.label}
-                    </Button>
-                  ))}
-                </div>
-              
-              <form onSubmit={handleSearch} className="relative mb-6 z-10">
-                <input
-                  type="text"
-                  placeholder={searchType === 'Books' ? "Search for books or ISBN..." : `Search for ${searchType.toLowerCase()}...`}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-5 pr-12 py-4 bg-paper border border-ink/10 rounded-2xl text-sm focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all placeholder:text-ink/20"
-                />
-                <Button
-                  type="submit"
-                  disabled={isSearching}
-                  variant="ghost"
-                  size="sm"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-accent hover:bg-accent/10 rounded-xl transition-all disabled:opacity-50 p-0"
-                  magnetic={false}
-                >
-                  {isSearching ? <Loader2 size={18} className="animate-spin" /> : <Search size={18} />}
-                </Button>
-              </form>
-
-              <AnimatePresence>
-                {searchResults.length > 0 ? (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="space-y-4 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar"
-                  >
-                    {searchResults.map((result, idx) => (
-                      <div
-                        key={idx}
-                        onClick={() => importResult(result)}
-                        className="flex items-center space-x-4 p-3 rounded-xl border border-ink/5 hover:border-accent/30 hover:bg-accent/5 cursor-pointer transition-all group"
-                      >
-                        <div className="w-12 h-16 bg-ink/5 rounded overflow-hidden flex-shrink-0">
-                          <img src={result.imageUrl} alt="" className="w-full h-full object-cover grayscale group-hover:grayscale-0" referrerPolicy="no-referrer" />
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="text-sm font-serif truncate">{result.title}</h4>
-                          <p className="text-[10px] uppercase tracking-widest text-ink/40 truncate">{result.author}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </motion.div>
-                ) : searchQuery && !isSearching && (
-                  <motion.p
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="text-center py-4 text-ink/40 text-xs uppercase tracking-widest"
-                  >
-                    No results found
-                  </motion.p>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* Manual Form */}
-            <div className="bg-surface p-8 rounded-[32px] border border-ink/5 shadow-sm relative overflow-hidden">
-              <h2 className="text-xl font-serif mb-8 flex items-center">
-                <div className="p-2 bg-accent/10 rounded-xl mr-3 text-accent">
-                  <Plus size={18} />
-                </div>
-                {isEditing ? 'Edit Entry' : 'Manual Entry'}
-              </h2>
-              <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
-                <div className="grid grid-cols-1 gap-6">
-                  <div className="space-y-2">
-                    <label className="block text-[10px] uppercase tracking-[0.2em] text-ink/40 font-black">Title</label>
-                    <div className="flex gap-2">
-                      <input
-                        required
-                        type="text"
-                        value={formData.title}
-                        onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                        onKeyDown={(e) => e.key === 'Enter' && formData.category === 'Movies & Shows' && (e.preventDefault(), handleSearchMovies())}
-                        className="flex-grow px-5 py-4 bg-paper border border-ink/10 rounded-2xl text-sm focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all"
-                        placeholder="Enter title..."
-                      />
-                      {formData.category === 'Movies & Shows' && (
-                        <Button
-                          type="button"
-                          onClick={handleSearchMovies}
-                          isLoading={isSearchingMovies}
-                          variant="outline"
-                          className="px-6 border-accent/20 text-accent hover:bg-accent/5 rounded-2xl"
-                          icon={Search}
-                        >
-                          Search
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  {formData.category === 'Movies & Shows' && movieSearchResults.length > 0 && (
-                    <div className="space-y-3 p-4 bg-accent/5 rounded-3xl border border-accent/10">
-                      <div className="flex items-center justify-between">
-                        <label className="text-[10px] uppercase tracking-widest text-accent font-black">Select Movie Poster</label>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          onClick={() => setMovieSearchResults([])}
-                          className="text-accent/40 hover:text-accent"
-                          icon={X}
-                        />
-                      </div>
-                      <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 max-h-60 overflow-y-auto p-2 custom-scrollbar">
-                        {movieSearchResults.map((result, idx) => {
-                          const posterUrl = result.Poster !== 'N/A' ? result.Poster : '';
-                          const isSelected = formData.imageUrl === posterUrl;
-                          if (!posterUrl) return null;
-                          return (
-                            <button
-                              key={idx}
-                              type="button"
-                              onClick={() => setFormData({ 
-                                ...formData, 
-                                imageUrl: posterUrl,
-                                title: result.Title || formData.title,
-                                author: result.Year || formData.author,
-                                link: `https://www.imdb.com/title/${result.imdbID}`
-                              })}
-                              className={`relative aspect-[2/3] rounded-xl overflow-hidden border-2 transition-all ${
-                                isSelected ? 'border-accent ring-4 ring-accent/10 scale-95' : 'border-transparent hover:border-accent/30'
-                              }`}
-                            >
-                              <img src={posterUrl} alt="" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                              {isSelected && (
-                                <div className="absolute inset-0 bg-accent/20 flex items-center justify-center">
-                                  <div className="bg-accent text-white p-1.5 rounded-full shadow-lg">
-                                    <Check size={14} />
-                                  </div>
-                                </div>
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <label className="block text-[10px] uppercase tracking-[0.2em] text-ink/40 font-black">Author / Creator</label>
-                    <input
-                      required
-                      type="text"
-                      value={formData.author}
-                      onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                      className="w-full px-5 py-4 bg-paper border border-ink/10 rounded-2xl text-sm focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all"
-                      placeholder="Enter author..."
-                    />
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="block text-[10px] uppercase tracking-[0.2em] text-ink/40 font-black">Category</label>
-                    <div className="relative">
-                      <select
-                        value={formData.category}
-                        onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                        className="w-full px-5 py-4 bg-paper border border-ink/10 rounded-2xl text-sm focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all appearance-none cursor-pointer"
-                      >
-                        <option value="Books">Books</option>
-                        <option value="Movies & Shows">Movies & Shows</option>
-                        <option value="Video & Media">Video & Media</option>
-                        <option value="Apps">Apps</option>
-                        <option value="Podcasts">Podcasts</option>
-                      </select>
-                      <div className="absolute right-5 top-1/2 -translate-y-1/2 pointer-events-none text-ink/20">
-                        <ArrowUpDown size={14} />
-                      </div>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <label className="block text-[10px] uppercase tracking-[0.2em] text-ink/40 font-black">Image URL</label>
-                    <div className="relative">
-                      <input
-                        type="url"
-                        value={formData.imageUrl}
-                        onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
-                        className="w-full px-5 py-4 bg-paper border border-ink/10 rounded-2xl text-sm focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all pr-12"
-                        placeholder="https://..."
-                      />
-                      <Button
-                        type="button"
-                        onClick={() => setFilePicker({
-                          isOpen: true,
-                          onSelect: (url) => setFormData({ ...formData, imageUrl: url })
-                        })}
-                        variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center text-ink/20 hover:text-accent transition-colors p-0"
-                        title="Select from File Explorer"
-                        magnetic={false}
-                        icon={ImageIcon}
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-[10px] uppercase tracking-[0.2em] text-ink/40 font-black">Description</label>
-                  <textarea
-                    rows={4}
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    className="w-full px-5 py-4 bg-paper border border-ink/10 rounded-2xl text-sm focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all resize-none"
-                    placeholder="Enter description..."
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <label className="block text-[10px] uppercase tracking-[0.2em] text-ink/40 font-black">External Link</label>
-                  <div className="flex space-x-3">
-                    <input
-                      type="url"
-                      value={formData.link}
-                      onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                      className="flex-grow px-5 py-4 bg-paper border border-ink/10 rounded-2xl text-sm focus:outline-none focus:border-accent focus:ring-4 focus:ring-accent/5 transition-all"
-                      placeholder="https://..."
-                    />
-                    {(formData.link?.includes('youtube.com') || formData.link?.includes('youtu.be')) && (
-                      <Button
-                        type="button"
-                        onClick={fetchYouTubeData}
-                        disabled={isFetchingYouTube}
-                        variant="outline"
-                        size="sm"
-                        className="px-5 bg-accent/5 text-accent border border-accent/20 rounded-2xl hover:bg-accent hover:text-white transition-all disabled:opacity-50"
-                        title="Fetch YouTube Info"
-                        magnetic={true}
-                        icon={isFetchingYouTube ? Loader2 : RefreshCcw}
-                      />
-                    )}
-                  </div>
-                </div>
-
-                <div className="flex space-x-4 pt-6">
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="lg"
-                    icon={Save}
-                    magnetic={true}
-                    className="flex-grow shadow-xl shadow-accent/20"
-                  >
-                    {isEditing ? 'Update Entry' : 'Add to Portfolio'}
-                  </Button>
-                  {isEditing && (
-                    <Button
-                      type="button"
-                      onClick={() => {
-                        setIsEditing(null);
-                        setFormData({ title: '', author: '', category: 'Books', description: '', link: '', imageUrl: '' });
-                      }}
-                      variant="outline"
-                      size="lg"
-                      icon={X}
-                      magnetic={true}
-                      className="p-4 border-ink/10 text-ink/40 hover:text-accent hover:border-accent transition-all rounded-2xl"
-                    />
-                  )}
-                </div>
-              </form>
-            </div>
-          </div>
-
-          {/* Right Column: List */}
-          <div className="lg:col-span-2">
-            <div className="space-y-6">
-              {recommendations.map((rec) => (
-                <motion.div
-                  key={rec.id}
-                  layout
-                  className="bg-surface p-5 md:p-8 rounded-[32px] border border-ink/5 flex flex-col sm:flex-row sm:items-center justify-between gap-6 group hover:border-accent/20 hover:shadow-xl hover:shadow-accent/5 transition-all duration-500"
-                >
-                  <div className="flex items-center space-x-6">
-                    <div className="w-16 h-16 md:w-24 md:h-24 rounded-2xl overflow-hidden bg-ink/[0.03] border border-ink/5 flex-shrink-0 p-1">
-                      <img
-                        src={rec.imageUrl || `https://picsum.photos/seed/${rec.id}/200/200`}
-                        alt={rec.title}
-                        className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-700 rounded-xl"
-                        referrerPolicy="no-referrer"
-                      />
-                    </div>
-                    <div className="min-w-0 space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="px-2 py-0.5 bg-accent/5 text-accent text-[8px] uppercase tracking-widest font-black rounded-md border border-accent/10">
-                          {rec.category}
-                        </span>
-                      </div>
-                      <h3 className="text-xl md:text-2xl font-serif text-ink/90 group-hover:text-accent transition-colors duration-500 truncate">{rec.title}</h3>
-                      <p className="text-[10px] uppercase tracking-[0.2em] text-ink/40 font-black truncate">{rec.author}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-end space-x-3">
-                    <Button
-                      onClick={() => handleEdit(rec)}
-                      variant="ghost"
-                      size="sm"
-                      icon={Edit2}
-                      magnetic={true}
-                      className="p-4 text-ink/20 hover:text-accent hover:bg-accent/5 rounded-2xl transition-all"
-                    />
-                    <Button
-                      onClick={() => handleDelete(rec.id)}
-                      variant="ghost"
-                      size="sm"
-                      icon={Trash2}
-                      magnetic={true}
-                      className="p-4 text-ink/20 hover:text-red-500 hover:bg-red-50 rounded-2xl transition-all"
-                    />
-                  </div>
-                </motion.div>
-              ))}
-              {recommendations.length === 0 && (
-                <div className="text-center py-32 border-2 border-dashed border-ink/5 rounded-[48px] bg-ink/[0.01]">
-                  <div className="p-4 bg-ink/5 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6 text-ink/20">
-                    <BookIcon size={32} />
-                  </div>
-                  <p className="text-ink/30 text-xs uppercase tracking-[0.3em] font-black">No recommendations yet.</p>
-                </div>
-              )}
-            </div>
-          </div>
+        <div className="-mt-12">
+          <Recommendations />
+        </div>
+      ) : activeTab === 'private-recommendations' ? (
+        <div className="-mt-12">
+          <PrivateRecommendations />
         </div>
       ) : activeTab === 'cv' ? (
         <div className="space-y-12">
@@ -3209,10 +2878,6 @@ export default function Admin({ user }: { user: any }) {
               ))
             )}
           </div>
-        </div>
-      ) : activeTab === 'expenses' ? (
-        <div className="max-w-7xl mx-auto">
-          <Expenses />
         </div>
       ) : activeTab === 'memberships' ? (
         <div className="max-w-7xl mx-auto">
