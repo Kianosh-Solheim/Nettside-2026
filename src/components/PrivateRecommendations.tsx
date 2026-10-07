@@ -293,7 +293,14 @@ export default function PrivateRecommendations() {
         user?.email === 'kianosh@solheim.online';
       setIsAdmin(ownerMatch);
       if (ownerMatch) {
-        setActivePerson('owner');
+        try {
+          const saved = localStorage.getItem(STORAGE_ROLE_KEY);
+          setActivePerson(saved === 'friend' ? 'friend' : 'owner');
+        } catch {
+          setActivePerson('owner');
+        }
+      } else {
+        setActivePerson('friend');
       }
       setAuthChecked(true);
     });
@@ -410,6 +417,7 @@ export default function PrivateRecommendations() {
   };
 
   const handleSwitchPerson = (role: RecommendedByRole) => {
+    if (!isAdmin) return;
     setActivePerson(role);
     try {
       localStorage.setItem(STORAGE_ROLE_KEY, role);
@@ -1061,35 +1069,44 @@ export default function PrivateRecommendations() {
 
         {/* Identity Switcher & Primary Actions */}
         <div className="flex flex-wrap items-center gap-3">
-          {/* Active Person Selector */}
-          <div className="flex items-center bg-surface border border-ink/10 rounded-xl p-1">
-            <span className="text-[11px] text-ink/40 px-2.5 flex items-center gap-1 whitespace-nowrap">
-              <UserCheck size={13} />
-              Viewing as:
-            </span>
-            <button
-              type="button"
-              onClick={() => handleSwitchPerson('owner')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-                activePerson === 'owner'
-                  ? 'bg-ink text-paper shadow-sm'
-                  : 'text-ink/60 hover:text-ink'
-              }`}
-            >
-              {config.ownerName}
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSwitchPerson('friend')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-                activePerson === 'friend'
-                  ? 'bg-ink text-paper shadow-sm'
-                  : 'text-ink/60 hover:text-ink'
-              }`}
-            >
-              {config.friendName}
-            </button>
-          </div>
+          {/* Active Person Selector - Only Admin can change Viewing As */}
+          {isAdmin ? (
+            <div className="flex items-center bg-surface border border-ink/10 rounded-xl p-1">
+              <span className="text-[11px] text-ink/40 px-2.5 flex items-center gap-1 whitespace-nowrap">
+                <UserCheck size={13} />
+                Viewing as:
+              </span>
+              <button
+                type="button"
+                onClick={() => handleSwitchPerson('owner')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                  activePerson === 'owner'
+                    ? 'bg-ink text-paper shadow-sm'
+                    : 'text-ink/60 hover:text-ink'
+                }`}
+              >
+                {config.ownerName}
+              </button>
+              <button
+                type="button"
+                onClick={() => handleSwitchPerson('friend')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                  activePerson === 'friend'
+                    ? 'bg-ink text-paper shadow-sm'
+                    : 'text-ink/60 hover:text-ink'
+                }`}
+              >
+                {config.friendName}
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center bg-surface border border-ink/10 rounded-xl px-3.5 py-2">
+              <span className="text-[11px] text-ink/50 flex items-center gap-1.5 whitespace-nowrap">
+                <UserCheck size={13} className="text-accent" />
+                <span>Viewing as <strong className="text-ink font-medium">{config.friendName}</strong></span>
+              </span>
+            </div>
+          )}
 
           {isAdmin && (
             <button
