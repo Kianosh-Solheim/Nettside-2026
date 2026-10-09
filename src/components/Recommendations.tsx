@@ -25,6 +25,43 @@ interface SearchResult {
   category: 'Books' | 'Movies' | 'Shows' | 'Video & Media' | 'Apps' | 'Podcasts';
 }
 
+function normalizeImageUrl(raw?: string): string {
+  if (!raw) return '';
+  let trimmed = raw.trim();
+  if (!trimmed) return '';
+  const imgSrcMatch = trimmed.match(/src=["']([^"']+)["']/i);
+  if (imgSrcMatch?.[1]) {
+    trimmed = imgSrcMatch[1].trim();
+  } else {
+    const mdMatch = trimmed.match(/!\[[^\]]*\]\(([^)\s]+)(?:\s+["'][^"']*["'])?\)/);
+    if (mdMatch?.[1]) {
+      trimmed = mdMatch[1].trim();
+    }
+  }
+  if (trimmed.startsWith('//')) {
+    return `https:${trimmed}`;
+  }
+  if (
+    !trimmed.startsWith('http://') &&
+    !trimmed.startsWith('https://') &&
+    !trimmed.startsWith('data:image/') &&
+    !trimmed.startsWith('/')
+  ) {
+    return `https://${trimmed}`;
+  }
+  return trimmed;
+}
+
+function getDisplayImageUrl(rawUrl?: string, fallbackStage = 0): string {
+  const clean = normalizeImageUrl(rawUrl);
+  if (!clean) return '';
+  if (clean.startsWith('data:') || clean.startsWith('/')) return clean;
+  if (fallbackStage === 1) {
+    return `https://wsrv.nl/?url=${encodeURIComponent(clean)}`;
+  }
+  return clean;
+}
+
 export default function Recommendations() {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,12 +87,15 @@ export default function Recommendations() {
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
-  const [brokenImages, setBrokenImages] = useState<Record<string, boolean>>({});
+  const [brokenImages, setBrokenImages] = useState<Record<string, number>>({});
   const [filterSearch, setFilterSearch] = useState('');
   const [sortBy, setSortBy] = useState<'newest' | 'title' | 'author'>('newest');
 
-  const handleImageError = (id: string) => {
-    setBrokenImages(prev => ({ ...prev, [id]: true }));
+  const getImageKey = (id: string, url?: string) => `${id}::${normalizeImageUrl(url)}`;
+
+  const handleImageError = (id: string, url?: string) => {
+    const key = getImageKey(id, url);
+    setBrokenImages(prev => ({ ...prev, [key]: (prev[key] || 0) + 1 }));
   };
 
   useEffect(() => {
@@ -326,24 +366,36 @@ export default function Recommendations() {
     e.preventDefault();
     if (!formData.title || !formData.author) return;
 
+    const normalizedFormData = {
+      ...formData,
+      title: formData.title.trim(),
+      author: formData.author.trim(),
+      imageUrl: normalizeImageUrl(formData.imageUrl),
+      link: formData.link?.trim()
+        ? formData.link.trim().startsWith('http://') || formData.link.trim().startsWith('https://')
+          ? formData.link.trim()
+          : `https://${formData.link.trim()}`
+        : ''
+    };
+
     try {
       if (isEditing) {
         const updated = {
-          ...formData,
+          ...normalizedFormData,
           updatedAt: serverTimestamp()
         };
         await updateDoc(doc(db, 'recommendations', isEditing), updated).catch(error => handleFirestoreError(error, OperationType.UPDATE, `recommendations/${isEditing}`));
-        setRecommendations(prev => prev.map(r => r.id === isEditing ? { ...r, ...formData } as Recommendation : r));
+        setRecommendations(prev => prev.map(r => r.id === isEditing ? { ...r, ...normalizedFormData } as Recommendation : r));
         setStatus({ type: 'success', message: 'Recommendation updated!' });
       } else {
         const newDoc = {
-          ...formData,
+          ...normalizedFormData,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         };
         const docRef = await addDoc(collection(db, 'recommendations'), newDoc).catch(error => handleFirestoreError(error, OperationType.CREATE, 'recommendations'));
         if (docRef) {
-          setRecommendations(prev => [{ ...formData, id: docRef.id, createdAt: new Date() } as Recommendation, ...prev]);
+          setRecommendations(prev => [{ ...normalizedFormData, id: docRef.id, createdAt: new Date() } as Recommendation, ...prev]);
         }
         setStatus({ type: 'success', message: 'Recommendation added!' });
       }
@@ -734,23 +786,28 @@ export default function Recommendations() {
                 className="group cursor-pointer flex flex-col"
               >
                 <div className={`relative ${item.category === 'Apps' || item.category === 'Podcasts' ? 'aspect-square rounded-[2.5rem]' : 'aspect-[2/3] rounded-2xl'} w-full overflow-hidden bg-surface shadow-sm group-hover:shadow-2xl group-hover:shadow-accent/10 transition-all duration-700 border border-ink/5 group-hover:border-accent/20`}>
-                  {item.imageUrl && !brokenImages[item.id] ? (
-                    <img
-                      src={item.imageUrl}
-                      alt={item.title}
-                      className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
-                      referrerPolicy="no-referrer"
-                      onError={() => handleImageError(item.id)}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-ink/[0.02] to-ink/[0.08]">
-                      <div className="text-accent/20 mb-4 transform group-hover:scale-110 group-hover:text-accent/40 transition-all duration-500">
-                        {getIcon(item.category)}
+                  {(() => {
+                    const imgKey = getImageKey(item.id, item.imageUrl);
+                    const errorStage = brokenImages[imgKey] || 0;
+                    const resolvedSrc = getDisplayImageUrl(item.imageUrl, errorStage);
+                    return resolvedSrc && errorStage < 2 ? (
+                      <img
+                        src={resolvedSrc}
+                        alt={item.title}
+                        className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
+                        referrerPolicy="no-referrer"
+                        onError={() => handleImageError(item.id, item.imageUrl)}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-ink/[0.02] to-ink/[0.08]">
+                        <div className="text-accent/20 mb-4 transform group-hover:scale-110 group-hover:text-accent/40 transition-all duration-500">
+                          {getIcon(item.category)}
+                        </div>
+                        <h3 className="font-serif text-xs font-bold line-clamp-3 text-ink/60 px-2 leading-relaxed">{item.title}</h3>
+                        <p className="text-[8px] uppercase tracking-[0.2em] text-ink/30 mt-3 font-black">{item.author}</p>
                       </div>
-                      <h3 className="font-serif text-xs font-bold line-clamp-3 text-ink/60 px-2 leading-relaxed">{item.title}</h3>
-                      <p className="text-[8px] uppercase tracking-[0.2em] text-ink/30 mt-3 font-black">{item.author}</p>
-                    </div>
-                  )}
+                    );
+                  })()}
                   
                   {/* Subtle Top Badge */}
                   <div className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
@@ -816,36 +873,45 @@ export default function Recommendations() {
 
               {/* Left Side: Visual */}
               <div className="w-full md:w-2/5 bg-ink/[0.02] relative flex items-center justify-center p-8 md:p-12 overflow-hidden border-b md:border-b-0 md:border-r border-ink/5">
-                {/* Blurred Background */}
-                {selectedItem.imageUrl && !brokenImages[selectedItem.id] && (
-                  <div 
-                    className="absolute inset-0 opacity-20 blur-3xl scale-150 pointer-events-none"
-                    style={{ 
-                      backgroundImage: `url(${selectedItem.imageUrl})`,
-                      backgroundPosition: 'center',
-                      backgroundSize: 'cover'
-                    }}
-                  />
-                )}
+                {(() => {
+                  const imgKey = getImageKey(selectedItem.id, selectedItem.imageUrl);
+                  const errorStage = brokenImages[imgKey] || 0;
+                  const resolvedSrc = getDisplayImageUrl(selectedItem.imageUrl, errorStage);
+                  const canShowImg = Boolean(resolvedSrc && errorStage < 2);
+                  return (
+                    <>
+                      {canShowImg && (
+                        <div 
+                          className="absolute inset-0 opacity-20 blur-3xl scale-150 pointer-events-none"
+                          style={{ 
+                            backgroundImage: `url("${resolvedSrc}")`,
+                            backgroundPosition: 'center',
+                            backgroundSize: 'cover'
+                          }}
+                        />
+                      )}
 
-                <div className={`relative z-10 w-48 md:w-full max-w-[240px] ${selectedItem.category === 'Apps' || selectedItem.category === 'Podcasts' ? 'aspect-square rounded-[2.5rem]' : 'aspect-[2/3] rounded-2xl'} overflow-hidden shadow-2xl border border-white/10`}>
-                  {selectedItem.imageUrl && !brokenImages[selectedItem.id] ? (
-                    <img
-                      src={selectedItem.imageUrl}
-                      alt={selectedItem.title}
-                      className="w-full h-full object-cover"
-                      referrerPolicy="no-referrer"
-                      onError={() => handleImageError(selectedItem.id)}
-                    />
-                  ) : (
-                    <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-surface">
-                      <div className="text-accent/20 mb-4">
-                        {getIcon(selectedItem.category)}
+                      <div className={`relative z-10 w-48 md:w-full max-w-[240px] ${selectedItem.category === 'Apps' || selectedItem.category === 'Podcasts' ? 'aspect-square rounded-[2.5rem]' : 'aspect-[2/3] rounded-2xl'} overflow-hidden shadow-2xl border border-white/10`}>
+                        {canShowImg ? (
+                          <img
+                            src={resolvedSrc}
+                            alt={selectedItem.title}
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                            onError={() => handleImageError(selectedItem.id, selectedItem.imageUrl)}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-surface">
+                            <div className="text-accent/20 mb-4">
+                              {getIcon(selectedItem.category)}
+                            </div>
+                            <h3 className="font-serif text-lg font-bold text-ink/80">{selectedItem.title}</h3>
+                          </div>
+                        )}
                       </div>
-                      <h3 className="font-serif text-lg font-bold text-ink/80">{selectedItem.title}</h3>
-                    </div>
-                  )}
-                </div>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Right Side: Content */}
@@ -1062,9 +1128,10 @@ export default function Recommendations() {
                   <div className="space-y-2">
                     <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">Cover Image URL</label>
                     <input
-                      type="url"
+                      type="text"
                       value={formData.imageUrl}
                       onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                      placeholder="https://..."
                       className="w-full px-5 py-3 bg-paper border border-ink/10 rounded-xl text-sm focus:outline-none focus:border-accent"
                     />
                   </div>
