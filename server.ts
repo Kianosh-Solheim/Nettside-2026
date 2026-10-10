@@ -64,6 +64,178 @@ async function startServer() {
     });
   }
 
+  // Server-side YouTube search & oEmbed helper to reliably fetch video thumbnails and metadata without API keys or CORS blocks
+  app.get('/api/youtube-search', async (req, res) => {
+    try {
+      const q = String(req.query.q || '').trim();
+      if (!q) {
+        return res.json({ items: [] });
+      }
+
+      const vimeoMatch = q.match(
+        /(?:vimeo\.com\/(?:video\/|channels\/[^/]+\/|groups\/[^/]+\/videos\/)?|player\.vimeo\.com\/video\/)(\d+)(?:\/([a-zA-Z0-9]+))?/i
+      );
+      if (vimeoMatch?.[1]) {
+        const vimeoId = vimeoMatch[1];
+        const vimeoHash = vimeoMatch[2] || '';
+        const vimeoUrl = vimeoHash
+          ? `https://vimeo.com/${vimeoId}/${vimeoHash}`
+          : `https://vimeo.com/${vimeoId}`;
+        try {
+          const oembedRes = await fetch(
+            `https://vimeo.com/api/oembed.json?url=${encodeURIComponent(vimeoUrl)}`
+          );
+          if (oembedRes.ok) {
+            const data: any = await oembedRes.json();
+            return res.json({
+              items: [
+                {
+                  videoId: vimeoId,
+                  title: data.title || '',
+                  creator: data.author_name || '',
+                  description: data.description || '',
+                  link: vimeoUrl,
+                  imageUrl: data.thumbnail_url || ''
+                }
+              ]
+            });
+          }
+        } catch {
+          // ignore oembed failure
+        }
+        return res.json({
+          items: [
+            {
+              videoId: vimeoId,
+              title: '',
+              creator: '',
+              description: '',
+              link: vimeoUrl,
+              imageUrl: ''
+            }
+          ]
+        });
+      }
+
+      const ytIdMatch = q.match(
+        /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i
+      );
+      const directId = ytIdMatch?.[1] || (/^[a-zA-Z0-9_-]{11}$/.test(q) ? q : null);
+
+      if (directId) {
+        const watchUrl = `https://www.youtube.com/watch?v=${directId}`;
+        try {
+          const oembedRes = await fetch(
+            `https://www.youtube.com/oembed?url=${encodeURIComponent(watchUrl)}&format=json`
+          );
+          if (oembedRes.ok) {
+            const data: any = await oembedRes.json();
+            return res.json({
+              items: [
+                {
+                  videoId: directId,
+                  title: data.title || '',
+                  creator: data.author_name || '',
+                  description: '',
+                  link: watchUrl,
+                  imageUrl: `https://i.ytimg.com/vi/${directId}/hqdefault.jpg`
+                }
+              ]
+            });
+          }
+        } catch {
+          // fallback if oembed fails
+        }
+        return res.json({
+          items: [
+            {
+              videoId: directId,
+              title: '',
+              creator: '',
+              description: '',
+              link: watchUrl,
+              imageUrl: `https://i.ytimg.com/vi/${directId}/hqdefault.jpg`
+            }
+          ]
+        });
+      }
+
+      // Search YouTube directly and parse ytInitialData
+      const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}&hl=en`;
+      const response = await fetch(searchUrl, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+          'Accept-Language': 'en-US,en;q=0.9,nb;q=0.8'
+        }
+      });
+
+      if (!response.ok) {
+        return res.json({ items: [] });
+      }
+
+      const html = await response.text();
+      const match = html.match(/var ytInitialData = (\{.*?\});<\/script>/s);
+      if (!match?.[1]) {
+        return res.json({ items: [] });
+      }
+
+      const initialData = JSON.parse(match[1]);
+      const contents =
+        initialData?.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer
+          ?.contents || [];
+
+      const items: Array<{
+        videoId: string;
+        title: string;
+        creator: string;
+        description: string;
+        link: string;
+        imageUrl: string;
+      }> = [];
+
+      for (const section of contents) {
+        const renderers = section?.itemSectionRenderer?.contents || [];
+        for (const entry of renderers) {
+          const v = entry?.videoRenderer;
+          if (v?.videoId) {
+            const vidId = v.videoId;
+            const title =
+              v.title?.runs?.map((r: any) => r.text).join('') ||
+              v.title?.simpleText ||
+              '';
+            const creator =
+              v.ownerText?.runs?.[0]?.text ||
+              v.longBylineText?.runs?.[0]?.text ||
+              v.shortBylineText?.runs?.[0]?.text ||
+              '';
+            const desc =
+              v.detailedMetadataSnippets?.[0]?.snippetText?.runs
+                ?.map((r: any) => r.text)
+                .join('') ||
+              v.descriptionSnippet?.runs?.map((r: any) => r.text).join('') ||
+              '';
+            items.push({
+              videoId: vidId,
+              title,
+              creator,
+              description: desc,
+              link: `https://www.youtube.com/watch?v=${vidId}`,
+              imageUrl: `https://i.ytimg.com/vi/${vidId}/hqdefault.jpg`
+            });
+            if (items.length >= 6) break;
+          }
+        }
+        if (items.length >= 6) break;
+      }
+
+      return res.json({ items });
+    } catch (err) {
+      console.error('Error in /api/youtube-search:', err);
+      return res.json({ items: [] });
+    }
+  });
+
   // Intercept writing pages to inject Open Graph meta tags for link previews
   app.get('/writings/:slug', async (req, res, next) => {
     try {

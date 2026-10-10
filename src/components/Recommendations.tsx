@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Book, Film, Tv, ExternalLink, Video, Plus, Search, X, Check, Loader2, Edit2, Trash2, Save, RefreshCw, Sparkles, Podcast } from 'lucide-react';
+import { Book, Film, Tv, ExternalLink, Video, Plus, Search, X, Check, Loader2, Edit2, Trash2, Save, RefreshCw, Sparkles, Podcast, Play } from 'lucide-react';
 import { db, collection, query, orderBy, handleFirestoreError, OperationType, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, auth, getDocs } from '../firebase';
 import Magnetic from './Magnetic';
 import Button from './ui/Button';
@@ -25,6 +25,32 @@ interface SearchResult {
   category: 'Books' | 'Movies' | 'Shows' | 'Video & Media' | 'Apps' | 'Podcasts';
 }
 
+function extractYouTubeVideoId(input?: string): string | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const patterns = [
+    /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i,
+    /(?:img\.youtube\.com|i\.ytimg\.com)\/vi(?:_webp)?\/([a-zA-Z0-9_-]{11})/i
+  ];
+  for (const pattern of patterns) {
+    const match = trimmed.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+  return null;
+}
+
+function getYouTubeThumbnailUrl(urlOrId?: string, stage = 0): string {
+  if (!urlOrId) return '';
+  const videoId =
+    /^[a-zA-Z0-9_-]{11}$/.test(urlOrId.trim())
+      ? urlOrId.trim()
+      : extractYouTubeVideoId(urlOrId);
+  if (!videoId) return '';
+  if (stage === 0) return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+  return `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
+}
+
 function normalizeImageUrl(raw?: string): string {
   if (!raw) return '';
   let trimmed = raw.trim();
@@ -37,6 +63,14 @@ function normalizeImageUrl(raw?: string): string {
     if (mdMatch?.[1]) {
       trimmed = mdMatch[1].trim();
     }
+  }
+  const ytVideoId = extractYouTubeVideoId(trimmed);
+  if (
+    ytVideoId &&
+    !trimmed.includes('ytimg.com') &&
+    !trimmed.includes('img.youtube.com')
+  ) {
+    return getYouTubeThumbnailUrl(ytVideoId, 0);
   }
   if (trimmed.startsWith('//')) {
     return `https:${trimmed}`;
@@ -52,14 +86,78 @@ function normalizeImageUrl(raw?: string): string {
   return trimmed;
 }
 
-function getDisplayImageUrl(rawUrl?: string, fallbackStage = 0): string {
-  const clean = normalizeImageUrl(rawUrl);
+function getDisplayImageUrl(rawUrl?: string, fallbackStage = 0, fallbackLink?: string): string {
+  const clean = normalizeImageUrl(rawUrl) || (fallbackLink ? getYouTubeThumbnailUrl(fallbackLink, 0) : '');
   if (!clean) return '';
   if (clean.startsWith('data:') || clean.startsWith('/')) return clean;
+
+  const ytId = extractYouTubeVideoId(clean) || extractYouTubeVideoId(fallbackLink);
+  if (ytId && (clean.includes('ytimg.com') || clean.includes('img.youtube.com'))) {
+    if (fallbackStage === 0) return `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
+    if (fallbackStage === 1) return `https://i.ytimg.com/vi/${ytId}/mqdefault.jpg`;
+  }
+
   if (fallbackStage === 1) {
     return `https://wsrv.nl/?url=${encodeURIComponent(clean)}`;
   }
   return clean;
+}
+
+function extractVimeoVideoId(input?: string): { id: string; hash?: string } | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(
+    /(?:vimeo\.com\/(?:video\/|channels\/[^/]+\/|groups\/[^/]+\/videos\/)?|player\.vimeo\.com\/video\/)(\d+)(?:\/([a-zA-Z0-9]+)|\?h=([a-zA-Z0-9]+))?/i
+  );
+  if (match?.[1]) {
+    return { id: match[1], hash: match[2] || match[3] };
+  }
+  return null;
+}
+
+function getEmbedMediaInfo(link?: string): {
+  provider: 'youtube' | 'vimeo' | 'video';
+  embedUrl: string;
+  platformName: string;
+  externalUrl: string;
+} | null {
+  if (!link) return null;
+  const trimmed = link.trim();
+  if (!trimmed) return null;
+
+  const ytId = extractYouTubeVideoId(trimmed);
+  if (ytId) {
+    return {
+      provider: 'youtube',
+      embedUrl: `https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`,
+      platformName: 'YouTube',
+      externalUrl: `https://www.youtube.com/watch?v=${ytId}`
+    };
+  }
+
+  const vimeo = extractVimeoVideoId(trimmed);
+  if (vimeo) {
+    const hashParam = vimeo.hash ? `h=${vimeo.hash}&` : '';
+    return {
+      provider: 'vimeo',
+      embedUrl: `https://player.vimeo.com/video/${vimeo.id}?${hashParam}autoplay=1`,
+      platformName: 'Vimeo',
+      externalUrl: trimmed.startsWith('http') ? trimmed : `https://vimeo.com/${vimeo.id}`
+    };
+  }
+
+  if (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(trimmed)) {
+    const url = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+    return {
+      provider: 'video',
+      embedUrl: url,
+      platformName: 'Video',
+      externalUrl: url
+    };
+  }
+
+  return null;
 }
 
 export default function Recommendations() {
@@ -67,6 +165,7 @@ export default function Recommendations() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedItem, setSelectedItem] = useState<Recommendation | null>(null);
+  const [isPlayingMedia, setIsPlayingMedia] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   
   // Add/Edit Modal State
@@ -113,10 +212,18 @@ export default function Recommendations() {
           // Normalization logic
           if (category === 'Movies & Shows') category = 'Movies';
           if (category === 'YouTube') category = 'Video & Media';
+          const resolvedCategory = category || 'Books';
+          const link = docData.link || '';
+          const imageUrl =
+            docData.imageUrl ||
+            (resolvedCategory === 'Video & Media' || extractYouTubeVideoId(link)
+              ? getYouTubeThumbnailUrl(link, 0)
+              : '');
           return {
             ...docData,
             id: doc.id,
-            category: category || 'Books'
+            category: resolvedCategory,
+            imageUrl
           };
         }) as Recommendation[];
         setRecommendations(data);
@@ -232,25 +339,22 @@ export default function Recommendations() {
         const apiKey = import.meta.env.VITE_GOOGLE_API_KEY || import.meta.env.VITE_YOUTUBE_API_KEY;
         let results: SearchResult[] = [];
 
-        // Check if query is a direct YouTube URL
-        const isYtUrl = cleanQuery.includes('youtube.com/') || cleanQuery.includes('youtu.be/');
-        if (isYtUrl) {
-          try {
-            const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${encodedQuery}&format=json`);
-            if (oembedRes.ok) {
-              const oembedData = await oembedRes.json();
-              results.push({
-                title: oembedData.title,
-                author: oembedData.author_name,
-                description: 'YouTube Video',
-                link: cleanQuery,
-                imageUrl: oembedData.thumbnail_url,
-                category: 'Video & Media'
-              });
-            }
-          } catch (e) {
-            console.error('YouTube oEmbed failed:', e);
+        // 1. Server-side YouTube search & oEmbed proxy (works for URLs and title queries without requiring a client API key)
+        try {
+          const srvRes = await fetch(`/api/youtube-search?q=${encodedQuery}`);
+          if (srvRes.ok) {
+            const srvData = await srvRes.json();
+            results = (srvData.items || []).map((item: any) => ({
+              title: item.title || 'YouTube Video',
+              author: item.creator || 'YouTube',
+              description: item.description || '',
+              link: item.link || '',
+              imageUrl: item.imageUrl || getYouTubeThumbnailUrl(item.videoId, 0),
+              category: 'Video & Media' as const
+            }));
           }
+        } catch (e) {
+          console.error('Server YouTube search failed:', e);
         }
 
         if (apiKey && results.length === 0) {
@@ -263,16 +367,9 @@ export default function Recommendations() {
                 author: item.snippet.channelTitle,
                 description: item.snippet.description || '',
                 link: `https://www.youtube.com/watch?v=${item.id.videoId}`,
-                imageUrl: item.snippet.thumbnails.maxres?.url || item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
+                imageUrl: getYouTubeThumbnailUrl(item.id.videoId, 0) || item.snippet.thumbnails.high?.url || item.snippet.thumbnails.default?.url,
                 category: 'Video & Media' as const
               }))];
-            } else {
-              const errData = await ytResponse.json().catch(() => ({}));
-              console.warn('YouTube search failed:', errData.error?.message || ytResponse.statusText);
-              // Provide specific feedback if YouTube API is not enabled
-              if (errData.error?.message?.includes('not been used in project') || errData.error?.message?.includes('disabled')) {
-                setStatus({ type: 'error', message: 'YouTube API is not enabled in your Google Cloud Console. Try pasting a direct video link instead!' });
-              }
             }
           } catch (e) {
             console.error('YouTube search error:', e);
@@ -283,7 +380,7 @@ export default function Recommendations() {
         if (results.length === 0 && !status) {
           setStatus({ 
             type: 'error', 
-            message: apiKey ? 'No videos found. Try pasting a direct YouTube link!' : 'YouTube search requires an API key. Paste a direct YouTube link to auto-fill!' 
+            message: 'No videos found. Try another search or paste a direct YouTube link!' 
           });
         }
       } else if (searchType === 'Apps') {
@@ -782,21 +879,34 @@ export default function Recommendations() {
                   delay: Math.min(idx * 0.03, 0.3),
                   ease: [0.215, 0.61, 0.355, 1] 
                 }}
-                onClick={() => setSelectedItem(item)}
-                className="group cursor-pointer flex flex-col"
+                onClick={() => {
+                  setIsPlayingMedia(false);
+                  setSelectedItem(item);
+                }}
+                className={`group cursor-pointer flex flex-col ${
+                  item.category === 'Video & Media' || extractYouTubeVideoId(item.imageUrl) || extractYouTubeVideoId(item.link) || extractVimeoVideoId(item.link)
+                    ? 'col-span-2'
+                    : ''
+                }`}
               >
-                <div className={`relative ${item.category === 'Apps' || item.category === 'Podcasts' ? 'aspect-square rounded-[2.5rem]' : 'aspect-[2/3] rounded-2xl'} w-full overflow-hidden bg-surface shadow-sm group-hover:shadow-2xl group-hover:shadow-accent/10 transition-all duration-700 border border-ink/5 group-hover:border-accent/20`}>
+                <div className={`relative ${
+                  item.category === 'Video & Media' || extractYouTubeVideoId(item.imageUrl) || extractYouTubeVideoId(item.link) || extractVimeoVideoId(item.link)
+                    ? 'aspect-video rounded-2xl'
+                    : item.category === 'Apps' || item.category === 'Podcasts'
+                    ? 'aspect-square rounded-[2.5rem]'
+                    : 'aspect-[2/3] rounded-2xl'
+                } w-full overflow-hidden bg-surface shadow-sm group-hover:shadow-2xl group-hover:shadow-accent/10 transition-all duration-700 border border-ink/5 group-hover:border-accent/20`}>
                   {(() => {
-                    const imgKey = getImageKey(item.id, item.imageUrl);
+                    const imgKey = getImageKey(item.id, item.imageUrl || item.link);
                     const errorStage = brokenImages[imgKey] || 0;
-                    const resolvedSrc = getDisplayImageUrl(item.imageUrl, errorStage);
+                    const resolvedSrc = getDisplayImageUrl(item.imageUrl, errorStage, item.link);
                     return resolvedSrc && errorStage < 2 ? (
                       <img
                         src={resolvedSrc}
                         alt={item.title}
                         className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
                         referrerPolicy="no-referrer"
-                        onError={() => handleImageError(item.id, item.imageUrl)}
+                        onError={() => handleImageError(item.id, item.imageUrl || item.link)}
                       />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-ink/[0.02] to-ink/[0.08]">
@@ -816,6 +926,14 @@ export default function Recommendations() {
                       <span>{item.category}</span>
                     </div>
                   </div>
+
+                  {getEmbedMediaInfo(item.link) && (
+                    <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+                      <div className="w-12 h-12 rounded-full bg-black/65 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:bg-accent group-hover:border-accent transition-all duration-300">
+                        <Play size={18} className="fill-white ml-0.5" />
+                      </div>
+                    </div>
+                  )}
 
                   {/* Hover Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-5">
@@ -865,19 +983,49 @@ export default function Recommendations() {
               className="relative w-full max-w-4xl bg-surface border border-ink/10 rounded-[3rem] overflow-hidden shadow-2xl z-10 flex flex-col md:flex-row max-h-[90vh]"
             >
               <button
-                onClick={() => setSelectedItem(null)}
+                onClick={() => {
+                  setIsPlayingMedia(false);
+                  setSelectedItem(null);
+                }}
                 className="absolute top-6 right-6 z-20 p-3 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-all hover:rotate-90"
               >
                 <X size={20} />
               </button>
 
-              {/* Left Side: Visual */}
-              <div className="w-full md:w-2/5 bg-ink/[0.02] relative flex items-center justify-center p-8 md:p-12 overflow-hidden border-b md:border-b-0 md:border-r border-ink/5">
+              {/* Left Side: Visual or Embedded Player */}
+              <div className={`w-full ${isPlayingMedia && getEmbedMediaInfo(selectedItem.link) ? 'md:w-1/2 p-6 md:p-8' : 'md:w-2/5 p-8 md:p-12'} bg-ink/[0.02] relative flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-ink/5`}>
                 {(() => {
-                  const imgKey = getImageKey(selectedItem.id, selectedItem.imageUrl);
+                  const imgKey = getImageKey(selectedItem.id, selectedItem.imageUrl || selectedItem.link);
                   const errorStage = brokenImages[imgKey] || 0;
-                  const resolvedSrc = getDisplayImageUrl(selectedItem.imageUrl, errorStage);
+                  const resolvedSrc = getDisplayImageUrl(selectedItem.imageUrl, errorStage, selectedItem.link);
                   const canShowImg = Boolean(resolvedSrc && errorStage < 2);
+                  const embedInfo = getEmbedMediaInfo(selectedItem.link);
+                  const isWidescreen =
+                    selectedItem.category === 'Video & Media' ||
+                    Boolean(extractYouTubeVideoId(selectedItem.imageUrl)) ||
+                    Boolean(extractYouTubeVideoId(selectedItem.link)) ||
+                    Boolean(extractVimeoVideoId(selectedItem.link));
+
+                  if (isPlayingMedia && embedInfo) {
+                    return (
+                      <div className="w-full space-y-3 relative z-10">
+                        <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-2xl border border-ink/10 bg-black">
+                          {embedInfo.provider === 'video' ? (
+                            <video src={embedInfo.embedUrl} controls autoPlay className="w-full h-full object-contain" />
+                          ) : (
+                            <iframe
+                              src={embedInfo.embedUrl}
+                              title={selectedItem.title}
+                              className="w-full h-full"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              allowFullScreen
+                            />
+                          )}
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <>
                       {canShowImg && (
@@ -891,14 +1039,25 @@ export default function Recommendations() {
                         />
                       )}
 
-                      <div className={`relative z-10 w-48 md:w-full max-w-[240px] ${selectedItem.category === 'Apps' || selectedItem.category === 'Podcasts' ? 'aspect-square rounded-[2.5rem]' : 'aspect-[2/3] rounded-2xl'} overflow-hidden shadow-2xl border border-white/10`}>
+                      <div
+                        onClick={() => {
+                          if (embedInfo) setIsPlayingMedia(true);
+                        }}
+                        className={`relative z-10 group/poster ${embedInfo ? 'cursor-pointer' : ''} ${
+                          isWidescreen
+                            ? 'w-full max-w-[340px] aspect-video rounded-2xl'
+                            : selectedItem.category === 'Apps' || selectedItem.category === 'Podcasts'
+                            ? 'w-48 md:w-full max-w-[240px] aspect-square rounded-[2.5rem]'
+                            : 'w-48 md:w-full max-w-[240px] aspect-[2/3] rounded-2xl'
+                        } overflow-hidden shadow-2xl border border-white/10`}
+                      >
                         {canShowImg ? (
                           <img
                             src={resolvedSrc}
                             alt={selectedItem.title}
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
-                            onError={() => handleImageError(selectedItem.id, selectedItem.imageUrl)}
+                            onError={() => handleImageError(selectedItem.id, selectedItem.imageUrl || selectedItem.link)}
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-surface">
@@ -906,6 +1065,13 @@ export default function Recommendations() {
                               {getIcon(selectedItem.category)}
                             </div>
                             <h3 className="font-serif text-lg font-bold text-ink/80">{selectedItem.title}</h3>
+                          </div>
+                        )}
+                        {embedInfo && (
+                          <div className="absolute inset-0 bg-black/30 group-hover/poster:bg-black/45 transition-colors flex flex-col items-center justify-center gap-2">
+                            <div className="w-14 h-14 rounded-full bg-accent text-white flex items-center justify-center shadow-2xl group-hover/poster:scale-110 transition-transform">
+                              <Play size={22} className="fill-white ml-0.5" />
+                            </div>
                           </div>
                         )}
                       </div>
@@ -938,17 +1104,43 @@ export default function Recommendations() {
                 </div>
 
                 <div className="pt-12 mt-12 border-t border-ink/5 flex flex-wrap items-center justify-between gap-4">
-                  {selectedItem.link ? (
-                    <a
-                      href={selectedItem.link}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center space-x-2 px-8 py-4 rounded-2xl bg-accent text-white text-xs uppercase tracking-widest font-black shadow-lg shadow-accent/20 hover:opacity-90 transition-all"
-                    >
-                      <span>Explore Work</span>
-                      <ExternalLink size={16} />
-                    </a>
-                  ) : <div />}
+                  <div className="flex flex-wrap items-center gap-3">
+                    {(() => {
+                      const embedInfo = getEmbedMediaInfo(selectedItem.link);
+                      if (!embedInfo) return null;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setIsPlayingMedia((prev) => !prev)}
+                          className="inline-flex items-center space-x-2 px-6 py-4 rounded-2xl bg-accent text-white text-xs uppercase tracking-widest font-black shadow-lg shadow-accent/20 hover:opacity-90 transition-all"
+                        >
+                          <Play size={15} className="fill-white" />
+                          <span>{isPlayingMedia ? 'Hide Player' : 'Watch Here'}</span>
+                        </button>
+                      );
+                    })()}
+                    {selectedItem.link && (
+                      <a
+                        href={selectedItem.link}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`inline-flex items-center space-x-2 px-6 py-4 rounded-2xl text-xs uppercase tracking-widest font-black transition-all ${
+                          getEmbedMediaInfo(selectedItem.link)
+                            ? 'bg-paper border border-ink/10 hover:border-accent text-ink'
+                            : 'bg-accent text-white shadow-lg shadow-accent/20 hover:opacity-90'
+                        }`}
+                      >
+                        <span>
+                          {extractYouTubeVideoId(selectedItem.link)
+                            ? 'Watch on YouTube'
+                            : extractVimeoVideoId(selectedItem.link)
+                            ? 'Watch on Vimeo'
+                            : 'Explore Work'}
+                        </span>
+                        <ExternalLink size={16} />
+                      </a>
+                    )}
+                  </div>
 
                   {isAdmin && (
                     <div className="flex items-center space-x-2">

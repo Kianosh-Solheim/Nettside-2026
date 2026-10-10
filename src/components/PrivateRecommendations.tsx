@@ -35,7 +35,9 @@ import {
   RefreshCw,
   SlidersHorizontal,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Play,
+  Link2
 } from 'lucide-react';
 import {
   db,
@@ -161,15 +163,6 @@ function getTodayIso(): string {
 }
 
 function normalizeRecommendation(id: string, docData: any): PrivateRecommendationItem {
-  let fallbackDate = getTodayIso();
-  if (docData.createdAt?.toDate) {
-    try {
-      fallbackDate = docData.createdAt.toDate().toISOString().split('T')[0];
-    } catch {
-      // ignore
-    }
-  }
-
   const normalizedType: RecommendationType = RECOMMENDATION_TYPES.includes(docData.type)
     ? docData.type
     : 'Other';
@@ -179,20 +172,29 @@ function normalizeRecommendation(id: string, docData: any): PrivateRecommendatio
     ? docData.status
     : 'Not Seen';
 
+  const unifiedDate = docData.callDate || docData.dateRecommended || '';
+  const link = docData.link || '';
+  const rawImageUrl = docData.imageUrl || '';
+  const resolvedImageUrl =
+    rawImageUrl ||
+    (normalizedType === 'YouTube Video' || extractYouTubeVideoId(link)
+      ? getYouTubeThumbnailUrl(link, 0)
+      : '');
+
   return {
     id,
     title: docData.title || 'Untitled',
     type: normalizedType,
     recommendedBy,
-    dateRecommended: docData.dateRecommended || fallbackDate,
-    callDate: docData.callDate || docData.dateRecommended || fallbackDate,
-    link: docData.link || '',
+    dateRecommended: unifiedDate,
+    callDate: unifiedDate,
+    link,
     description: docData.description || '',
     status,
     review: docData.review || '',
     rating: typeof docData.rating === 'number' && docData.rating >= 1 && docData.rating <= 5 ? docData.rating : null,
     creator: docData.creator || docData.author || '',
-    imageUrl: docData.imageUrl || '',
+    imageUrl: resolvedImageUrl,
     completedAt: docData.completedAt || null,
     createdAt: docData.createdAt,
     updatedAt: docData.updatedAt
@@ -200,7 +202,7 @@ function normalizeRecommendation(id: string, docData: any): PrivateRecommendatio
 }
 
 function formatReadableDate(isoDate?: string): string {
-  if (!isoDate) return 'Ukjent dato';
+  if (!isoDate) return '';
   const parts = isoDate.split('-');
   if (parts.length !== 3) return isoDate;
   const dateObj = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
@@ -210,6 +212,34 @@ function formatReadableDate(isoDate?: string): string {
     month: 'short',
     year: 'numeric'
   });
+}
+
+function extractYouTubeVideoId(input?: string): string | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  // Match standard watch?v=, youtu.be/, shorts/, embed/, live/, or i.ytimg.com/vi/ URLs
+  const patterns = [
+    /(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|v\/|shorts\/|live\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/i,
+    /(?:img\.youtube\.com|i\.ytimg\.com)\/vi(?:_webp)?\/([a-zA-Z0-9_-]{11})/i
+  ];
+  for (const pattern of patterns) {
+    const match = trimmed.match(pattern);
+    if (match?.[1]) return match[1];
+  }
+  return null;
+}
+
+function getYouTubeThumbnailUrl(urlOrId?: string, stage = 0): string {
+  if (!urlOrId) return '';
+  const videoId =
+    /^[a-zA-Z0-9_-]{11}$/.test(urlOrId.trim())
+      ? urlOrId.trim()
+      : extractYouTubeVideoId(urlOrId);
+  if (!videoId) return '';
+  if (stage === 0) return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+  return `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`;
 }
 
 function normalizeImageUrl(raw?: string): string {
@@ -226,6 +256,15 @@ function normalizeImageUrl(raw?: string): string {
       trimmed = mdMatch[1].trim();
     }
   }
+  // If user pasted a YouTube video link directly into imageUrl, convert it to the thumbnail URL
+  const ytVideoId = extractYouTubeVideoId(trimmed);
+  if (
+    ytVideoId &&
+    !trimmed.includes('ytimg.com') &&
+    !trimmed.includes('img.youtube.com')
+  ) {
+    return getYouTubeThumbnailUrl(ytVideoId, 0);
+  }
   if (trimmed.startsWith('//')) {
     return `https:${trimmed}`;
   }
@@ -240,18 +279,119 @@ function normalizeImageUrl(raw?: string): string {
   return trimmed;
 }
 
-function getDisplayImageUrl(rawUrl?: string, fallbackStage = 0): string {
-  const clean = normalizeImageUrl(rawUrl);
+function getDisplayImageUrl(rawUrl?: string, fallbackStage = 0, fallbackLink?: string): string {
+  const clean = normalizeImageUrl(rawUrl) || (fallbackLink ? getYouTubeThumbnailUrl(fallbackLink, 0) : '');
   if (!clean) return '';
   if (clean.startsWith('data:') || clean.startsWith('/')) return clean;
+
+  const ytId = extractYouTubeVideoId(clean) || extractYouTubeVideoId(fallbackLink);
+  if (ytId && (clean.includes('ytimg.com') || clean.includes('img.youtube.com'))) {
+    if (fallbackStage === 0) return `https://i.ytimg.com/vi/${ytId}/hqdefault.jpg`;
+    if (fallbackStage === 1) return `https://i.ytimg.com/vi/${ytId}/mqdefault.jpg`;
+  }
+
   if (fallbackStage === 1) {
     // Fallback 1: Weserv global image proxy (bypasses hotlink blocks / CORS / mixed content)
     return `https://wsrv.nl/?url=${encodeURIComponent(clean)}`;
   }
   return clean;
 }
+
+function extractVimeoVideoId(input?: string): { id: string; hash?: string } | null {
+  if (!input) return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  const match = trimmed.match(
+    /(?:vimeo\.com\/(?:video\/|channels\/[^/]+\/|groups\/[^/]+\/videos\/)?|player\.vimeo\.com\/video\/)(\d+)(?:\/([a-zA-Z0-9]+)|\?h=([a-zA-Z0-9]+))?/i
+  );
+  if (match?.[1]) {
+    return { id: match[1], hash: match[2] || match[3] };
+  }
+  return null;
+}
+
+interface EmbedMediaInfo {
+  provider: 'youtube' | 'vimeo' | 'video';
+  embedUrl: string;
+  platformName: string;
+  externalUrl: string;
+}
+
+function getEmbedMediaInfo(link?: string): EmbedMediaInfo | null {
+  if (!link) return null;
+  const trimmed = link.trim();
+  if (!trimmed) return null;
+
+  const ytId = extractYouTubeVideoId(trimmed);
+  if (ytId) {
+    return {
+      provider: 'youtube',
+      embedUrl: `https://www.youtube.com/embed/${ytId}?autoplay=1&rel=0`,
+      platformName: 'YouTube',
+      externalUrl: `https://www.youtube.com/watch?v=${ytId}`
+    };
+  }
+
+  const vimeo = extractVimeoVideoId(trimmed);
+  if (vimeo) {
+    const hashParam = vimeo.hash ? `h=${vimeo.hash}&` : '';
+    return {
+      provider: 'vimeo',
+      embedUrl: `https://player.vimeo.com/video/${vimeo.id}?${hashParam}autoplay=1`,
+      platformName: 'Vimeo',
+      externalUrl: trimmed.startsWith('http') ? trimmed : `https://vimeo.com/${vimeo.id}`
+    };
+  }
+
+  if (/\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(trimmed)) {
+    const url = trimmed.startsWith('http') ? trimmed : `https://${trimmed}`;
+    return {
+      provider: 'video',
+      embedUrl: url,
+      platformName: 'Video',
+      externalUrl: url
+    };
+  }
+
+  return null;
+}
+
+function getMediaPlatformLabel(link?: string): string {
+  if (!link) return 'Åpne lenke';
+  const lower = link.toLowerCase();
+  if (extractYouTubeVideoId(link)) return 'Se på YouTube';
+  if (extractVimeoVideoId(link)) return 'Se på Vimeo';
+  if (lower.includes('nrk.no')) return 'Se på NRK TV';
+  if (lower.includes('netflix.com')) return 'Se på Netflix';
+  if (lower.includes('tv2.no')) return 'Se på TV 2 Play';
+  if (lower.includes('viaplay.')) return 'Se på Viaplay';
+  if (lower.includes('max.com') || lower.includes('hbomax.com')) return 'Se på Max';
+  if (lower.includes('disneyplus.com')) return 'Se på Disney+';
+  if (lower.includes('tv.apple.com')) return 'Se på Apple TV+';
+  if (lower.includes('primevideo.com')) return 'Se på Prime Video';
+  if (lower.includes('mubi.com')) return 'Se på MUBI';
+  if (lower.includes('filmoteket.no')) return 'Se på Filmoteket';
+  if (lower.includes('spotify.com')) return 'Hør på Spotify';
+  if (lower.includes('podcasts.apple.com') || lower.includes('music.apple.com')) return 'Åpne i Apple';
+  if (lower.includes('imdb.com')) return 'Se på IMDb';
+  if (lower.includes('letterboxd.com')) return 'Se på Letterboxd';
+  return 'Åpne på plattform';
+}
+
 function isSquareAspectType(type: RecommendationType): boolean {
   return type === 'Podcast' || type === 'Music' || type === 'Website' || type === 'Other';
+}
+
+function isWidescreenAspectType(type: RecommendationType, imageUrl?: string, link?: string): boolean {
+  if (type === 'YouTube Video') return true;
+  if (
+    extractYouTubeVideoId(imageUrl) ||
+    extractYouTubeVideoId(link) ||
+    extractVimeoVideoId(link)
+  ) {
+    return true;
+  }
+  return false;
 }
 
 export default function PrivateRecommendations() {
@@ -329,8 +469,8 @@ export default function PrivateRecommendations() {
     title: '',
     type: 'Movie',
     recommendedBy: 'owner',
-    dateRecommended: getTodayIso(),
-    callDate: getTodayIso(),
+    dateRecommended: '',
+    callDate: '',
     link: '',
     description: '',
     status: 'Not Seen',
@@ -354,6 +494,7 @@ export default function PrivateRecommendations() {
 
   // Detail Modal state
   const [selectedItem, setSelectedItem] = useState<PrivateRecommendationItem | null>(null);
+  const [isPlayingMedia, setIsPlayingMedia] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
   const [statusBanner, setStatusBanner] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
@@ -480,6 +621,62 @@ export default function PrivateRecommendations() {
     return () => unsubscribeRecs();
   }, [authChecked, configLoaded, hasAccess]);
 
+  // Auto-resolve missing YouTube thumbnails for existing YouTube Video recommendations
+  useEffect(() => {
+    if (!hasAccess || recommendations.length === 0) return;
+    let cancelled = false;
+
+    const missingYtItems = recommendations.filter(
+      (r) => r.type === 'YouTube Video' && !r.imageUrl
+    );
+    if (missingYtItems.length === 0) return;
+
+    (async () => {
+      for (const item of missingYtItems) {
+        if (cancelled) break;
+        const linkVidId = extractYouTubeVideoId(item.link) || extractYouTubeVideoId(item.title);
+        if (linkVidId) {
+          const thumb = getYouTubeThumbnailUrl(linkVidId, 0);
+          try {
+            await updateDoc(doc(db, COLLECTION_NAME, item.id), {
+              imageUrl: thumb,
+              link: item.link || `https://www.youtube.com/watch?v=${linkVidId}`,
+              updatedAt: serverTimestamp()
+            });
+          } catch {
+            // ignore
+          }
+          continue;
+        }
+
+        // Lookup by title + creator via server endpoint
+        const searchTerm = `${item.title} ${item.creator || ''}`.trim();
+        if (!searchTerm) continue;
+        try {
+          const res = await fetch(`/api/youtube-search?q=${encodeURIComponent(searchTerm)}`);
+          if (res.ok) {
+            const data = await res.json();
+            const first = data?.items?.[0];
+            if (first?.imageUrl && !cancelled) {
+              await updateDoc(doc(db, COLLECTION_NAME, item.id), {
+                imageUrl: first.imageUrl,
+                link: item.link || first.link || '',
+                creator: item.creator || first.creator || '',
+                updatedAt: serverTimestamp()
+              });
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasAccess, recommendations]);
+
   const showToast = (type: 'success' | 'error', message: string) => {
     setStatusBanner({ type, message });
     setTimeout(() => setStatusBanner(null), 3500);
@@ -558,12 +755,13 @@ export default function PrivateRecommendations() {
     setMediaResults([]);
     setMediaSearchQuery('');
     setShowMoreFormFields(false);
+    const initialDate = prefillCallDate || '';
     setFormData({
       title: '',
       type: selectedType !== 'All' ? (selectedType as RecommendationType) : 'Movie',
       recommendedBy: activePerson,
-      dateRecommended: getTodayIso(),
-      callDate: prefillCallDate || getTodayIso(),
+      dateRecommended: initialDate,
+      callDate: initialDate,
       link: '',
       description: '',
       status: 'Not Seen',
@@ -581,12 +779,13 @@ export default function PrivateRecommendations() {
     setMediaResults([]);
     setMediaSearchQuery('');
     setShowMoreFormFields(false);
+    const existingDate = rec.callDate || rec.dateRecommended || '';
     setFormData({
       title: rec.title,
       type: rec.type,
       recommendedBy: rec.recommendedBy,
-      dateRecommended: rec.dateRecommended || getTodayIso(),
-      callDate: rec.callDate || rec.dateRecommended || getTodayIso(),
+      dateRecommended: existingDate,
+      callDate: existingDate,
       link: rec.link || '',
       description: rec.description || '',
       status: rec.status || 'Not Seen',
@@ -694,25 +893,67 @@ export default function PrivateRecommendations() {
           );
         }
       } else if (formData.type === 'YouTube Video') {
-        const isYtUrl = cleanQuery.includes('youtube.com/') || cleanQuery.includes('youtu.be/');
+        const directVideoId = extractYouTubeVideoId(cleanQuery);
         const results: Array<{ title: string; creator: string; description: string; link: string; imageUrl: string }> = [];
-        if (isYtUrl) {
+
+        // 1. Query our server-side YouTube search & oEmbed proxy (works for both URLs and title searches without needing a client API key)
+        try {
+          const srvRes = await fetch(`/api/youtube-search?q=${encodeURIComponent(cleanQuery)}`);
+          if (srvRes.ok) {
+            const srvData = await srvRes.json();
+            (srvData.items || []).forEach((item: any) => {
+              const vidId = item.videoId || extractYouTubeVideoId(item.link);
+              results.push({
+                title: item.title || formData.title || 'YouTube-video',
+                creator: item.creator || formData.creator || '',
+                description: item.description || '',
+                link: item.link || (vidId ? `https://www.youtube.com/watch?v=${vidId}` : ''),
+                imageUrl: (vidId ? getYouTubeThumbnailUrl(vidId, 0) : '') || item.imageUrl || ''
+              });
+            });
+          }
+        } catch {
+          // fallback below
+        }
+
+        // 2. If direct video URL was pasted and server lookup was empty, construct directly from ID + noembed
+        if (results.length === 0 && directVideoId) {
+          const canonicalWatchUrl = `https://www.youtube.com/watch?v=${directVideoId}`;
+          const fallbackThumb = getYouTubeThumbnailUrl(directVideoId, 0);
           try {
-            const oembedRes = await fetch(`https://www.youtube.com/oembed?url=${q}&format=json`);
+            const oembedRes = await fetch(
+              `https://noembed.com/embed?url=${encodeURIComponent(canonicalWatchUrl)}`
+            );
             if (oembedRes.ok) {
               const oembedData = await oembedRes.json();
               results.push({
-                title: oembedData.title,
-                creator: oembedData.author_name,
+                title: oembedData.title || formData.title || 'YouTube-video',
+                creator: oembedData.author_name || formData.creator || '',
                 description: '',
-                link: cleanQuery,
-                imageUrl: oembedData.thumbnail_url
+                link: canonicalWatchUrl,
+                imageUrl: fallbackThumb
+              });
+            } else {
+              results.push({
+                title: formData.title || 'YouTube-video',
+                creator: formData.creator || '',
+                description: '',
+                link: canonicalWatchUrl,
+                imageUrl: fallbackThumb
               });
             }
           } catch {
-            // ignore
+            results.push({
+              title: formData.title || 'YouTube-video',
+              creator: formData.creator || '',
+              description: '',
+              link: canonicalWatchUrl,
+              imageUrl: fallbackThumb
+            });
           }
         }
+
+        // 3. Optional Google YouTube Data API v3 fallback if configured
         const apiKey = import.meta.env.VITE_GOOGLE_API_KEY || import.meta.env.VITE_YOUTUBE_API_KEY;
         if (apiKey && results.length === 0) {
           const ytRes = await fetch(
@@ -721,13 +962,14 @@ export default function PrivateRecommendations() {
           if (ytRes.ok) {
             const ytData = await ytRes.json();
             (ytData.items || []).forEach((item: any) => {
+              const vidId = item.id?.videoId;
               results.push({
                 title: item.snippet.title,
                 creator: item.snippet.channelTitle,
                 description: item.snippet.description || '',
-                link: `https://www.youtube.com/watch?v=${item.id.videoId}`,
+                link: `https://www.youtube.com/watch?v=${vidId}`,
                 imageUrl:
-                  item.snippet.thumbnails.maxres?.url ||
+                  (vidId ? getYouTubeThumbnailUrl(vidId, 0) : '') ||
                   item.snippet.thumbnails.high?.url ||
                   item.snippet.thumbnails.default?.url ||
                   ''
@@ -735,6 +977,19 @@ export default function PrivateRecommendations() {
             });
           }
         }
+
+        // If user pasted a direct YouTube link, auto-fill the form immediately if there's 1 match
+        if (directVideoId && results.length === 1) {
+          const match = results[0];
+          setFormData((prev) => ({
+            ...prev,
+            title: prev.title || match.title,
+            creator: prev.creator || match.creator,
+            link: match.link || prev.link,
+            imageUrl: match.imageUrl || prev.imageUrl
+          }));
+        }
+
         setMediaResults(results);
       }
     } catch (error) {
@@ -845,20 +1100,55 @@ export default function PrivateRecommendations() {
     e.preventDefault();
     if (!formData.title.trim()) return;
 
-    const normalizedImageUrl = normalizeImageUrl(formData.imageUrl);
-    const normalizedLink = formData.link.trim()
+    const rawTitle = formData.title.trim();
+    const titleYtId = extractYouTubeVideoId(rawTitle);
+
+    let normalizedLink = formData.link.trim()
       ? formData.link.trim().startsWith('http://') || formData.link.trim().startsWith('https://')
         ? formData.link.trim()
         : `https://${formData.link.trim()}`
+      : titleYtId
+      ? `https://www.youtube.com/watch?v=${titleYtId}`
       : '';
 
+    let normalizedImageUrl =
+      normalizeImageUrl(formData.imageUrl) ||
+      (formData.type === 'YouTube Video' || extractYouTubeVideoId(normalizedLink)
+        ? getYouTubeThumbnailUrl(normalizedLink, 0)
+        : '');
+
+    let resolvedCreator = formData.creator.trim();
+    let resolvedTitle = rawTitle;
+
+    // If saving a YouTube Video without an imageUrl or link, automatically look up the YouTube video thumbnail by title
+    if (formData.type === 'YouTube Video' && !normalizedImageUrl) {
+      try {
+        const searchTerm = `${rawTitle} ${resolvedCreator}`.trim();
+        const srvRes = await fetch(`/api/youtube-search?q=${encodeURIComponent(searchTerm)}`);
+        if (srvRes.ok) {
+          const srvData = await srvRes.json();
+          const first = srvData?.items?.[0];
+          if (first) {
+            normalizedImageUrl = first.imageUrl || getYouTubeThumbnailUrl(first.videoId, 0);
+            if (!normalizedLink && first.link) normalizedLink = first.link;
+            if (!resolvedCreator && first.creator) resolvedCreator = first.creator;
+            if (titleYtId && first.title) resolvedTitle = first.title;
+          }
+        }
+      } catch {
+        // ignore lookup error on save
+      }
+    }
+
+    const unifiedDate = formData.callDate.trim() || formData.dateRecommended.trim() || '';
+
     const payload: Record<string, any> = {
-      title: formData.title.trim(),
+      title: resolvedTitle,
       type: formData.type,
       recommendedBy: formData.recommendedBy,
-      creator: formData.creator.trim(),
-      dateRecommended: formData.dateRecommended || getTodayIso(),
-      callDate: formData.callDate || formData.dateRecommended || getTodayIso(),
+      creator: resolvedCreator,
+      dateRecommended: unifiedDate,
+      callDate: unifiedDate,
       link: normalizedLink,
       description: formData.description.trim(),
       status: formData.status,
@@ -1060,19 +1350,30 @@ export default function PrivateRecommendations() {
       return true;
     });
 
+    const getSortableTimestamp = (item: PrivateRecommendationItem): string => {
+      if (item.callDate) return item.callDate;
+      if (item.dateRecommended) return item.dateRecommended;
+      if (item.createdAt?.toDate) {
+        try {
+          return item.createdAt.toDate().toISOString();
+        } catch {
+          return '';
+        }
+      }
+      return '';
+    };
+
     return filtered.sort((a, b) => {
       if (activeShelf === 'highly-rated' && sortBy === 'newest') {
         return (b.rating || 0) - (a.rating || 0);
       }
       switch (sortBy) {
         case 'newest':
-          return (b.dateRecommended || '').localeCompare(a.dateRecommended || '');
-        case 'oldest':
-          return (a.dateRecommended || '').localeCompare(b.dateRecommended || '');
         case 'call-newest':
-          return (b.callDate || '').localeCompare(a.callDate || '');
+          return getSortableTimestamp(b).localeCompare(getSortableTimestamp(a));
+        case 'oldest':
         case 'call-oldest':
-          return (a.callDate || '').localeCompare(b.callDate || '');
+          return getSortableTimestamp(a).localeCompare(getSortableTimestamp(b));
         case 'rating':
           return (b.rating || 0) - (a.rating || 0);
         case 'title':
@@ -1276,10 +1577,14 @@ export default function PrivateRecommendations() {
   const renderPosterCard = (item: PrivateRecommendationItem, idx = 0) => {
     const isCompleted = item.status === 'Seen/Finished';
     const isPlanning = item.status === 'Planning to Watch/Read/Listen';
-    const isSquare = isSquareAspectType(item.type);
+    const isWidescreen = isWidescreenAspectType(item.type, item.imageUrl, item.link);
+    const isSquare = !isWidescreen && isSquareAspectType(item.type);
+    const hasDate = Boolean(item.callDate);
     const subtitle = item.creator
       ? `${item.creator} · Fra ${getPersonName(item.recommendedBy)}`
-      : `Fra ${getPersonName(item.recommendedBy)} · ${formatReadableDate(item.callDate)}`;
+      : hasDate
+      ? `Fra ${getPersonName(item.recommendedBy)} · ${formatReadableDate(item.callDate)}`
+      : `Fra ${getPersonName(item.recommendedBy)}`;
 
     return (
       <motion.div
@@ -1293,25 +1598,32 @@ export default function PrivateRecommendations() {
           delay: Math.min(idx * 0.03, 0.3),
           ease: [0.215, 0.61, 0.355, 1]
         }}
-        onClick={() => setSelectedItem(item)}
-        className="group cursor-pointer flex flex-col"
+        onClick={() => {
+          setIsPlayingMedia(false);
+          setSelectedItem(item);
+        }}
+        className={`group cursor-pointer flex flex-col ${isWidescreen ? 'col-span-2' : ''}`}
       >
         <div
           className={`relative ${
-            isSquare ? 'aspect-square rounded-[2.5rem]' : 'aspect-[2/3] rounded-2xl'
+            isWidescreen
+              ? 'aspect-video rounded-2xl'
+              : isSquare
+              ? 'aspect-square rounded-[2.5rem]'
+              : 'aspect-[2/3] rounded-2xl'
           } w-full overflow-hidden bg-surface shadow-sm group-hover:shadow-2xl group-hover:shadow-accent/10 transition-all duration-700 border border-ink/5 group-hover:border-accent/20`}
         >
           {(() => {
-            const imgKey = getImageKey(item.id, item.imageUrl);
+            const imgKey = getImageKey(item.id, item.imageUrl || item.link);
             const errorStage = brokenImages[imgKey] || 0;
-            const resolvedSrc = getDisplayImageUrl(item.imageUrl, errorStage);
+            const resolvedSrc = getDisplayImageUrl(item.imageUrl, errorStage, item.link);
             return resolvedSrc && errorStage < 2 ? (
               <img
                 src={resolvedSrc}
                 alt={item.title}
                 className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
                 referrerPolicy="no-referrer"
-                onError={() => handleImageError(item.id, item.imageUrl)}
+                onError={() => handleImageError(item.id, item.imageUrl || item.link)}
               />
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-ink/[0.02] to-ink/[0.08]">
@@ -1324,9 +1636,11 @@ export default function PrivateRecommendations() {
                 <p className="text-[8px] uppercase tracking-[0.2em] text-ink/35 mt-3 font-black">
                   {item.creator || `Fra ${getPersonName(item.recommendedBy)}`}
                 </p>
-                <p className="text-[8px] font-mono text-ink/25 mt-1">
-                  {formatReadableDate(item.callDate)}
-                </p>
+                {hasDate && (
+                  <p className="text-[8px] font-mono text-ink/25 mt-1">
+                    {formatReadableDate(item.callDate)}
+                  </p>
+                )}
               </div>
             );
           })()}
@@ -1366,11 +1680,22 @@ export default function PrivateRecommendations() {
             </div>
           )}
 
+          {/* Center Play Button Overlay if item has a playable YouTube/Vimeo/video link */}
+          {getEmbedMediaInfo(item.link) && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/65 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:bg-accent group-hover:border-accent transition-all duration-300">
+                <Play size={18} className="fill-white ml-0.5" />
+              </div>
+            </div>
+          )}
+
           {/* Hover Overlay (matches public Recommendations) */}
           <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-5">
             <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
               <p className="text-white/60 text-[8px] uppercase tracking-[0.2em] font-black mb-1">
-                Fra {getPersonName(item.recommendedBy)} · Samtale {formatReadableDate(item.callDate)}
+                {hasDate
+                  ? `Fra ${getPersonName(item.recommendedBy)} · Samtale ${formatReadableDate(item.callDate)}`
+                  : `Fra ${getPersonName(item.recommendedBy)}`}
               </p>
               <h3 className="text-white font-serif text-sm font-bold leading-snug line-clamp-2">
                 {item.title}
@@ -1963,19 +2288,78 @@ export default function PrivateRecommendations() {
             >
               <button
                 type="button"
-                onClick={() => setSelectedItem(null)}
+                onClick={() => {
+                  setIsPlayingMedia(false);
+                  setSelectedItem(null);
+                }}
                 className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 p-2.5 sm:p-3 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-all hover:rotate-90"
               >
                 <X size={18} />
               </button>
 
-              {/* Left Side: Visual Poster */}
-              <div className="w-full md:w-2/5 bg-ink/[0.02] relative flex items-center justify-center p-5 sm:p-8 md:p-12 overflow-hidden border-b md:border-b-0 md:border-r border-ink/5">
+              {/* Left Side: Visual Poster or Embedded Video Player */}
+              <div
+                className={`w-full ${
+                  isPlayingMedia && getEmbedMediaInfo(selectedItem.link)
+                    ? 'md:w-1/2 p-4 sm:p-6 md:p-8'
+                    : 'md:w-2/5 p-5 sm:p-8 md:p-12'
+                } bg-ink/[0.02] relative flex flex-col items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-ink/5`}
+              >
                 {(() => {
-                  const imgKey = getImageKey(selectedItem.id, selectedItem.imageUrl);
+                  const imgKey = getImageKey(selectedItem.id, selectedItem.imageUrl || selectedItem.link);
                   const errorStage = brokenImages[imgKey] || 0;
-                  const resolvedSrc = getDisplayImageUrl(selectedItem.imageUrl, errorStage);
+                  const resolvedSrc = getDisplayImageUrl(selectedItem.imageUrl, errorStage, selectedItem.link);
                   const canShowImg = Boolean(resolvedSrc && errorStage < 2);
+                  const embedInfo = getEmbedMediaInfo(selectedItem.link);
+                  const isWidescreen = isWidescreenAspectType(
+                    selectedItem.type,
+                    selectedItem.imageUrl,
+                    selectedItem.link
+                  );
+
+                  if (isPlayingMedia && embedInfo) {
+                    return (
+                      <div className="w-full space-y-3 relative z-10">
+                        <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-2xl border border-ink/10 bg-black">
+                          {embedInfo.provider === 'video' ? (
+                            <video
+                              src={embedInfo.embedUrl}
+                              controls
+                              autoPlay
+                              className="w-full h-full object-contain"
+                            />
+                          ) : (
+                            <iframe
+                              src={embedInfo.embedUrl}
+                              title={selectedItem.title}
+                              className="w-full h-full"
+                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                              allowFullScreen
+                            />
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between gap-2 px-1">
+                          <button
+                            type="button"
+                            onClick={() => setIsPlayingMedia(false)}
+                            className="text-[10px] uppercase tracking-widest font-black text-ink/50 hover:text-ink transition-colors"
+                          >
+                            ← Vis omslag
+                          </button>
+                          <a
+                            href={embedInfo.externalUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center gap-1.5 text-[10px] uppercase tracking-widest font-black text-accent hover:underline"
+                          >
+                            <span>Åpne på {embedInfo.platformName}</span>
+                            <ExternalLink size={12} />
+                          </a>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <>
                       {canShowImg && (
@@ -1990,10 +2374,17 @@ export default function PrivateRecommendations() {
                       )}
 
                       <div
-                        className={`relative z-10 w-32 sm:w-48 md:w-full max-w-[240px] ${
-                          isSquareAspectType(selectedItem.type)
-                            ? 'aspect-square rounded-3xl sm:rounded-[2.5rem]'
-                            : 'aspect-[2/3] rounded-xl sm:rounded-2xl'
+                        onClick={() => {
+                          if (embedInfo) setIsPlayingMedia(true);
+                        }}
+                        className={`relative z-10 group/poster ${
+                          embedInfo ? 'cursor-pointer' : ''
+                        } ${
+                          isWidescreen
+                            ? 'w-full max-w-[360px] aspect-video rounded-xl sm:rounded-2xl'
+                            : isSquareAspectType(selectedItem.type)
+                            ? 'w-32 sm:w-48 md:w-full max-w-[240px] aspect-square rounded-3xl sm:rounded-[2.5rem]'
+                            : 'w-32 sm:w-48 md:w-full max-w-[240px] aspect-[2/3] rounded-xl sm:rounded-2xl'
                         } overflow-hidden shadow-2xl border border-white/10`}
                       >
                         {canShowImg ? (
@@ -2002,7 +2393,7 @@ export default function PrivateRecommendations() {
                             alt={selectedItem.title}
                             className="w-full h-full object-cover"
                             referrerPolicy="no-referrer"
-                            onError={() => handleImageError(selectedItem.id, selectedItem.imageUrl)}
+                            onError={() => handleImageError(selectedItem.id, selectedItem.imageUrl || selectedItem.link)}
                           />
                         ) : (
                           <div className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-8 text-center bg-surface">
@@ -2012,6 +2403,17 @@ export default function PrivateRecommendations() {
                             <h3 className="font-serif text-sm sm:text-lg font-bold text-ink/80">
                               {selectedItem.title}
                             </h3>
+                          </div>
+                        )}
+
+                        {embedInfo && (
+                          <div className="absolute inset-0 bg-black/30 group-hover/poster:bg-black/45 transition-colors flex flex-col items-center justify-center gap-2">
+                            <div className="w-14 h-14 rounded-full bg-accent text-white flex items-center justify-center shadow-2xl group-hover/poster:scale-110 transition-transform">
+                              <Play size={22} className="fill-white ml-0.5" />
+                            </div>
+                            <span className="px-3 py-1 rounded-full bg-black/70 backdrop-blur-md text-white text-[9px] uppercase tracking-widest font-black">
+                              Spill av her
+                            </span>
                           </div>
                         )}
                       </div>
@@ -2044,10 +2446,12 @@ export default function PrivateRecommendations() {
                     )}
 
                     <div className="flex flex-wrap items-center gap-3 mt-4 text-[11px] font-mono text-ink/50">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ink/5">
-                        <PhoneCall size={12} className="text-accent" />
-                        Samtale: {formatReadableDate(selectedItem.callDate)}
-                      </span>
+                      {selectedItem.callDate && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ink/5">
+                          <PhoneCall size={12} className="text-accent" />
+                          Samtale: {formatReadableDate(selectedItem.callDate)}
+                        </span>
+                      )}
                       <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-ink/5">
                         {getStatusIcon(selectedItem.status, 13)}
                         <span>{getStatusLabelNo(selectedItem.status)}</span>
@@ -2108,11 +2512,50 @@ export default function PrivateRecommendations() {
                 </div>
 
                 <div className="pt-8 mt-8 border-t border-ink/5 flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex flex-wrap items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+                    {(() => {
+                      const embedInfo = getEmbedMediaInfo(selectedItem.link);
+                      if (!embedInfo) return null;
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setIsPlayingMedia((prev) => !prev)}
+                          className={`inline-flex items-center space-x-2 px-5 py-3.5 rounded-2xl text-[10px] uppercase tracking-widest font-black transition-all ${
+                            isPlayingMedia
+                              ? 'bg-ink text-paper'
+                              : 'bg-accent text-white shadow-lg shadow-accent/20 hover:opacity-90'
+                          }`}
+                        >
+                          <Play size={14} className={isPlayingMedia ? '' : 'fill-white'} />
+                          <span>{isPlayingMedia ? 'Skjul avspiller' : 'Se på nettsiden'}</span>
+                        </button>
+                      );
+                    })()}
+
+                    {selectedItem.link && (
+                      <a
+                        href={
+                          selectedItem.link.startsWith('http')
+                            ? selectedItem.link
+                            : `https://${selectedItem.link}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center space-x-2 px-5 py-3.5 rounded-2xl bg-paper border border-ink/10 hover:border-accent text-ink text-[10px] uppercase tracking-widest font-black transition-all"
+                      >
+                        <span>{getMediaPlatformLabel(selectedItem.link)}</span>
+                        <ExternalLink size={14} />
+                      </a>
+                    )}
+
                     <button
                       type="button"
                       onClick={(e) => openReviewModal(selectedItem, e)}
-                      className="inline-flex items-center space-x-2 px-6 py-3.5 rounded-2xl bg-accent text-white text-[10px] uppercase tracking-widest font-black shadow-lg shadow-accent/20 hover:opacity-90 transition-all"
+                      className={`inline-flex items-center space-x-2 px-5 py-3.5 rounded-2xl text-[10px] uppercase tracking-widest font-black transition-all ${
+                        getEmbedMediaInfo(selectedItem.link)
+                          ? 'bg-paper border border-ink/10 hover:border-accent text-ink'
+                          : 'bg-accent text-white shadow-lg shadow-accent/20 hover:opacity-90'
+                      }`}
                     >
                       <CheckCircle2 size={15} />
                       <span>
@@ -2121,18 +2564,6 @@ export default function PrivateRecommendations() {
                           : 'Fullfør & vurder'}
                       </span>
                     </button>
-
-                    {selectedItem.link && (
-                      <a
-                        href={selectedItem.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center space-x-2 px-5 py-3.5 rounded-2xl bg-paper border border-ink/10 hover:border-accent text-ink text-[10px] uppercase tracking-widest font-black transition-all"
-                      >
-                        <span>Åpne lenke</span>
-                        <ExternalLink size={14} />
-                      </a>
-                    )}
                   </div>
 
                   <div className="flex items-center space-x-2">
@@ -2279,7 +2710,9 @@ export default function PrivateRecommendations() {
                           <img
                             src={res.imageUrl}
                             alt=""
-                            className="w-10 h-14 object-cover rounded-lg shadow-sm shrink-0"
+                            className={`${
+                              formData.type === 'YouTube Video' ? 'w-20 aspect-video' : 'w-10 h-14'
+                            } object-cover rounded-lg shadow-sm shrink-0`}
                             referrerPolicy="no-referrer"
                           />
                         )}
@@ -2379,6 +2812,79 @@ export default function PrivateRecommendations() {
                   </div>
                 </div>
 
+                {/* Media / Platform Link (Always Visible so users can easily add YouTube, Vimeo, Film, Podcast or Article URLs) */}
+                <div>
+                  <label className="block text-[10px] uppercase tracking-widest text-ink/40 font-black mb-1.5">
+                    Lenke til video / film / plattform (YouTube, Vimeo, NRK, Netflix, Spotify m.m.)
+                  </label>
+                  <div className="relative">
+                    <Link2
+                      size={15}
+                      className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/30"
+                    />
+                    <input
+                      type="text"
+                      value={formData.link}
+                      onChange={async (e) => {
+                        const newLink = e.target.value;
+                        const ytId = extractYouTubeVideoId(newLink);
+                        const vimeo = extractVimeoVideoId(newLink);
+                        const ytThumb = ytId ? getYouTubeThumbnailUrl(ytId, 0) : '';
+
+                        setFormData((prev) => ({
+                          ...prev,
+                          link: newLink,
+                          imageUrl: prev.imageUrl || (ytThumb ? ytThumb : prev.imageUrl)
+                        }));
+
+                        // Auto-fetch metadata & thumbnail if a YouTube or Vimeo link is pasted
+                        if (ytId || vimeo) {
+                          try {
+                            const srvRes = await fetch(
+                              `/api/youtube-search?q=${encodeURIComponent(newLink.trim())}`
+                            );
+                            if (srvRes.ok) {
+                              const srvData = await srvRes.json();
+                              const first = srvData?.items?.[0];
+                              if (first) {
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  title: prev.title || first.title || prev.title,
+                                  creator: prev.creator || first.creator || prev.creator,
+                                  imageUrl: prev.imageUrl || first.imageUrl || ytThumb || prev.imageUrl
+                                }));
+                              }
+                            }
+                          } catch {
+                            // ignore background metadata fetch error
+                          }
+                        }
+                      }}
+                      placeholder="Lim inn lenke (f.eks. https://youtube.com/watch?v=... eller https://vimeo.com/...)"
+                      className="w-full pl-10 pr-9 py-3 bg-paper border border-ink/10 rounded-xl text-sm text-ink focus:outline-none focus:border-accent"
+                    />
+                    {formData.link && (
+                      <button
+                        type="button"
+                        onClick={() => setFormData({ ...formData, link: '' })}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/30 hover:text-ink"
+                        title="Fjern lenke"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                  {getEmbedMediaInfo(formData.link) && (
+                    <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium mt-1.5 flex items-center gap-1.5">
+                      <Play size={11} className="fill-current" />
+                      <span>
+                        Videoen kan spilles av direkte på nettsiden eller åpnes på{' '}
+                        {getEmbedMediaInfo(formData.link)?.platformName}.
+                      </span>
+                    </p>
+                  )}
+                </div>
+
                 {/* Short Description or Note */}
                 <div>
                   <label className="block text-[10px] uppercase tracking-widest text-ink/40 font-black mb-1.5">
@@ -2393,7 +2899,7 @@ export default function PrivateRecommendations() {
                   />
                 </div>
 
-                {/* Toggle for Optional Fields (Dates, Image URL, Link, Rating, Review) */}
+                {/* Toggle for Optional Fields (Dates, Image URL, Rating, Review) */}
                 <div className="pt-2">
                   <button
                     type="button"
@@ -2406,7 +2912,7 @@ export default function PrivateRecommendations() {
                   >
                     <span className="flex items-center gap-2">
                       <SlidersHorizontal size={13} />
-                      <span>Valgfrie detaljer (datoer, lenke, bilde-URL, vurdering)</span>
+                      <span>Valgfrie detaljer (dato, bilde-URL, vurdering)</span>
                     </span>
                     {showMoreFormFields ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
                   </button>
@@ -2421,106 +2927,109 @@ export default function PrivateRecommendations() {
                         className="overflow-hidden"
                       >
                         <div className="pt-4 space-y-5">
-                          {/* Phone Call Date & Date Recommended (Optional) */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[10px] uppercase tracking-widest text-ink/40 font-black mb-1.5">
-                                Dato for telefonsamtale (valgfritt)
+                          {/* Combined Date for Recommendation / Phone Call (Optional, empty by default) */}
+                          <div>
+                            <div className="flex items-center justify-between mb-1.5">
+                              <label className="block text-[10px] uppercase tracking-widest text-ink/40 font-black">
+                                Dato for anbefaling / telefonsamtale (valgfritt)
                               </label>
-                              <input
-                                type="date"
-                                value={formData.callDate}
-                                onChange={(e) => setFormData({ ...formData, callDate: e.target.value })}
-                                className="w-full px-4 py-3 bg-paper border border-ink/10 rounded-xl text-sm text-ink font-mono focus:outline-none focus:border-accent"
-                              />
+                              {formData.callDate && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setFormData({
+                                      ...formData,
+                                      callDate: '',
+                                      dateRecommended: ''
+                                    })
+                                  }
+                                  className="text-[9px] uppercase tracking-widest font-black text-accent hover:underline"
+                                >
+                                  Fjern dato
+                                </button>
+                              )}
                             </div>
-
-                            <div>
-                              <label className="block text-[10px] uppercase tracking-widest text-ink/40 font-black mb-1.5">
-                                Dato anbefalt (valgfritt)
-                              </label>
-                              <input
-                                type="date"
-                                value={formData.dateRecommended}
-                                onChange={(e) =>
-                                  setFormData({ ...formData, dateRecommended: e.target.value })
-                                }
-                                className="w-full px-4 py-3 bg-paper border border-ink/10 rounded-xl text-sm text-ink font-mono focus:outline-none focus:border-accent"
-                              />
-                            </div>
+                            <input
+                              type="date"
+                              value={formData.callDate}
+                              onChange={(e) =>
+                                setFormData({
+                                  ...formData,
+                                  callDate: e.target.value,
+                                  dateRecommended: e.target.value
+                                })
+                              }
+                              className="w-full px-4 py-3 bg-paper border border-ink/10 rounded-xl text-sm text-ink font-mono focus:outline-none focus:border-accent"
+                            />
                           </div>
 
-                          {/* Cover Image URL & External Link (Optional) */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                              <label className="block text-[10px] uppercase tracking-widest text-ink/40 font-black mb-1.5">
-                                Bilde-URL til omslag (valgfritt)
-                              </label>
-                              <div className="flex items-center gap-3">
-                                <div className="relative flex-1">
-                                  <input
-                                    type="text"
-                                    value={formData.imageUrl}
-                                    onChange={(e) => {
+                           {/* Cover Image URL (Optional) */}
+                          <div>
+                            <label className="block text-[10px] uppercase tracking-widest text-ink/40 font-black mb-1.5">
+                              Bilde-URL til omslag (valgfritt)
+                            </label>
+                            <div className="flex items-center gap-3">
+                              <div className="relative flex-1">
+                                <input
+                                  type="text"
+                                  value={formData.imageUrl}
+                                  onChange={(e) => {
+                                    setFormPreviewError(false);
+                                    setFormData({ ...formData, imageUrl: e.target.value });
+                                  }}
+                                  placeholder="Lim inn bilde-URL (https://...)"
+                                  className="w-full px-4 py-3 pr-9 bg-paper border border-ink/10 rounded-xl text-sm text-ink focus:outline-none focus:border-accent"
+                                />
+                                {formData.imageUrl && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
                                       setFormPreviewError(false);
-                                      setFormData({ ...formData, imageUrl: e.target.value });
+                                      setFormData({ ...formData, imageUrl: '' });
                                     }}
-                                    placeholder="Lim inn bilde-URL (https://...)"
-                                    className="w-full px-4 py-3 pr-9 bg-paper border border-ink/10 rounded-xl text-sm text-ink focus:outline-none focus:border-accent"
-                                  />
-                                  {formData.imageUrl && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setFormPreviewError(false);
-                                        setFormData({ ...formData, imageUrl: '' });
-                                      }}
-                                      className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/30 hover:text-ink"
-                                      title="Fjern bilde-URL"
-                                    >
-                                      <X size={14} />
-                                    </button>
-                                  )}
-                                </div>
-                                {normalizeImageUrl(formData.imageUrl) && (
-                                  <div className="w-11 h-14 rounded-lg overflow-hidden border border-ink/10 bg-paper shrink-0 flex items-center justify-center">
-                                    {!formPreviewError ? (
-                                      <img
-                                        src={getDisplayImageUrl(formData.imageUrl, 0)}
-                                        alt="Forhåndsvisning"
-                                        className="w-full h-full object-cover"
-                                        referrerPolicy="no-referrer"
-                                        onError={(e) => {
-                                          const imgEl = e.currentTarget;
-                                          const proxyUrl = getDisplayImageUrl(formData.imageUrl, 1);
-                                          if (imgEl.src !== proxyUrl && proxyUrl) {
-                                            imgEl.src = proxyUrl;
-                                          } else {
-                                            setFormPreviewError(true);
-                                          }
-                                        }}
-                                      />
-                                    ) : (
-                                      <span className="text-[8px] uppercase font-bold text-red-500 text-center px-1 leading-tight">
-                                        Ugyldig bilde
-                                      </span>
-                                    )}
-                                  </div>
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-ink/30 hover:text-ink"
+                                    title="Fjern bilde-URL"
+                                  >
+                                    <X size={14} />
+                                  </button>
                                 )}
                               </div>
-                            </div>
-
-                            <div>
-                              <label className="block text-[10px] uppercase tracking-widest text-ink/40 font-black mb-1.5">
-                                Lenke (valgfritt)
-                              </label>
-                              <input
-                                type="text"
-                                value={formData.link}
-                                onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                                placeholder="https://..."
-                                className="w-full px-4 py-3 bg-paper border border-ink/10 rounded-xl text-sm text-ink focus:outline-none focus:border-accent"
-                              />
+                              {(normalizeImageUrl(formData.imageUrl) ||
+                                getYouTubeThumbnailUrl(formData.link, 0)) && (
+                                <div
+                                  className={`${
+                                    isWidescreenAspectType(formData.type, formData.imageUrl, formData.link)
+                                      ? 'w-20 aspect-video'
+                                      : 'w-11 h-14'
+                                  } rounded-lg overflow-hidden border border-ink/10 bg-paper shrink-0 flex items-center justify-center`}
+                                >
+                                  {!formPreviewError ? (
+                                    <img
+                                      src={getDisplayImageUrl(formData.imageUrl, 0, formData.link)}
+                                      alt="Forhåndsvisning"
+                                      className="w-full h-full object-cover"
+                                      referrerPolicy="no-referrer"
+                                      onError={(e) => {
+                                        const imgEl = e.currentTarget;
+                                        const fallbackUrl = getDisplayImageUrl(
+                                          formData.imageUrl,
+                                          1,
+                                          formData.link
+                                        );
+                                        if (imgEl.src !== fallbackUrl && fallbackUrl) {
+                                          imgEl.src = fallbackUrl;
+                                        } else {
+                                          setFormPreviewError(true);
+                                        }
+                                      }}
+                                    />
+                                  ) : (
+                                    <span className="text-[8px] uppercase font-bold text-red-500 text-center px-1 leading-tight">
+                                      Ugyldig bilde
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
 
