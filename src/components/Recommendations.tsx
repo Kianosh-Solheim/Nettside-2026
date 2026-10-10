@@ -702,7 +702,7 @@ export default function Recommendations() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-      {/* Header Section */}
+        {/* Header Section */}
       <div className="flex flex-col items-center mb-24 text-center relative">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
@@ -712,23 +712,6 @@ export default function Recommendations() {
           <Sparkles size={12} />
           <span>Personal Anthology</span>
         </motion.div>
-
-        <motion.h1 
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-6xl md:text-8xl font-serif mb-6 tracking-tighter leading-[0.9]"
-        >
-          Curated <span className="italic font-light text-accent">Works</span>
-        </motion.h1>
-        
-        <motion.p 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="text-ink/50 text-sm md:text-base max-w-xl font-serif italic leading-relaxed"
-        >
-          A digital cabinet of curiosities—books that reshaped my thinking, cinema that lingered, and tools that define my craft.
-        </motion.p>
         
         {isAdmin && (
           <motion.div

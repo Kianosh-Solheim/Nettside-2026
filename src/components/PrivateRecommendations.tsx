@@ -1758,20 +1758,12 @@ export default function PrivateRecommendations() {
 
       {/* Header Section (matching Public Recommendations layout, compact on mobile) */}
       <div className="flex flex-col items-center mb-8 sm:mb-16 md:mb-20 text-center relative">
-        <motion.h1
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-4xl sm:text-6xl md:text-8xl font-serif mb-3 sm:mb-6 tracking-tighter leading-[0.95] sm:leading-[0.9]"
-        >
-          Våre <span className="italic font-light text-accent">Anbefalinger</span>
-        </motion.h1>
-
         {/* Action Buttons & Viewing As Controls */}
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mt-5 sm:mt-10 flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-2 sm:gap-3 w-full"
+          className="flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-2 sm:gap-3 w-full"
         >
           {/* Top Row on Mobile: Filter Button (Left) + Legg til anbefaling (Right) */}
           <div className="flex items-center justify-center gap-1.5 w-full sm:w-auto">
