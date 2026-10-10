@@ -121,7 +121,7 @@ export const RECOMMENDATION_STATUSES: RecommendationStatus[] = [
 const DEFAULT_CONFIG: RecommendationsConfig = {
   password: 'bergen',
   ownerName: 'Kianosh',
-  friendName: 'Venn'
+  friendName: 'Amund'
 };
 
 export const TYPE_LABELS_NO: Record<string, string> = {
@@ -411,7 +411,7 @@ export default function PrivateRecommendations() {
             password: data.password || DEFAULT_CONFIG.password,
             ownerName: data.ownerName || DEFAULT_CONFIG.ownerName,
             friendName:
-              !data.friendName || data.friendName === 'My Friend'
+              !data.friendName || data.friendName === 'My Friend' || data.friendName === 'Venn'
                 ? DEFAULT_CONFIG.friendName
                 : data.friendName
           };
@@ -535,7 +535,7 @@ export default function PrivateRecommendations() {
         {
           password: settingsForm.password.trim(),
           ownerName: settingsForm.ownerName.trim() || 'Kianosh',
-          friendName: settingsForm.friendName.trim() || 'Venn',
+          friendName: settingsForm.friendName.trim() || 'Amund',
           updatedAt: serverTimestamp()
         },
         { merge: true }
@@ -980,6 +980,19 @@ export default function PrivateRecommendations() {
     return counts;
   }, [recommendations]);
 
+  // Recommender Counts (respecting selected media type)
+  const recommenderCounts = useMemo(() => {
+    const base =
+      selectedType === 'All'
+        ? recommendations
+        : recommendations.filter((r) => r.type === selectedType);
+    return {
+      all: base.length,
+      owner: base.filter((r) => r.recommendedBy === 'owner').length,
+      friend: base.filter((r) => r.recommendedBy === 'friend').length
+    };
+  }, [recommendations, selectedType]);
+
   // Visible category tabs: Always show 'All' + standard types that either have items or are core categories
   const visibleCategoryTabs = useMemo(() => {
     const coreTypes: RecommendationType[] = [
@@ -1123,13 +1136,12 @@ export default function PrivateRecommendations() {
   const activeExtraFilterCount = useMemo(() => {
     let count = 0;
     if (searchQuery.trim() !== '') count++;
-    if (selectedRecommender !== 'all') count++;
     if (selectedStatus !== 'all') count++;
     if (selectedCallDate !== 'all') count++;
     if (sortBy !== 'newest') count++;
     if (activeShelf !== 'all') count++;
     return count;
-  }, [searchQuery, selectedRecommender, selectedStatus, selectedCallDate, sortBy, activeShelf]);
+  }, [searchQuery, selectedStatus, selectedCallDate, sortBy, activeShelf]);
 
   const clearAllFilters = () => {
     setSearchQuery('');
@@ -1386,11 +1398,11 @@ export default function PrivateRecommendations() {
         </div>
 
         {/* Title & Subtitle below card (exact public style) */}
-        <div className="mt-4 px-1 space-y-1">
-          <h3 className="font-serif text-sm font-medium text-ink/90 group-hover:text-accent transition-colors truncate leading-tight">
+        <div className="mt-2.5 sm:mt-4 px-1 space-y-0.5 sm:space-y-1">
+          <h3 className="font-serif text-xs sm:text-sm font-medium text-ink/90 group-hover:text-accent transition-colors truncate leading-tight">
             {item.title}
           </h3>
-          <p className="text-[9px] uppercase tracking-widest text-ink/30 font-bold truncate">
+          <p className="text-[8px] sm:text-[9px] uppercase tracking-widest text-ink/30 font-bold truncate">
             {subtitle}
           </p>
         </div>
@@ -1399,7 +1411,7 @@ export default function PrivateRecommendations() {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+    <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-8 sm:py-16 md:py-20">
       {/* Status Toast */}
       <AnimatePresence>
         {statusBanner && (
@@ -1407,26 +1419,26 @@ export default function PrivateRecommendations() {
             initial={{ opacity: 0, y: -12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
-            className={`fixed top-20 right-6 z-50 px-5 py-3 rounded-2xl shadow-lg border text-xs font-medium flex items-center gap-2.5 ${
+            className={`fixed top-16 sm:top-20 right-4 sm:right-6 left-4 sm:left-auto z-50 px-4 py-2.5 sm:px-5 sm:py-3 rounded-2xl shadow-lg border text-xs font-medium flex items-center gap-2.5 ${
               statusBanner.type === 'success'
                 ? 'bg-surface border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
                 : 'bg-surface border-red-500/30 text-red-600 dark:text-red-400'
             }`}
           >
-            <CheckCircle2 size={16} />
+            <CheckCircle2 size={16} className="shrink-0" />
             <span>{statusBanner.message}</span>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Header Section (matching Public Recommendations layout) */}
-      <div className="flex flex-col items-center mb-20 text-center relative">
+      {/* Header Section (matching Public Recommendations layout, compact on mobile) */}
+      <div className="flex flex-col items-center mb-8 sm:mb-16 md:mb-20 text-center relative">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="mb-6 px-4 py-1.5 rounded-full bg-accent/5 border border-accent/10 text-accent text-[9px] uppercase tracking-[0.3em] font-black flex items-center gap-2"
+          className="mb-3 sm:mb-6 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-accent/5 border border-accent/10 text-accent text-[8px] sm:text-[9px] uppercase tracking-[0.2em] sm:tracking-[0.3em] font-black flex items-center gap-1.5 sm:gap-2"
         >
-          <PhoneCall size={12} />
+          <PhoneCall size={11} />
           <span>
             Privat samling · {config.ownerName} &amp; {config.friendName}
           </span>
@@ -1435,7 +1447,7 @@ export default function PrivateRecommendations() {
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="text-6xl md:text-8xl font-serif mb-6 tracking-tighter leading-[0.9]"
+          className="text-4xl sm:text-6xl md:text-8xl font-serif mb-3 sm:mb-6 tracking-tighter leading-[0.95] sm:leading-[0.9]"
         >
           Våre <span className="italic font-light text-accent">Anbefalinger</span>
         </motion.h1>
@@ -1444,7 +1456,7 @@ export default function PrivateRecommendations() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.1 }}
-          className="text-ink/50 text-sm md:text-base max-w-xl font-serif italic leading-relaxed"
+          className="text-ink/50 text-xs sm:text-sm md:text-base max-w-xl font-serif italic leading-relaxed px-2"
         >
           Vårt felles minne om filmer, bøker, podkaster og samtaler — lagret fra telefonsamtalene våre, fulgt opp og diskutert i etterkant.
         </motion.p>
@@ -1454,43 +1466,67 @@ export default function PrivateRecommendations() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mt-10 flex flex-wrap items-center justify-center gap-4"
+          className="mt-5 sm:mt-10 flex flex-wrap items-center justify-center gap-2 sm:gap-3"
         >
           <Button
             onClick={() => openAddModal()}
             variant="primary"
-            size="lg"
+            size="md"
             icon={Plus}
             magnetic={true}
-            className="rounded-2xl px-8 shadow-xl shadow-accent/10"
+            className="rounded-xl sm:rounded-2xl px-4 py-2.5 sm:px-8 sm:py-4 text-[10px] sm:text-[13px] shadow-xl shadow-accent/10"
           >
             Legg til anbefaling
           </Button>
 
-          <Button
-            onClick={syncCoversAndMetadata}
-            variant="outline"
-            size="lg"
-            icon={RefreshCw}
-            isLoading={isSyncing}
-            magnetic={true}
-            className="rounded-2xl border-ink/10 hover:bg-ink/5"
-            title="Hent automatisk høyoppløste omslag for anbefalingene"
+          {/* Mobile: Media Type Filter Button next to Legg til anbefaling */}
+          <button
+            type="button"
+            onClick={() => setShowMoreFilters((prev) => !prev)}
+            className={`sm:hidden px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-wider font-black transition-all flex items-center gap-1.5 border ${
+              showMoreFilters || selectedType !== 'All'
+                ? 'bg-ink text-paper border-ink shadow-sm'
+                : 'bg-surface/60 backdrop-blur-md text-ink/70 border-ink/10 hover:text-ink hover:border-ink/25'
+            }`}
           >
-            Synkroniser omslag
-          </Button>
+            <SlidersHorizontal size={12} />
+            <span>
+              {selectedType === 'All' ? 'Medietype: Alle' : `Type: ${getTypeLabelNo(selectedType)}`}
+            </span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[7px] ${
+                showMoreFilters || selectedType !== 'All'
+                  ? 'bg-accent text-white'
+                  : 'bg-ink/5 text-ink/50'
+              }`}
+            >
+              {typeCounts[selectedType] || 0}
+            </span>
+            {showMoreFilters ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+
+          {selectedType !== 'All' && (
+            <button
+              type="button"
+              onClick={() => setSelectedType('All')}
+              className="sm:hidden px-2.5 py-2 rounded-xl text-[8px] uppercase tracking-wider font-black text-accent bg-accent/10 hover:bg-accent/20 transition-colors flex items-center gap-1"
+              title="Nullstill medietype"
+            >
+              <X size={11} />
+            </button>
+          )}
 
           {/* Active Person Selector - Only Admin can change Viewing As */}
           {isAdmin ? (
-            <div className="flex items-center bg-surface/60 backdrop-blur-md border border-ink/10 rounded-2xl p-1.5">
-              <span className="text-[9px] uppercase tracking-widest font-black text-ink/40 px-3 flex items-center gap-1.5 whitespace-nowrap">
+            <div className="flex items-center bg-surface/60 backdrop-blur-md border border-ink/10 rounded-xl sm:rounded-2xl p-1 sm:p-1.5">
+              <span className="hidden sm:flex text-[9px] uppercase tracking-widest font-black text-ink/40 px-2.5 items-center gap-1.5 whitespace-nowrap">
                 <UserCheck size={13} className="text-accent" />
                 Viser som:
               </span>
               <button
                 type="button"
                 onClick={() => handleSwitchPerson('owner')}
-                className={`px-3.5 py-2 rounded-xl text-[9px] uppercase tracking-widest font-black transition-all whitespace-nowrap ${
+                className={`px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black transition-all whitespace-nowrap ${
                   activePerson === 'owner'
                     ? 'bg-ink text-paper shadow-sm'
                     : 'text-ink/40 hover:text-ink'
@@ -1501,7 +1537,7 @@ export default function PrivateRecommendations() {
               <button
                 type="button"
                 onClick={() => handleSwitchPerson('friend')}
-                className={`px-3.5 py-2 rounded-xl text-[9px] uppercase tracking-widest font-black transition-all whitespace-nowrap ${
+                className={`px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black transition-all whitespace-nowrap ${
                   activePerson === 'friend'
                     ? 'bg-ink text-paper shadow-sm'
                     : 'text-ink/40 hover:text-ink'
@@ -1511,9 +1547,9 @@ export default function PrivateRecommendations() {
               </button>
             </div>
           ) : (
-            <div className="flex items-center bg-surface/60 backdrop-blur-md border border-ink/10 rounded-2xl px-4 py-3">
-              <span className="text-[9px] uppercase tracking-widest font-black text-ink/50 flex items-center gap-1.5 whitespace-nowrap">
-                <UserCheck size={13} className="text-accent" />
+            <div className="flex items-center bg-surface/60 backdrop-blur-md border border-ink/10 rounded-xl sm:rounded-2xl px-3 py-2 sm:px-4 sm:py-3">
+              <span className="text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black text-ink/50 flex items-center gap-1.5 whitespace-nowrap">
+                <UserCheck size={12} className="text-accent" />
                 <span>Viser som {config.friendName}</span>
               </span>
             </div>
@@ -1526,11 +1562,12 @@ export default function PrivateRecommendations() {
                 setSettingsForm(config);
                 setIsSettingsOpen(true);
               }}
-              className="px-4 py-3 rounded-2xl bg-surface/60 border border-ink/10 hover:border-accent/40 text-[9px] uppercase tracking-widest font-black text-ink/70 hover:text-ink flex items-center gap-2 transition-colors whitespace-nowrap"
+              className="px-3 py-2 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl bg-surface/60 border border-ink/10 hover:border-accent/40 text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black text-ink/70 hover:text-ink flex items-center gap-1.5 transition-colors whitespace-nowrap"
               title="Endre passord og navn"
             >
-              <KeyRound size={14} className="text-accent" />
-              <span>Passord &amp; navn</span>
+              <KeyRound size={13} className="text-accent" />
+              <span className="hidden xs:inline sm:inline">Passord &amp; navn</span>
+              <span className="xs:hidden sm:hidden">Kode</span>
             </button>
           )}
 
@@ -1538,19 +1575,64 @@ export default function PrivateRecommendations() {
             <button
               type="button"
               onClick={handleLockSpace}
-              className="px-4 py-3 rounded-2xl bg-surface/60 border border-ink/10 hover:border-red-500/40 text-[9px] uppercase tracking-widest font-black text-ink/50 hover:text-red-500 flex items-center gap-1.5 transition-colors whitespace-nowrap"
+              className="px-3 py-2 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl bg-surface/60 border border-ink/10 hover:border-red-500/40 text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black text-ink/50 hover:text-red-500 flex items-center gap-1.5 transition-colors whitespace-nowrap"
               title="Lås privat samling"
             >
-              <LogOut size={14} />
+              <LogOut size={13} />
               <span>Lås</span>
             </button>
           )}
         </motion.div>
 
-        {/* Primary Media Type Filter (Shown by Default) + Expandable Extra Filters */}
-        <div className="mt-14 w-full max-w-5xl space-y-5">
-          {/* Category Pill Bar (Default Filter for Media Type) */}
-          <div className="flex flex-wrap justify-center gap-2 p-2 bg-surface/40 backdrop-blur-xl rounded-[2rem] border border-ink/5 shadow-inner">
+        {/* Primary Media Type Filter & Recommender Filter */}
+        <div className="mt-4 sm:mt-12 md:mt-14 w-full max-w-5xl space-y-2.5 sm:space-y-4">
+          {/* Mobile Expandable Panel for Media Type */}
+          <AnimatePresence>
+            {showMoreFilters && (
+              <motion.div
+                initial={{ opacity: 0, height: 0, y: -6 }}
+                animate={{ opacity: 1, height: 'auto', y: 0 }}
+                exit={{ opacity: 0, height: 0, y: -6 }}
+                transition={{ duration: 0.2 }}
+                className="sm:hidden overflow-hidden"
+              >
+                <div className="p-2.5 bg-surface/50 backdrop-blur-xl rounded-2xl border border-ink/10 space-y-2.5 shadow-sm">
+                  {/* Media Type Pills inside Mobile Dropdown */}
+                  <div className="flex flex-wrap justify-center gap-1">
+                    {visibleCategoryTabs.map((cat) => {
+                      const count = typeCounts[cat] || 0;
+                      const isSelected = selectedType === cat;
+                      return (
+                        <button
+                          key={cat}
+                          type="button"
+                          onClick={() => {
+                            setSelectedType(cat);
+                            setShowMoreFilters(false);
+                          }}
+                          className={`group relative px-2.5 py-1.5 rounded-full text-[8px] uppercase tracking-wider font-black transition-all flex items-center gap-1.5 ${
+                            isSelected ? 'bg-accent text-white shadow-sm' : 'bg-paper/70 text-ink/60 hover:text-ink border border-ink/5'
+                          }`}
+                        >
+                          <span className="whitespace-nowrap">{getTypeLabelNo(cat)}</span>
+                          <span
+                            className={`text-[7px] px-1.5 py-0.5 rounded-full ${
+                              isSelected ? 'bg-white/20 text-white' : 'bg-ink/5 text-ink/40'
+                            }`}
+                          >
+                            {count}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* Desktop Category Pill Bar (Hidden on mobile since it's inside the button above) */}
+          <div className="hidden sm:flex flex-wrap justify-center gap-2 p-2 bg-surface/40 backdrop-blur-xl rounded-[2rem] border border-ink/5 shadow-inner">
             {visibleCategoryTabs.map((cat) => {
               const count = typeCounts[cat] || 0;
               const isSelected = selectedType === cat;
@@ -1559,8 +1641,8 @@ export default function PrivateRecommendations() {
                   key={cat}
                   type="button"
                   onClick={() => setSelectedType(cat)}
-                  className={`group relative px-6 py-3 rounded-full text-[10px] uppercase tracking-[0.15em] font-black transition-all duration-500 flex items-center gap-2.5 ${
-                    isSelected ? 'text-white' : 'text-ink/40 hover:text-ink'
+                  className={`group relative px-5 py-2.5 md:px-6 md:py-3 rounded-full text-[10px] uppercase tracking-[0.15em] font-black transition-all duration-500 flex items-center gap-2 ${
+                    isSelected ? 'text-white' : 'text-ink/45 hover:text-ink'
                   }`}
                 >
                   {isSelected && (
@@ -1570,12 +1652,12 @@ export default function PrivateRecommendations() {
                       transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                     />
                   )}
-                  <span className="relative z-10">{getTypeLabelNo(cat)}</span>
+                  <span className="relative z-10 whitespace-nowrap">{getTypeLabelNo(cat)}</span>
                   <span
                     className={`relative z-10 text-[8px] px-1.5 py-0.5 rounded-full transition-colors ${
                       isSelected
                         ? 'bg-white/20 text-white'
-                        : 'bg-ink/5 text-ink/30 group-hover:text-ink/60'
+                        : 'bg-ink/5 text-ink/35 group-hover:text-ink/60'
                     }`}
                   >
                     {count}
@@ -1585,218 +1667,64 @@ export default function PrivateRecommendations() {
             })}
           </div>
 
-          {/* Toggle button for additional sorting & filtering */}
-          <div className="flex flex-wrap items-center justify-center gap-3">
-            <button
-              type="button"
-              onClick={() => setShowMoreFilters((prev) => !prev)}
-              className={`px-5 py-2.5 rounded-full text-[10px] uppercase tracking-[0.18em] font-black transition-all flex items-center gap-2 border ${
-                showMoreFilters || activeExtraFilterCount > 0
-                  ? 'bg-ink text-paper border-ink shadow-sm'
-                  : 'bg-surface/50 text-ink/60 border-ink/10 hover:text-ink hover:border-ink/25'
-              }`}
-            >
-              <SlidersHorizontal size={13} />
-              <span>
-                {showMoreFilters ? 'Skjul ekstra filtre og sortering' : 'Flere filtre og sortering'}
-              </span>
-              {activeExtraFilterCount > 0 && (
-                <span className="px-1.5 py-0.5 rounded-full text-[8px] bg-accent text-white">
-                  {activeExtraFilterCount}
-                </span>
-              )}
-              {showMoreFilters ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-            </button>
-
-            {(activeExtraFilterCount > 0 || selectedType !== 'All') && (
-              <button
-                type="button"
-                onClick={clearAllFilters}
-                className="px-4 py-2.5 rounded-full text-[10px] uppercase tracking-[0.15em] font-black text-accent hover:bg-accent/10 transition-colors flex items-center gap-1.5"
-              >
-                <X size={12} />
-                <span>Nullstill filtre</span>
-              </button>
-            )}
-          </div>
-
-          {/* Collapsible Extra Filters & Sorting Panel */}
-          <AnimatePresence>
-            {showMoreFilters && (
-              <motion.div
-                initial={{ opacity: 0, height: 0, y: -8 }}
-                animate={{ opacity: 1, height: 'auto', y: 0 }}
-                exit={{ opacity: 0, height: 0, y: -8 }}
-                transition={{ duration: 0.25 }}
-                className="overflow-hidden"
-              >
-                <div className="p-6 rounded-[2rem] bg-surface/50 backdrop-blur-xl border border-ink/10 space-y-6 shadow-sm">
-                  <div className="flex flex-col lg:flex-row items-center justify-between gap-4">
-                    {/* Search Input */}
-                    <div className="relative w-full lg:w-96 group">
-                      <Search
-                        className="absolute left-5 top-1/2 -translate-y-1/2 text-ink/30 group-focus-within:text-accent transition-colors"
-                        size={17}
+          {/* Recommender Filter Bar (Alle / Anbefalt av Kianosh / Anbefalt av Amund) */}
+          <div className="flex justify-center">
+            <div className="inline-flex flex-wrap justify-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 bg-surface/40 backdrop-blur-xl rounded-2xl sm:rounded-full border border-ink/5 shadow-inner max-w-full">
+              {(
+                [
+                  {
+                    id: 'all',
+                    label: 'Alle',
+                    shortLabel: 'Alle',
+                    count: recommenderCounts.all
+                  },
+                  {
+                    id: 'owner',
+                    label: `Anbefalt av ${config.ownerName}`,
+                    shortLabel: `Av ${config.ownerName}`,
+                    count: recommenderCounts.owner
+                  },
+                  {
+                    id: 'friend',
+                    label: `Anbefalt av ${config.friendName}`,
+                    shortLabel: `Av ${config.friendName}`,
+                    count: recommenderCounts.friend
+                  }
+                ] as const
+              ).map((item) => {
+                const isSelected = selectedRecommender === item.id;
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setSelectedRecommender(item.id)}
+                    className={`group relative px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-full text-[8px] sm:text-[10px] uppercase tracking-wider sm:tracking-[0.15em] font-black transition-all duration-500 flex items-center gap-1.5 sm:gap-2 ${
+                      isSelected ? 'text-paper' : 'text-ink/45 hover:text-ink'
+                    }`}
+                  >
+                    {isSelected && (
+                      <motion.div
+                        layoutId="activePrivateRecommender"
+                        className="absolute inset-0 bg-ink rounded-full shadow-md"
+                        transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
                       />
-                      <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        placeholder="Søk etter tittel, skaper, notat eller dato..."
-                        className="w-full pl-12 pr-10 py-3.5 bg-paper border border-ink/10 rounded-2xl text-xs focus:outline-none focus:border-accent/40 transition-all"
-                      />
-                      {searchQuery && (
-                        <button
-                          type="button"
-                          onClick={() => setSearchQuery('')}
-                          className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/30 hover:text-ink transition-colors"
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Call Date, Recommender, Status & Sort Controls */}
-                    <div className="flex flex-wrap items-center justify-center gap-2.5">
-                      {/* Phone Call Date Filter */}
-                      <select
-                        value={selectedCallDate}
-                        onChange={(e) => setSelectedCallDate(e.target.value)}
-                        className="px-3.5 py-2.5 bg-paper border border-ink/10 rounded-2xl text-[10px] uppercase tracking-wider font-black text-ink/70 focus:outline-none focus:border-accent/40"
-                      >
-                        <option value="all">Alle samtaler ({callDatesSummary.length})</option>
-                        {callDatesSummary.map((call) => (
-                          <option key={call.date} value={call.date}>
-                            Samtale: {formatReadableDate(call.date)} ({call.total})
-                          </option>
-                        ))}
-                      </select>
-
-                      {/* Recommended By Filter */}
-                      <select
-                        value={selectedRecommender}
-                        onChange={(e) => setSelectedRecommender(e.target.value as any)}
-                        className="px-3.5 py-2.5 bg-paper border border-ink/10 rounded-2xl text-[10px] uppercase tracking-wider font-black text-ink/70 focus:outline-none focus:border-accent/40"
-                      >
-                        <option value="all">Anbefalt av begge</option>
-                        <option value="owner">Fra {config.ownerName}</option>
-                        <option value="friend">Fra {config.friendName}</option>
-                      </select>
-
-                      {/* Status Filter */}
-                      <select
-                        value={selectedStatus}
-                        onChange={(e) => setSelectedStatus(e.target.value as any)}
-                        className="px-3.5 py-2.5 bg-paper border border-ink/10 rounded-2xl text-[10px] uppercase tracking-wider font-black text-ink/70 focus:outline-none focus:border-accent/40"
-                      >
-                        <option value="all">Alle statuser</option>
-                        <option value="unfinished">Ikke fullført</option>
-                        <option value="Not Seen">Ikke sett</option>
-                        <option value="Planning to Watch/Read/Listen">Planlegger</option>
-                        <option value="Seen/Finished">Fullført</option>
-                      </select>
-
-                      {/* Sort Selector */}
-                      <div className="flex flex-wrap items-center gap-1.5 bg-paper p-1.5 rounded-2xl border border-ink/10">
-                        <span className="text-[9px] uppercase tracking-widest font-black text-ink/40 pl-2.5">
-                          Sorter:
-                        </span>
-                        {(
-                          [
-                            { id: 'newest', label: 'Nyeste' },
-                            { id: 'oldest', label: 'Eldste' },
-                            { id: 'call-newest', label: 'Samtaledato' },
-                            { id: 'rating', label: 'Vurdering' },
-                            { id: 'title', label: 'Tittel' }
-                          ] as const
-                        ).map((option) => (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => setSortBy(option.id)}
-                            className={`px-2.5 py-1.5 rounded-xl text-[9px] uppercase tracking-widest font-black transition-all ${
-                              sortBy === option.id
-                                ? 'bg-ink text-paper shadow-sm'
-                                : 'text-ink/40 hover:text-ink'
-                            }`}
-                          >
-                            {option.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Curated Shelves Selector */}
-                  <div className="pt-4 border-t border-ink/5 flex flex-wrap items-center justify-center gap-2">
-                    <span className="text-[9px] uppercase tracking-widest font-black text-ink/35 mr-1">
-                      Visning:
+                    )}
+                    <span className="relative z-10 sm:hidden whitespace-nowrap">{item.shortLabel}</span>
+                    <span className="relative z-10 hidden sm:inline whitespace-nowrap">{item.label}</span>
+                    <span
+                      className={`relative z-10 text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full transition-colors ${
+                        isSelected
+                          ? 'bg-paper/20 text-paper'
+                          : 'bg-ink/5 text-ink/35 group-hover:text-ink/60'
+                      }`}
+                    >
+                      {item.count}
                     </span>
-                    {(
-                      [
-                        { id: 'all', label: 'Alle anbefalinger', count: recommendations.length },
-                        {
-                          id: 'for-me',
-                          label: 'Ting jeg må sjekke ut',
-                          count: overviewSections.thingsINeedToCheckOut.length
-                        },
-                        {
-                          id: 'for-friend',
-                          label: `Til ${getPersonName(otherPerson)}`,
-                          count: overviewSections.thingsOtherNeedsToCheckOut.length
-                        },
-                        {
-                          id: 'completed',
-                          label: 'Fullført',
-                          count: overviewSections.completed.length
-                        },
-                        {
-                          id: 'highly-rated',
-                          label: 'Høyt vurdert',
-                          count: overviewSections.highlyRated.length
-                        },
-                        {
-                          id: 'overview',
-                          label: 'Oversiktshyller',
-                          count: null
-                        },
-                        {
-                          id: 'calls',
-                          label: 'Etter telefonsamtale',
-                          count: callDatesSummary.length
-                        }
-                      ] as const
-                    ).map((shelf) => {
-                      const isSelected = activeShelf === shelf.id;
-                      return (
-                        <button
-                          key={shelf.id}
-                          type="button"
-                          onClick={() => setActiveShelf(shelf.id)}
-                          className={`px-4 py-2 rounded-full text-[9px] uppercase tracking-[0.15em] font-black transition-all flex items-center gap-2 border ${
-                            isSelected
-                              ? 'bg-ink text-paper border-ink shadow-sm'
-                              : 'bg-paper text-ink/55 border-ink/10 hover:text-ink hover:border-ink/25'
-                          }`}
-                        >
-                          <span>{shelf.label}</span>
-                          {shelf.count !== null && (
-                            <span
-                              className={`text-[8px] px-1.5 py-0.5 rounded-full ${
-                                isSelected ? 'bg-paper/20 text-paper' : 'bg-ink/5 text-ink/40'
-                              }`}
-                            >
-                              {shelf.count}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </div>
 
@@ -2028,10 +1956,10 @@ export default function PrivateRecommendations() {
           </button>
         </motion.div>
       ) : (
-        /* Default 6-Column Visual Poster Grid (Exact Public Layout) */
+        /* Default 6-Column Visual Poster Grid (Exact Public Layout, compact gap on mobile) */
         <motion.div
           layout
-          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-6 gap-y-12"
+          className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-x-3.5 sm:gap-x-6 gap-y-6 sm:gap-y-12"
         >
           <AnimatePresence mode="popLayout">
             {filteredRecommendations.map((item, idx) => renderPosterCard(item, idx))}
@@ -2042,7 +1970,7 @@ export default function PrivateRecommendations() {
       {/* Detail Modal (Matching Public Split-View Layout) */}
       <AnimatePresence>
         {selectedItem && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 md:p-8">
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -2056,18 +1984,18 @@ export default function PrivateRecommendations() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 40 }}
               transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-4xl bg-surface border border-ink/10 rounded-[3rem] overflow-hidden shadow-2xl z-10 flex flex-col md:flex-row max-h-[90vh]"
+              className="relative w-full max-w-4xl bg-surface border border-ink/10 rounded-[2rem] sm:rounded-[3rem] overflow-hidden shadow-2xl z-10 flex flex-col md:flex-row max-h-[92vh]"
             >
               <button
                 type="button"
                 onClick={() => setSelectedItem(null)}
-                className="absolute top-6 right-6 z-20 p-3 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-all hover:rotate-90"
+                className="absolute top-4 right-4 sm:top-6 sm:right-6 z-20 p-2.5 sm:p-3 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-all hover:rotate-90"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
 
               {/* Left Side: Visual Poster */}
-              <div className="w-full md:w-2/5 bg-ink/[0.02] relative flex items-center justify-center p-8 md:p-12 overflow-hidden border-b md:border-b-0 md:border-r border-ink/5">
+              <div className="w-full md:w-2/5 bg-ink/[0.02] relative flex items-center justify-center p-5 sm:p-8 md:p-12 overflow-hidden border-b md:border-b-0 md:border-r border-ink/5">
                 {(() => {
                   const imgKey = getImageKey(selectedItem.id, selectedItem.imageUrl);
                   const errorStage = brokenImages[imgKey] || 0;
@@ -2087,10 +2015,10 @@ export default function PrivateRecommendations() {
                       )}
 
                       <div
-                        className={`relative z-10 w-48 md:w-full max-w-[240px] ${
+                        className={`relative z-10 w-32 sm:w-48 md:w-full max-w-[240px] ${
                           isSquareAspectType(selectedItem.type)
-                            ? 'aspect-square rounded-[2.5rem]'
-                            : 'aspect-[2/3] rounded-2xl'
+                            ? 'aspect-square rounded-3xl sm:rounded-[2.5rem]'
+                            : 'aspect-[2/3] rounded-xl sm:rounded-2xl'
                         } overflow-hidden shadow-2xl border border-white/10`}
                       >
                         {canShowImg ? (
@@ -2102,11 +2030,11 @@ export default function PrivateRecommendations() {
                             onError={() => handleImageError(selectedItem.id, selectedItem.imageUrl)}
                           />
                         ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-surface">
-                            <div className="text-accent/20 mb-4">
-                              {getTypeIcon(selectedItem.type, 28)}
+                          <div className="w-full h-full flex flex-col items-center justify-center p-4 sm:p-8 text-center bg-surface">
+                            <div className="text-accent/20 mb-3 sm:mb-4">
+                              {getTypeIcon(selectedItem.type, 24)}
                             </div>
-                            <h3 className="font-serif text-lg font-bold text-ink/80">
+                            <h3 className="font-serif text-sm sm:text-lg font-bold text-ink/80">
                               {selectedItem.title}
                             </h3>
                           </div>
@@ -2118,11 +2046,11 @@ export default function PrivateRecommendations() {
               </div>
 
               {/* Right Side: Content & Conversation Details */}
-              <div className="w-full md:w-3/5 p-8 md:p-14 flex flex-col justify-between overflow-y-auto">
-                <div className="space-y-6">
+              <div className="w-full md:w-3/5 p-5 sm:p-8 md:p-14 flex flex-col justify-between overflow-y-auto">
+                <div className="space-y-4 sm:space-y-6">
                   <div>
-                    <div className="flex flex-wrap items-center gap-2 text-accent text-[10px] uppercase tracking-[0.3em] font-black mb-4">
-                      {getTypeIcon(selectedItem.type, 16)}
+                    <div className="flex flex-wrap items-center gap-2 text-accent text-[9px] sm:text-[10px] uppercase tracking-[0.25em] sm:tracking-[0.3em] font-black mb-2 sm:mb-4">
+                      {getTypeIcon(selectedItem.type, 14)}
                       <span>{getTypeLabelNo(selectedItem.type)}</span>
                       <span className="text-ink/20">·</span>
                       <span className="text-ink/60">
@@ -2130,7 +2058,7 @@ export default function PrivateRecommendations() {
                       </span>
                     </div>
 
-                    <h2 className="text-3xl md:text-5xl font-serif leading-[1.1] tracking-tight mb-3">
+                    <h2 className="text-2xl sm:text-3xl md:text-5xl font-serif leading-[1.1] tracking-tight mb-2 sm:mb-3">
                       {selectedItem.title}
                     </h2>
 
@@ -2276,14 +2204,14 @@ export default function PrivateRecommendations() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-surface border border-ink/10 rounded-[2.5rem] p-8 md:p-12 overflow-hidden shadow-2xl z-10 my-8 max-h-[90vh] overflow-y-auto"
+              className="relative w-full max-w-2xl bg-surface border border-ink/10 rounded-[1.75rem] sm:rounded-[2.5rem] p-5 sm:p-8 md:p-12 overflow-hidden shadow-2xl z-10 my-4 sm:my-8 max-h-[92vh] overflow-y-auto"
             >
-              <div className="flex justify-between items-center mb-8">
+              <div className="flex justify-between items-center mb-5 sm:mb-8">
                 <div>
-                  <h2 className="text-3xl font-serif">
+                  <h2 className="text-2xl sm:text-3xl font-serif">
                     {editingId ? 'Rediger anbefaling' : 'Legg til anbefaling'}
                   </h2>
-                  <p className="text-xs text-ink/50 font-serif italic mt-1">
+                  <p className="text-[11px] sm:text-xs text-ink/50 font-serif italic mt-0.5 sm:mt-1">
                     Søk for å hente forsidebilde automatisk, eller fyll inn detaljer fra samtalen
                   </p>
                 </div>
@@ -2296,8 +2224,8 @@ export default function PrivateRecommendations() {
               </div>
 
               {/* Type Selector Pills + Online Search Auto-Fill */}
-              <div className="mb-8 space-y-4">
-                <div className="flex flex-wrap gap-1.5">
+              <div className="mb-6 sm:mb-8 space-y-3 sm:space-y-4">
+                <div className="flex flex-wrap gap-1 sm:gap-1.5">
                   {RECOMMENDATION_TYPES.map((t) => (
                     <button
                       key={t}
@@ -2306,7 +2234,7 @@ export default function PrivateRecommendations() {
                         setFormData({ ...formData, type: t });
                         setMediaResults([]);
                       }}
-                      className={`px-3.5 py-2 rounded-xl text-[9px] uppercase tracking-widest font-black transition-all ${
+                      className={`px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black transition-all ${
                         formData.type === t
                           ? 'bg-accent text-white shadow-sm'
                           : 'bg-paper border border-ink/10 text-ink/50 hover:text-ink'
@@ -2320,11 +2248,11 @@ export default function PrivateRecommendations() {
                 {(['Movie', 'TV Series', 'Documentary', 'Book', 'Podcast', 'Music', 'YouTube Video'] as RecommendationType[]).includes(
                   formData.type
                 ) && (
-                  <div className="flex gap-2">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <div className="relative flex-1">
                       <Search
-                        className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/30"
-                        size={16}
+                        className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/30"
+                        size={15}
                       />
                       <input
                         type="text"
@@ -2336,8 +2264,8 @@ export default function PrivateRecommendations() {
                             handleQuickMediaLookup(mediaSearchQuery);
                           }
                         }}
-                        placeholder={`Søk etter ${getTypeLabelNo(formData.type).toLowerCase()} for å hente omslag og info...`}
-                        className="w-full pl-11 pr-4 py-3.5 bg-paper border border-ink/10 rounded-xl text-sm focus:outline-none focus:border-accent"
+                        placeholder={`Søk etter ${getTypeLabelNo(formData.type).toLowerCase()} for omslag...`}
+                        className="w-full pl-10 pr-4 py-2.5 sm:py-3.5 bg-paper border border-ink/10 rounded-xl text-xs sm:text-sm focus:outline-none focus:border-accent"
                       />
                     </div>
                     <Button
@@ -2346,7 +2274,7 @@ export default function PrivateRecommendations() {
                       size="md"
                       onClick={() => handleQuickMediaLookup(mediaSearchQuery)}
                       isLoading={isSearchingMedia}
-                      className="rounded-xl px-6"
+                      className="rounded-xl px-5 py-2.5 sm:py-3"
                     >
                       Finn omslag
                     </Button>
