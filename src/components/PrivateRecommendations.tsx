@@ -1466,122 +1466,117 @@ export default function PrivateRecommendations() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
-          className="mt-5 sm:mt-10 flex flex-wrap items-center justify-center gap-2 sm:gap-3"
+          className="mt-5 sm:mt-10 flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-2 sm:gap-3 w-full"
         >
-          <Button
-            onClick={() => openAddModal()}
-            variant="primary"
-            size="md"
-            icon={Plus}
-            magnetic={true}
-            className="rounded-xl sm:rounded-2xl px-4 py-2.5 sm:px-8 sm:py-4 text-[10px] sm:text-[13px] shadow-xl shadow-accent/10"
-          >
-            Legg til anbefaling
-          </Button>
-
-          {/* Mobile: Media Type Filter Button next to Legg til anbefaling */}
-          <button
-            type="button"
-            onClick={() => setShowMoreFilters((prev) => !prev)}
-            className={`sm:hidden px-3.5 py-2.5 rounded-xl text-[9px] uppercase tracking-wider font-black transition-all flex items-center gap-1.5 border ${
-              showMoreFilters || selectedType !== 'All'
-                ? 'bg-ink text-paper border-ink shadow-sm'
-                : 'bg-surface/60 backdrop-blur-md text-ink/70 border-ink/10 hover:text-ink hover:border-ink/25'
-            }`}
-          >
-            <SlidersHorizontal size={12} />
-            <span>
-              {selectedType === 'All' ? 'Medietype: Alle' : `Type: ${getTypeLabelNo(selectedType)}`}
-            </span>
-            <span
-              className={`px-1.5 py-0.5 rounded-full text-[7px] ${
+          {/* Top Row on Mobile: Filter Button (Left) + Legg til anbefaling (Right) */}
+          <div className="flex items-center justify-center gap-1.5 w-full sm:w-auto">
+            {/* Mobile: Media Type Filter Button on Left Side */}
+            <button
+              type="button"
+              onClick={() => setShowMoreFilters((prev) => !prev)}
+              className={`sm:hidden px-2.5 py-1.5 rounded-lg text-[8px] uppercase tracking-wider font-black transition-all flex items-center gap-1 border whitespace-nowrap shrink-0 ${
                 showMoreFilters || selectedType !== 'All'
-                  ? 'bg-accent text-white'
-                  : 'bg-ink/5 text-ink/50'
+                  ? 'bg-ink text-paper border-ink shadow-sm'
+                  : 'bg-surface/60 backdrop-blur-md text-ink/70 border-ink/10 hover:text-ink hover:border-ink/25'
               }`}
             >
-              {typeCounts[selectedType] || 0}
-            </span>
-            {showMoreFilters ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-          </button>
-
-          {selectedType !== 'All' && (
-            <button
-              type="button"
-              onClick={() => setSelectedType('All')}
-              className="sm:hidden px-2.5 py-2 rounded-xl text-[8px] uppercase tracking-wider font-black text-accent bg-accent/10 hover:bg-accent/20 transition-colors flex items-center gap-1"
-              title="Nullstill medietype"
-            >
-              <X size={11} />
-            </button>
-          )}
-
-          {/* Active Person Selector - Only Admin can change Viewing As */}
-          {isAdmin ? (
-            <div className="flex items-center bg-surface/60 backdrop-blur-md border border-ink/10 rounded-xl sm:rounded-2xl p-1 sm:p-1.5">
-              <span className="hidden sm:flex text-[9px] uppercase tracking-widest font-black text-ink/40 px-2.5 items-center gap-1.5 whitespace-nowrap">
-                <UserCheck size={13} className="text-accent" />
-                Viser som:
+              <SlidersHorizontal size={11} />
+              <span>
+                {selectedType === 'All' ? 'Filter: Alle' : getTypeLabelNo(selectedType)}
               </span>
-              <button
-                type="button"
-                onClick={() => handleSwitchPerson('owner')}
-                className={`px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black transition-all whitespace-nowrap ${
-                  activePerson === 'owner'
-                    ? 'bg-ink text-paper shadow-sm'
-                    : 'text-ink/40 hover:text-ink'
+              <span
+                className={`px-1 py-0.2 rounded-full text-[7px] ${
+                  showMoreFilters || selectedType !== 'All'
+                    ? 'bg-accent text-white'
+                    : 'bg-ink/5 text-ink/50'
                 }`}
               >
-                {config.ownerName}
-              </button>
+                {typeCounts[selectedType] || 0}
+              </span>
+              {showMoreFilters ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
+            </button>
+
+            <Button
+              onClick={() => openAddModal()}
+              variant="primary"
+              size="sm"
+              icon={Plus}
+              magnetic={true}
+              className="rounded-lg sm:rounded-2xl !px-3 !py-1.5 sm:!px-8 sm:!py-4 !text-[8px] sm:!text-[13px] shadow-xl shadow-accent/10 whitespace-nowrap"
+            >
+              Legg til anbefaling
+            </Button>
+          </div>
+
+          {/* Secondary Controls Row on Mobile (Inline on Desktop) */}
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+            {/* Active Person Selector - Only Admin can change Viewing As */}
+            {isAdmin ? (
+              <div className="flex items-center bg-surface/60 backdrop-blur-md border border-ink/10 rounded-xl sm:rounded-2xl p-1 sm:p-1.5">
+                <span className="hidden sm:flex text-[9px] uppercase tracking-widest font-black text-ink/40 px-2.5 items-center gap-1.5 whitespace-nowrap">
+                  <UserCheck size={13} className="text-accent" />
+                  Viser som:
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchPerson('owner')}
+                  className={`px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black transition-all whitespace-nowrap ${
+                    activePerson === 'owner'
+                      ? 'bg-ink text-paper shadow-sm'
+                      : 'text-ink/40 hover:text-ink'
+                  }`}
+                >
+                  {config.ownerName}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleSwitchPerson('friend')}
+                  className={`px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black transition-all whitespace-nowrap ${
+                    activePerson === 'friend'
+                      ? 'bg-ink text-paper shadow-sm'
+                      : 'text-ink/40 hover:text-ink'
+                  }`}
+                >
+                  {config.friendName}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center bg-surface/60 backdrop-blur-md border border-ink/10 rounded-xl sm:rounded-2xl px-3 py-2 sm:px-4 sm:py-3">
+                <span className="text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black text-ink/50 flex items-center gap-1.5 whitespace-nowrap">
+                  <UserCheck size={12} className="text-accent" />
+                  <span>Viser som {config.friendName}</span>
+                </span>
+              </div>
+            )}
+
+            {isAdmin && (
               <button
                 type="button"
-                onClick={() => handleSwitchPerson('friend')}
-                className={`px-2.5 py-1.5 sm:px-3.5 sm:py-2 rounded-lg sm:rounded-xl text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black transition-all whitespace-nowrap ${
-                  activePerson === 'friend'
-                    ? 'bg-ink text-paper shadow-sm'
-                    : 'text-ink/40 hover:text-ink'
-                }`}
+                onClick={() => {
+                  setSettingsForm(config);
+                  setIsSettingsOpen(true);
+                }}
+                className="px-3 py-2 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl bg-surface/60 border border-ink/10 hover:border-accent/40 text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black text-ink/70 hover:text-ink flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                title="Endre passord og navn"
               >
-                {config.friendName}
+                <KeyRound size={13} className="text-accent" />
+                <span className="hidden xs:inline sm:inline">Passord &amp; navn</span>
+                <span className="xs:hidden sm:hidden">Kode</span>
               </button>
-            </div>
-          ) : (
-            <div className="flex items-center bg-surface/60 backdrop-blur-md border border-ink/10 rounded-xl sm:rounded-2xl px-3 py-2 sm:px-4 sm:py-3">
-              <span className="text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black text-ink/50 flex items-center gap-1.5 whitespace-nowrap">
-                <UserCheck size={12} className="text-accent" />
-                <span>Viser som {config.friendName}</span>
-              </span>
-            </div>
-          )}
+            )}
 
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => {
-                setSettingsForm(config);
-                setIsSettingsOpen(true);
-              }}
-              className="px-3 py-2 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl bg-surface/60 border border-ink/10 hover:border-accent/40 text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black text-ink/70 hover:text-ink flex items-center gap-1.5 transition-colors whitespace-nowrap"
-              title="Endre passord og navn"
-            >
-              <KeyRound size={13} className="text-accent" />
-              <span className="hidden xs:inline sm:inline">Passord &amp; navn</span>
-              <span className="xs:hidden sm:hidden">Kode</span>
-            </button>
-          )}
-
-          {!isAdmin && isFriendUnlocked && (
-            <button
-              type="button"
-              onClick={handleLockSpace}
-              className="px-3 py-2 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl bg-surface/60 border border-ink/10 hover:border-red-500/40 text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black text-ink/50 hover:text-red-500 flex items-center gap-1.5 transition-colors whitespace-nowrap"
-              title="Lås privat samling"
-            >
-              <LogOut size={13} />
-              <span>Lås</span>
-            </button>
-          )}
+            {!isAdmin && isFriendUnlocked && (
+              <button
+                type="button"
+                onClick={handleLockSpace}
+                className="px-3 py-2 sm:px-4 sm:py-3 rounded-xl sm:rounded-2xl bg-surface/60 border border-ink/10 hover:border-red-500/40 text-[8px] sm:text-[9px] uppercase tracking-wider sm:tracking-widest font-black text-ink/50 hover:text-red-500 flex items-center gap-1.5 transition-colors whitespace-nowrap"
+                title="Lås privat samling"
+              >
+                <LogOut size={13} />
+                <span>Lås</span>
+              </button>
+            )}
+          </div>
         </motion.div>
 
         {/* Primary Media Type Filter & Recommender Filter */}
