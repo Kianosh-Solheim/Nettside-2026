@@ -1433,17 +1433,6 @@ export default function PrivateRecommendations() {
 
       {/* Header Section (matching Public Recommendations layout, compact on mobile) */}
       <div className="flex flex-col items-center mb-8 sm:mb-16 md:mb-20 text-center relative">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          className="mb-3 sm:mb-6 px-3 sm:px-4 py-1 sm:py-1.5 rounded-full bg-accent/5 border border-accent/10 text-accent text-[8px] sm:text-[9px] uppercase tracking-[0.2em] sm:tracking-[0.3em] font-black flex items-center gap-1.5 sm:gap-2"
-        >
-          <PhoneCall size={11} />
-          <span>
-            Privat samling · {config.ownerName} &amp; {config.friendName}
-          </span>
-        </motion.div>
-
         <motion.h1
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: 1, y: 0 }}
@@ -1451,15 +1440,6 @@ export default function PrivateRecommendations() {
         >
           Våre <span className="italic font-light text-accent">Anbefalinger</span>
         </motion.h1>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="text-ink/50 text-xs sm:text-sm md:text-base max-w-xl font-serif italic leading-relaxed px-2"
-        >
-          Vårt felles minne om filmer, bøker, podkaster og samtaler — lagret fra telefonsamtalene våre, fulgt opp og diskutert i etterkant.
-        </motion.p>
 
         {/* Action Buttons & Viewing As Controls */}
         <motion.div
