@@ -2,15 +2,17 @@
   "entities": {
     "Recommendation": {
       "title": "Recommendation",
-      "description": "A public recommendation for a book, movie, show, video, app, or podcast.",
+      "description": "A public recommendation for a book, movie, show, video, app, podcast, or collection.",
       "type": "object",
       "properties": {
-        "title": { "type": "string", "description": "Title of the work" },
+        "title": { "type": "string", "description": "Title of the work or collection" },
         "author": { "type": "string", "description": "Author, director, or creator" },
         "category": { "type": "string", "enum": ["Books", "Movies", "Shows", "Movies & Shows", "Video & Media", "YouTube", "Apps", "Podcasts"] },
         "description": { "type": "string", "description": "Personal review or notes" },
         "link": { "type": "string", "format": "uri", "description": "Optional link to the work" },
         "imageUrl": { "type": "string", "format": "uri", "description": "Optional image URL" },
+        "isCollection": { "type": "boolean", "description": "Whether this item represents a collection of multiple works" },
+        "collectionItems": { "type": "array", "description": "Items inside the collection" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
       },
@@ -21,7 +23,7 @@
       "description": "A private shared recommendation from a phone call conversation.",
       "type": "object",
       "properties": {
-        "title": { "type": "string", "description": "Title of the work" },
+        "title": { "type": "string", "description": "Title of the work or collection" },
         "type": { "type": "string", "enum": ["Movie", "TV Series", "YouTube Video", "Documentary", "Book", "Article", "Podcast", "Music", "Website", "Other"] },
         "recommendedBy": { "type": "string", "enum": ["owner", "friend"] },
         "dateRecommended": { "type": "string", "format": "date" },
@@ -33,6 +35,9 @@
         "creator": { "type": "string", "description": "Author, director, or creator" },
         "link": { "type": "string", "format": "uri", "description": "Optional link to the work" },
         "imageUrl": { "type": "string", "format": "uri", "description": "Optional image URL" },
+        "isCollection": { "type": "boolean", "description": "Whether this item represents a collection of multiple works" },
+        "collectionItems": { "type": "array", "description": "Items inside the collection" },
+        "userId": { "type": "string", "description": "Optional user ID when the recommendation belongs to a specific logged-in user page" },
         "completedAt": { "type": "string", "format": "date" },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }

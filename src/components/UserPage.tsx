@@ -1,23 +1,14 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { auth, db, doc, onSnapshot, updateDoc, serverTimestamp, handleFirestoreError, OperationType, collection, query, where } from '../firebase';
+import { auth, db, doc, onSnapshot, updateDoc, serverTimestamp, handleFirestoreError, OperationType } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Film, Phone, MapPin, User as UserIcon, Save, Plus, Trash2, Edit2, ExternalLink, X, Check, XCircle, Mail, HandHelping, RotateCcw, BookOpen } from 'lucide-react';
+import { Calendar, Phone, MapPin, User as UserIcon, Save, Plus, Trash2, Edit2, X, Check, XCircle, Mail } from 'lucide-react';
 import Button from './ui/Button';
-
-interface Book {
-  id: string;
-  title: string;
-  author?: string;
-  authors?: { firstName: string; lastName: string }[];
-  location?: { room: string; bookshelf: string; shelfLevel: number; position: number };
-  coverUrl?: string;
-  borrowedAt?: any;
-}
+import PrivateRecommendations from './PrivateRecommendations';
 
 interface UserPageData {
   userId: string;
-  movieRecommendations: { title: string; description: string; link: string; imageUrl?: string }[];
+  movieRecommendations?: { title: string; description: string; link: string; imageUrl?: string }[];
   meetings: { 
     id: string;
     title: string; 
@@ -52,16 +43,9 @@ const UserPage = () => {
   const [isEditingContact, setIsEditingContact] = useState(false);
   const [isAddingMeeting, setIsAddingMeeting] = useState(false);
   const [editingMeetingIndex, setEditingMeetingIndex] = useState<number | null>(null);
-  const [isAddingMovie, setIsAddingMovie] = useState(false);
-  const [editingMovieIndex, setEditingMovieIndex] = useState<number | null>(null);
   const [contactForm, setContactForm] = useState({ email: '', phone: '', address: '', bio: '' });
   const [meetingForm, setMeetingForm] = useState({ title: '', date: '', notes: '' });
-  const [movieForm, setMovieForm] = useState({ title: '', description: '', link: '', imageUrl: '' });
-  const [movieSearchResults, setMovieSearchResults] = useState<any[]>([]);
-  const [isSearchingMovies, setIsSearchingMovies] = useState(false);
   const [status, setStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
-  const [borrowedBooks, setBorrowedBooks] = useState<Book[]>([]);
-  const [isReturning, setIsReturning] = useState<string | null>(null);
 
   const isAdmin = currentUser?.email === 'kianoshsolheim@gmail.com' || currentUser?.email === 'kianosh@solheim.online';
   const isOwner = currentUser?.uid === userId;
@@ -77,16 +61,16 @@ const UserPage = () => {
     if (!userId) return;
 
     const userDocRef = doc(db, 'users', userId);
-    const unsubscribeUser = onSnapshot(userDocRef, (doc) => {
-      if (doc.exists()) {
-        setUserProfile(doc.data() as UserProfile);
+    const unsubscribeUser = onSnapshot(userDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        setUserProfile(docSnap.data() as UserProfile);
       }
     });
 
     const pageDocRef = doc(db, 'user_pages', userId);
-    const unsubscribePage = onSnapshot(pageDocRef, (doc) => {
-      if (doc.exists()) {
-        const data = doc.data() as UserPageData;
+    const unsubscribePage = onSnapshot(pageDocRef, (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data() as UserPageData;
         setPageData(data);
         setContactForm(data.contactInfo);
       }
@@ -100,21 +84,6 @@ const UserPage = () => {
       unsubscribeUser();
       unsubscribePage();
     };
-  }, [userId]);
-
-  useEffect(() => {
-    if (!userId) return;
-
-    const q = query(collection(db, 'books'), where('borrowedBy', '==', userId));
-    const unsubscribeBorrowed = onSnapshot(q, (snapshot) => {
-      const books = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      })) as Book[];
-      setBorrowedBooks(books);
-    }, (error) => handleFirestoreError(error, OperationType.LIST, 'books'));
-
-    return () => unsubscribeBorrowed();
   }, [userId]);
 
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>;
@@ -134,92 +103,12 @@ const UserPage = () => {
     }
   };
 
-  const handleSearchMovies = async () => {
-    if (!movieForm.title) return;
-    setIsSearchingMovies(true);
-    try {
-      const omdbKey = import.meta.env.VITE_OMDB_API_KEY;
-      const response = await fetch(`https://www.omdbapi.com/?s=${encodeURIComponent(movieForm.title)}&type=movie&apikey=${omdbKey || 'b054da29'}`);
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(`Movies API failed: ${errorData.Error || response.statusText}`);
-      }
-      const data = await response.json();
-      
-      if (data.Response === 'False') {
-        setMovieSearchResults([]);
-        if (data.Error !== 'Movie not found!') {
-          throw new Error(data.Error);
-        }
-      } else {
-        setMovieSearchResults(data.Search || []);
-      }
-    } catch (error) {
-      console.error("Error searching movies:", error);
-      setStatus({ type: 'error', message: error instanceof Error ? error.message : 'Movies search failed' });
-      setTimeout(() => setStatus(null), 3000);
-    } finally {
-      setIsSearchingMovies(false);
-    }
-  };
-
-  const handleAddMovie = async () => {
-    if (!userId || !pageData) return;
-    
-    if (!movieForm.title) {
-      alert("Please provide at least a title.");
-      return;
-    }
-
-    try {
-      const newList = editingMovieIndex !== null 
-        ? pageData.movieRecommendations.map((m, i) => i === editingMovieIndex ? movieForm : m)
-        : [...pageData.movieRecommendations, movieForm];
-
-      await updateDoc(doc(db, 'user_pages', userId), {
-        movieRecommendations: newList,
-        updatedAt: serverTimestamp()
-      });
-      setIsAddingMovie(false);
-      setEditingMovieIndex(null);
-      setMovieForm({ title: '', description: '', link: '', imageUrl: '' });
-      setMovieSearchResults([]);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `user_pages/${userId}`);
-    }
-  };
-
-  const handleEditMovie = (index: number) => {
-    const movie = pageData!.movieRecommendations[index];
-    setMovieForm({
-      title: movie.title,
-      description: movie.description,
-      link: movie.link,
-      imageUrl: movie.imageUrl || ''
-    });
-    setEditingMovieIndex(index);
-    setIsAddingMovie(true);
-  };
-
-  const handleRemoveMovie = async (index: number) => {
-    if (!userId || !pageData) return;
-    const newList = [...pageData.movieRecommendations];
-    newList.splice(index, 1);
-    try {
-      await updateDoc(doc(db, 'user_pages', userId), {
-        movieRecommendations: newList,
-        updatedAt: serverTimestamp()
-      });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `user_pages/${userId}`);
-    }
-  };
-
   const handleAddMeeting = async () => {
     if (!userId || !pageData || !currentUser) return;
     
     if (!meetingForm.title || !meetingForm.date) {
-      alert("Please provide at least a title and a date.");
+      setStatus({ type: 'error', message: 'Please provide at least a title and a date.' });
+      setTimeout(() => setStatus(null), 3000);
       return;
     }
 
@@ -290,28 +179,17 @@ const UserPage = () => {
     }
   };
 
-  const handleReturnBook = async (bookId: string) => {
-    setIsReturning(bookId);
-    try {
-      await updateDoc(doc(db, 'books', bookId), {
-        borrowedBy: null,
-        borrowedAt: null
-      });
-      setStatus({ type: 'success', message: 'Book returned successfully!' });
-      setTimeout(() => setStatus(null), 3000);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.UPDATE, `books/${bookId}`);
-    } finally {
-      setIsReturning(null);
-    }
-  };
+  const friendDisplayName =
+    userProfile?.displayName?.trim() ||
+    userProfile?.email?.split('@')[0] ||
+    'Bruker';
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-20">
+    <div className="max-w-7xl mx-auto px-4 py-20">
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="bg-paper border border-ink/10 rounded-3xl p-8 shadow-xl"
+        className="bg-paper border border-ink/10 rounded-3xl p-6 sm:p-8 md:p-10 shadow-xl"
       >
         <AnimatePresence>
           {status && (
@@ -591,267 +469,15 @@ const UserPage = () => {
           </div>
         </div>
 
-        {/* Borrowed Books */}
+        {/* Shared Recommendations (Same system as /a) */}
         <div className="mt-12 pt-12 border-t border-ink/10">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-xl font-serif font-semibold flex items-center gap-2 text-ink">
-              <HandHelping size={20} className="text-accent" />
-              My Borrowed Books
-            </h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {borrowedBooks.length > 0 ? (
-              borrowedBooks.map((book) => (
-                <div key={book.id} className="bg-ink/5 rounded-3xl border border-ink/5 overflow-hidden flex flex-col group hover:ring-1 hover:ring-accent/20 transition-all">
-                  <div className="flex gap-4 p-4">
-                    <div className="w-20 h-28 flex-shrink-0 rounded-xl overflow-hidden shadow-md">
-                      <img 
-                        src={book.coverUrl || 'https://images.unsplash.com/photo-1543002588-bfa74002ed7e?auto=format&fit=crop&q=80&w=200'} 
-                        alt={book.title} 
-                        className="w-full h-full object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    </div>
-                    <div className="flex-grow min-w-0 flex flex-col justify-between">
-                      <div>
-                        <h3 className="font-bold text-ink truncate font-serif">{book.title}</h3>
-                        <p className="text-xs text-ink/60 truncate">
-                          {book.authors ? book.authors.map(a => `${a.firstName} ${a.lastName}`).join(', ') : book.author}
-                        </p>
-                        <div className="flex items-center gap-1 text-[10px] text-accent font-bold uppercase tracking-widest mt-2">
-                          <MapPin size={10} />
-                          {book.location.room}
-                        </div>
-                      </div>
-                      
-                      {isOwner && (
-                        <Button
-                          onClick={() => handleReturnBook(book.id)}
-                          isLoading={isReturning === book.id}
-                          size="sm"
-                          variant="outline"
-                          className="mt-2 text-[10px] py-1 border-accent/20 text-accent hover:bg-accent/5"
-                          icon={RotateCcw}
-                        >
-                          Return Book
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="col-span-full p-8 bg-ink/5 rounded-3xl border border-dashed border-ink/10 flex flex-col items-center justify-center text-center">
-                <BookOpen size={32} className="text-ink/20 mb-3" />
-                <p className="text-ink/30 text-xs italic uppercase tracking-widest">You haven't borrowed any books yet.</p>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Movie Recommendations */}
-        <div className="mt-12 pt-12 border-t border-ink/10">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-xl font-serif font-semibold flex items-center gap-2 text-ink">
-              <Film size={20} className="text-accent" />
-              Personalized Movie Recommendations
-            </h2>
-            {isAdmin && (
-              <Button
-                onClick={() => {
-                  if (isAddingMovie) {
-                    setEditingMovieIndex(null);
-                    setMovieForm({ title: '', description: '', link: '', imageUrl: '' });
-                    setMovieSearchResults([]);
-                  }
-                  setIsAddingMovie(!isAddingMovie);
-                }}
-                variant={isAddingMovie ? "ghost" : "primary"}
-                size="sm"
-                magnetic={true}
-                className={`shadow-lg ${isAddingMovie ? 'bg-ink/10 text-ink' : 'bg-accent text-paper shadow-accent/20'}`}
-                icon={isAddingMovie ? X : Plus}
-              />
-            )}
-          </div>
-
-          <AnimatePresence>
-            {isAddingMovie && (
-              <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 'auto' }}
-                exit={{ opacity: 0, height: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="p-6 bg-ink/5 rounded-3xl border border-ink/5 space-y-6 mb-8">
-                  <h3 className="text-xs font-serif font-bold text-accent uppercase tracking-widest">
-                    {editingMovieIndex !== null ? 'Edit Recommendation' : 'Add New Recommendation'}
-                  </h3>
-                  
-                  <div className="space-y-4">
-                    <div className="flex gap-2">
-                      <div className="flex-grow space-y-1">
-                        <label className="text-[10px] font-medium text-ink/40 uppercase tracking-widest">Movie Title</label>
-                        <input
-                          type="text"
-                          placeholder="e.g., Inception"
-                          value={movieForm.title}
-                          onChange={(e) => setMovieForm({ ...movieForm, title: e.target.value })}
-                          onKeyDown={(e) => e.key === 'Enter' && handleSearchMovies()}
-                          className="w-full p-2.5 rounded-xl border border-ink/10 bg-transparent focus:ring-1 focus:ring-accent outline-none transition-all text-sm text-ink"
-                        />
-                      </div>
-                      <div className="flex items-end">
-                        <Button
-                          onClick={handleSearchMovies}
-                          variant="outline"
-                          className="h-[42px] border-accent/20 text-accent hover:bg-accent/5"
-                          isLoading={isSearchingMovies}
-                        >
-                          Search
-                        </Button>
-                      </div>
-                    </div>
-
-                    {movieSearchResults.length > 0 && (
-                      <div className="space-y-2">
-                        <label className="text-[10px] font-medium text-ink/40 uppercase tracking-widest">Select a Cover</label>
-                        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 max-h-48 overflow-y-auto p-2 bg-white/50 rounded-2xl border border-ink/5">
-                          {movieSearchResults.map((result, idx) => {
-                            const posterUrl = result.Poster !== 'N/A' ? result.Poster : '';
-                            const isSelected = movieForm.imageUrl === posterUrl;
-                            if (!posterUrl) return null;
-                            return (
-                              <button
-                                key={idx}
-                                onClick={() => setMovieForm({ 
-                                  ...movieForm, 
-                                  imageUrl: posterUrl,
-                                  title: result.Title || movieForm.title,
-                                  link: `https://www.imdb.com/title/${result.imdbID}`
-                                })}
-                                className={`relative aspect-[2/3] rounded-lg overflow-hidden border-2 transition-all ${
-                                  isSelected ? 'border-accent ring-2 ring-accent/20 scale-95' : 'border-transparent hover:border-accent/30'
-                                }`}
-                              >
-                                <img 
-                                  src={posterUrl} 
-                                  alt={result.Title} 
-                                  className="w-full h-full object-cover"
-                                  referrerPolicy="no-referrer"
-                                />
-                                {isSelected && (
-                                  <div className="absolute inset-0 bg-accent/20 flex items-center justify-center">
-                                    <Check className="text-white" size={20} />
-                                  </div>
-                                )}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-medium text-ink/40 uppercase tracking-widest">Selected Image URL</label>
-                        <input
-                          type="text"
-                          placeholder="https://..."
-                          value={movieForm.imageUrl}
-                          onChange={(e) => setMovieForm({ ...movieForm, imageUrl: e.target.value })}
-                          className="w-full p-2.5 rounded-xl border border-ink/10 bg-transparent focus:ring-1 focus:ring-accent outline-none transition-all text-sm text-ink"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-medium text-ink/40 uppercase tracking-widest">Link (Optional)</label>
-                        <input
-                          type="text"
-                          placeholder="https://..."
-                          value={movieForm.link}
-                          onChange={(e) => setMovieForm({ ...movieForm, link: e.target.value })}
-                          className="w-full p-2.5 rounded-xl border border-ink/10 bg-transparent focus:ring-1 focus:ring-accent outline-none transition-all text-sm text-ink"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-medium text-ink/40 uppercase tracking-widest">Description</label>
-                      <textarea
-                        placeholder="Why do you recommend this?"
-                        value={movieForm.description}
-                        onChange={(e) => setMovieForm({ ...movieForm, description: e.target.value })}
-                        className="w-full p-2.5 rounded-xl border border-ink/10 bg-transparent h-24 focus:ring-1 focus:ring-accent outline-none transition-all resize-none text-sm text-ink"
-                      />
-                    </div>
-                  </div>
-                  <Button
-                    onClick={handleAddMovie}
-                    magnetic={true}
-                    className="w-full bg-accent text-paper py-3"
-                  >
-                    {editingMovieIndex !== null ? 'Update Recommendation' : 'Add Recommendation'}
-                  </Button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            {pageData?.movieRecommendations && pageData.movieRecommendations.length > 0 ? (
-              pageData.movieRecommendations.map((movie, idx) => (
-                <div key={idx} className="bg-ink/5 rounded-3xl relative group hover:ring-1 hover:ring-accent/20 transition-all border border-ink/5 overflow-hidden flex flex-col">
-                  {movie.imageUrl && (
-                    <div className="aspect-video w-full overflow-hidden">
-                      <img 
-                        src={movie.imageUrl} 
-                        alt={movie.title} 
-                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        referrerPolicy="no-referrer"
-                      />
-                    </div>
-                  )}
-                  <div className="p-6 flex-grow">
-                    <h3 className="font-bold text-lg text-ink font-serif">{movie.title}</h3>
-                    <p className="text-sm text-ink/60 mt-2 leading-relaxed">{movie.description}</p>
-                    {movie.link && (
-                      <a
-                        href={movie.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[10px] uppercase tracking-widest font-semibold text-accent hover:underline mt-4 inline-flex items-center gap-1 transition-colors"
-                      >
-                        Watch Trailer / More Info
-                        <ExternalLink size={10} />
-                      </a>
-                    )}
-                  </div>
-                  {isAdmin && (
-                    <div className="absolute top-4 right-4 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Button
-                        onClick={() => handleEditMovie(idx)}
-                        variant="ghost"
-                        size="sm"
-                        magnetic={true}
-                        className="text-accent hover:bg-accent/10"
-                        icon={Edit2}
-                      />
-                      <Button
-                        onClick={() => handleRemoveMovie(idx)}
-                        variant="ghost"
-                        size="sm"
-                        magnetic={true}
-                        className="text-red-500 hover:bg-red-500/10"
-                        icon={Trash2}
-                      />
-                    </div>
-                  )}
-                </div>
-              ))
-            ) : (
-              <p className="text-ink/30 text-xs italic col-span-full py-4 uppercase tracking-widest">No recommendations yet.</p>
-            )}
-          </div>
+          {userId && (
+            <PrivateRecommendations
+              embeddedUserId={userId}
+              embeddedFriendName={friendDisplayName}
+              embeddedLegacyMovies={pageData?.movieRecommendations}
+            />
+          )}
         </div>
       </motion.div>
     </div>

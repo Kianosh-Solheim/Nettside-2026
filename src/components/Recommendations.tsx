@@ -1,9 +1,19 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Book, Film, Tv, ExternalLink, Video, Plus, Search, X, Check, Loader2, Edit2, Trash2, Save, RefreshCw, Sparkles, Podcast, Play } from 'lucide-react';
+import { Book, Film, Tv, ExternalLink, Video, Plus, Search, X, Check, Loader2, Edit2, Trash2, Save, RefreshCw, Sparkles, Podcast, Play, Layers, ArrowLeft } from 'lucide-react';
 import { db, collection, query, orderBy, handleFirestoreError, OperationType, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, auth, getDocs } from '../firebase';
 import Magnetic from './Magnetic';
 import Button from './ui/Button';
+
+interface CollectionSubItem {
+  id: string;
+  title: string;
+  author?: string;
+  category?: 'Books' | 'Movies' | 'Shows' | 'Video & Media' | 'Apps' | 'Podcasts';
+  description?: string;
+  link?: string;
+  imageUrl?: string;
+}
 
 interface Recommendation {
   id: string;
@@ -13,6 +23,8 @@ interface Recommendation {
   description?: string;
   link?: string;
   imageUrl?: string;
+  isCollection?: boolean;
+  collectionItems?: CollectionSubItem[];
   createdAt?: any;
 }
 
@@ -165,6 +177,7 @@ export default function Recommendations() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [selectedItem, setSelectedItem] = useState<Recommendation | null>(null);
+  const [activeCollectionSubItem, setActiveCollectionSubItem] = useState<CollectionSubItem | null>(null);
   const [isPlayingMedia, setIsPlayingMedia] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   
@@ -175,13 +188,24 @@ export default function Recommendations() {
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchType, setSearchType] = useState<'Books' | 'Movies' | 'Shows' | 'Video & Media' | 'Apps' | 'Podcasts'>('Books');
+  const [isAddingManualSubItem, setIsAddingManualSubItem] = useState(false);
+  const [manualSubItem, setManualSubItem] = useState<Partial<CollectionSubItem>>({
+    title: '',
+    author: '',
+    category: 'Movies',
+    description: '',
+    imageUrl: '',
+    link: ''
+  });
   const [formData, setFormData] = useState<Partial<Recommendation>>({
     title: '',
     author: '',
     category: 'Books',
     description: '',
     link: '',
-    imageUrl: ''
+    imageUrl: '',
+    isCollection: false,
+    collectionItems: []
   });
   const [status, setStatus] = useState<{ type: 'success' | 'error' | 'info', message: string } | null>(null);
   const [deleteConfirmation, setDeleteConfirmation] = useState<string | null>(null);
@@ -214,8 +238,13 @@ export default function Recommendations() {
           if (category === 'YouTube') category = 'Video & Media';
           const resolvedCategory = category || 'Books';
           const link = docData.link || '';
+          const isCollection = Boolean(docData.isCollection);
+          const collectionItems: CollectionSubItem[] = Array.isArray(docData.collectionItems)
+            ? docData.collectionItems
+            : [];
           const imageUrl =
             docData.imageUrl ||
+            (isCollection && collectionItems[0]?.imageUrl ? collectionItems[0].imageUrl : '') ||
             (resolvedCategory === 'Video & Media' || extractYouTubeVideoId(link)
               ? getYouTubeThumbnailUrl(link, 0)
               : '');
@@ -223,7 +252,9 @@ export default function Recommendations() {
             ...docData,
             id: doc.id,
             category: resolvedCategory,
-            imageUrl
+            imageUrl,
+            isCollection,
+            collectionItems
           };
         }) as Recommendation[];
         setRecommendations(data);
@@ -448,26 +479,70 @@ export default function Recommendations() {
   };
 
   const selectResult = (result: SearchResult) => {
-    setFormData({
+    if (formData.isCollection) {
+      const newSubItem: CollectionSubItem = {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+        title: result.title,
+        author: result.author,
+        category: result.category,
+        description: result.description,
+        link: result.link,
+        imageUrl: result.imageUrl
+      };
+      setFormData(prev => ({
+        ...prev,
+        imageUrl: prev.imageUrl || result.imageUrl || '',
+        collectionItems: [...(prev.collectionItems || []), newSubItem]
+      }));
+      setStatus({ type: 'success', message: `Lagt til "${result.title}" i samlingen` });
+      setTimeout(() => setStatus(null), 2000);
+      return;
+    }
+
+    setFormData(prev => ({
+      ...prev,
       title: result.title,
       author: result.author,
       category: result.category,
       description: result.description,
       link: result.link,
       imageUrl: result.imageUrl
-    });
+    }));
     setSearchResults([]);
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.title || !formData.author) return;
+    if (!formData.title?.trim()) return;
+    if (!formData.isCollection && !formData.author?.trim()) return;
+
+    const cleanedCollectionItems: CollectionSubItem[] = formData.isCollection
+      ? (formData.collectionItems || []).map((sub) => ({
+          id: sub.id || `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          title: (sub.title || '').trim(),
+          author: (sub.author || '').trim(),
+          category: sub.category || formData.category || 'Movies',
+          description: (sub.description || '').trim(),
+          imageUrl: normalizeImageUrl(sub.imageUrl),
+          link: sub.link?.trim()
+            ? sub.link.trim().startsWith('http://') || sub.link.trim().startsWith('https://')
+              ? sub.link.trim()
+              : `https://${sub.link.trim()}`
+            : ''
+        })).filter(sub => sub.title.length > 0)
+      : [];
+
+    const resolvedCover =
+      normalizeImageUrl(formData.imageUrl) ||
+      (cleanedCollectionItems[0]?.imageUrl ? cleanedCollectionItems[0].imageUrl : '');
 
     const normalizedFormData = {
       ...formData,
       title: formData.title.trim(),
-      author: formData.author.trim(),
-      imageUrl: normalizeImageUrl(formData.imageUrl),
+      author: (formData.author || '').trim(),
+      imageUrl: resolvedCover,
+      isCollection: Boolean(formData.isCollection),
+      collectionItems: cleanedCollectionItems,
       link: formData.link?.trim()
         ? formData.link.trim().startsWith('http://') || formData.link.trim().startsWith('https://')
           ? formData.link.trim()
@@ -501,7 +576,7 @@ export default function Recommendations() {
         setIsAdding(false);
         setIsEditing(null);
         setStatus(null);
-        setFormData({ title: '', author: '', category: 'Books', description: '', link: '', imageUrl: '' });
+        setFormData({ title: '', author: '', category: 'Books', description: '', link: '', imageUrl: '', isCollection: false, collectionItems: [] });
       }, 1000);
     } catch (error) {
       setStatus({ type: 'error', message: 'Failed to save recommendation.' });
@@ -639,10 +714,13 @@ export default function Recommendations() {
       category: item.category,
       description: item.description || '',
       link: item.link || '',
-      imageUrl: item.imageUrl || ''
+      imageUrl: item.imageUrl || '',
+      isCollection: Boolean(item.isCollection),
+      collectionItems: item.collectionItems || []
     });
     setIsEditing(item.id);
     setSelectedItem(null);
+    setActiveCollectionSubItem(null);
     setIsAdding(true);
   };
 
@@ -650,11 +728,18 @@ export default function Recommendations() {
   
   const filteredRecommendations = useMemo(() => {
     const filtered = recommendations.filter(r => {
-      const matchesCategory = selectedCategory === 'All' || r.category === selectedCategory;
+      const matchesCategory =
+        selectedCategory === 'All' ||
+        r.category === selectedCategory ||
+        (r.isCollection && r.collectionItems?.some(ci => ci.category === selectedCategory));
       const matchesSearch = !filterSearch.trim() || 
         r.title.toLowerCase().includes(filterSearch.toLowerCase()) ||
         r.author.toLowerCase().includes(filterSearch.toLowerCase()) ||
-        (r.description && r.description.toLowerCase().includes(filterSearch.toLowerCase()));
+        (r.description && r.description.toLowerCase().includes(filterSearch.toLowerCase())) ||
+        (r.isCollection && r.collectionItems?.some(ci =>
+          ci.title.toLowerCase().includes(filterSearch.toLowerCase()) ||
+          (ci.author && ci.author.toLowerCase().includes(filterSearch.toLowerCase()))
+        ));
       return matchesCategory && matchesSearch;
     });
 
@@ -671,7 +756,15 @@ export default function Recommendations() {
   const categoryCounts = useMemo(() => {
     const counts: Record<string, number> = { All: recommendations.length };
     recommendations.forEach(r => {
-      counts[r.category] = (counts[r.category] || 0) + 1;
+      const catsForRec = new Set<string>([r.category]);
+      if (r.isCollection && Array.isArray(r.collectionItems)) {
+        r.collectionItems.forEach(ci => {
+          if (ci.category) catsForRec.add(ci.category);
+        });
+      }
+      catsForRec.forEach(cat => {
+        counts[cat] = (counts[cat] || 0) + 1;
+      });
     });
     return counts;
   }, [recommendations]);
@@ -723,7 +816,7 @@ export default function Recommendations() {
             <Button
               onClick={() => {
                 setIsEditing(null);
-                setFormData({ title: '', author: '', category: 'Books', description: '', link: '', imageUrl: '' });
+                setFormData({ title: '', author: '', category: 'Books', description: '', link: '', imageUrl: '', isCollection: false, collectionItems: [] });
                 setIsAdding(true);
               }}
               variant="primary"
@@ -864,40 +957,44 @@ export default function Recommendations() {
                 }}
                 onClick={() => {
                   setIsPlayingMedia(false);
+                  setActiveCollectionSubItem(null);
                   setSelectedItem(item);
                 }}
                 className={`group cursor-pointer flex flex-col ${
-                  item.category === 'Video & Media' || extractYouTubeVideoId(item.imageUrl) || extractYouTubeVideoId(item.link) || extractVimeoVideoId(item.link)
+                  !item.isCollection && (item.category === 'Video & Media' || extractYouTubeVideoId(item.imageUrl) || extractYouTubeVideoId(item.link) || extractVimeoVideoId(item.link))
                     ? 'col-span-2'
                     : ''
                 }`}
               >
                 <div className={`relative ${
-                  item.category === 'Video & Media' || extractYouTubeVideoId(item.imageUrl) || extractYouTubeVideoId(item.link) || extractVimeoVideoId(item.link)
+                  !item.isCollection && (item.category === 'Video & Media' || extractYouTubeVideoId(item.imageUrl) || extractYouTubeVideoId(item.link) || extractVimeoVideoId(item.link))
                     ? 'aspect-video rounded-2xl'
                     : item.category === 'Apps' || item.category === 'Podcasts'
                     ? 'aspect-square rounded-[2.5rem]'
                     : 'aspect-[2/3] rounded-2xl'
                 } w-full overflow-hidden bg-surface shadow-sm group-hover:shadow-2xl group-hover:shadow-accent/10 transition-all duration-700 border border-ink/5 group-hover:border-accent/20`}>
                   {(() => {
-                    const imgKey = getImageKey(item.id, item.imageUrl || item.link);
+                    const fallbackCover = item.imageUrl || (item.isCollection && item.collectionItems?.[0]?.imageUrl ? item.collectionItems[0].imageUrl : '');
+                    const imgKey = getImageKey(item.id, fallbackCover || item.link);
                     const errorStage = brokenImages[imgKey] || 0;
-                    const resolvedSrc = getDisplayImageUrl(item.imageUrl, errorStage, item.link);
+                    const resolvedSrc = getDisplayImageUrl(fallbackCover, errorStage, item.link);
                     return resolvedSrc && errorStage < 2 ? (
                       <img
                         src={resolvedSrc}
                         alt={item.title}
                         className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
                         referrerPolicy="no-referrer"
-                        onError={() => handleImageError(item.id, item.imageUrl || item.link)}
+                        onError={() => handleImageError(item.id, fallbackCover || item.link)}
                       />
                     ) : (
                       <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-ink/[0.02] to-ink/[0.08]">
                         <div className="text-accent/20 mb-4 transform group-hover:scale-110 group-hover:text-accent/40 transition-all duration-500">
-                          {getIcon(item.category)}
+                          {item.isCollection ? <Layers size={22} /> : getIcon(item.category)}
                         </div>
                         <h3 className="font-serif text-xs font-bold line-clamp-3 text-ink/60 px-2 leading-relaxed">{item.title}</h3>
-                        <p className="text-[8px] uppercase tracking-[0.2em] text-ink/30 mt-3 font-black">{item.author}</p>
+                        {!item.isCollection && (
+                          <p className="text-[8px] uppercase tracking-[0.2em] text-ink/30 mt-3 font-black">{item.author}</p>
+                        )}
                       </div>
                     );
                   })()}
@@ -905,12 +1002,12 @@ export default function Recommendations() {
                   {/* Subtle Top Badge */}
                   <div className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     <div className="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-[7px] uppercase tracking-widest font-black flex items-center gap-1.5">
-                      {getIcon(item.category)}
-                      <span>{item.category}</span>
+                      {item.isCollection ? <Layers size={12} /> : getIcon(item.category)}
+                      <span>{item.isCollection ? `Samling (${item.collectionItems?.length || 0})` : item.category}</span>
                     </div>
                   </div>
 
-                  {getEmbedMediaInfo(item.link) && (
+                  {!item.isCollection && getEmbedMediaInfo(item.link) && (
                     <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
                       <div className="w-12 h-12 rounded-full bg-black/65 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:bg-accent group-hover:border-accent transition-all duration-300">
                         <Play size={18} className="fill-white ml-0.5" />
@@ -921,11 +1018,13 @@ export default function Recommendations() {
                   {/* Hover Overlay */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-5">
                     <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                      <p className="text-white/50 text-[8px] uppercase tracking-[0.2em] font-black mb-1">{item.author}</p>
+                      {!item.isCollection && (
+                        <p className="text-white/50 text-[8px] uppercase tracking-[0.2em] font-black mb-1">{item.author}</p>
+                      )}
                       <h3 className="text-white font-serif text-sm font-bold leading-snug line-clamp-2">{item.title}</h3>
                       <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-white/40 text-[8px] uppercase tracking-widest font-black">
-                        <span>View Details</span>
-                        <ExternalLink size={10} />
+                        <span>{item.isCollection ? 'Åpne samling' : 'View Details'}</span>
+                        {item.isCollection ? <Layers size={10} /> : <ExternalLink size={10} />}
                       </div>
                     </div>
                   </div>
@@ -936,9 +1035,11 @@ export default function Recommendations() {
                   <h3 className="font-serif text-sm font-medium text-ink/90 group-hover:text-accent transition-colors truncate leading-tight">
                     {item.title}
                   </h3>
-                  <p className="text-[9px] uppercase tracking-widest text-ink/30 font-bold truncate">
-                    {item.author}
-                  </p>
+                  {!item.isCollection && item.author && (
+                    <p className="text-[9px] uppercase tracking-widest text-ink/30 font-bold truncate">
+                      {item.author}
+                    </p>
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -954,7 +1055,11 @@ export default function Recommendations() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={() => setSelectedItem(null)}
+              onClick={() => {
+                setIsPlayingMedia(false);
+                setActiveCollectionSubItem(null);
+                setSelectedItem(null);
+              }}
               className="fixed inset-0 bg-black/80 backdrop-blur-xl"
             />
             
@@ -968,6 +1073,7 @@ export default function Recommendations() {
               <button
                 onClick={() => {
                   setIsPlayingMedia(false);
+                  setActiveCollectionSubItem(null);
                   setSelectedItem(null);
                 }}
                 className="absolute top-6 right-6 z-20 p-3 bg-black/20 hover:bg-black/40 text-white rounded-full backdrop-blur-md transition-all hover:rotate-90"
@@ -975,178 +1081,317 @@ export default function Recommendations() {
                 <X size={20} />
               </button>
 
-              {/* Left Side: Visual or Embedded Player */}
-              <div className={`w-full ${isPlayingMedia && getEmbedMediaInfo(selectedItem.link) ? 'md:w-1/2 p-6 md:p-8' : 'md:w-2/5 p-8 md:p-12'} bg-ink/[0.02] relative flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-ink/5`}>
-                {(() => {
-                  const imgKey = getImageKey(selectedItem.id, selectedItem.imageUrl || selectedItem.link);
-                  const errorStage = brokenImages[imgKey] || 0;
-                  const resolvedSrc = getDisplayImageUrl(selectedItem.imageUrl, errorStage, selectedItem.link);
-                  const canShowImg = Boolean(resolvedSrc && errorStage < 2);
-                  const embedInfo = getEmbedMediaInfo(selectedItem.link);
-                  const isWidescreen =
-                    selectedItem.category === 'Video & Media' ||
-                    Boolean(extractYouTubeVideoId(selectedItem.imageUrl)) ||
-                    Boolean(extractYouTubeVideoId(selectedItem.link)) ||
-                    Boolean(extractVimeoVideoId(selectedItem.link));
-
-                  if (isPlayingMedia && embedInfo) {
-                    return (
-                      <div className="w-full space-y-3 relative z-10">
-                        <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-2xl border border-ink/10 bg-black">
-                          {embedInfo.provider === 'video' ? (
-                            <video src={embedInfo.embedUrl} controls autoPlay className="w-full h-full object-contain" />
-                          ) : (
-                            <iframe
-                              src={embedInfo.embedUrl}
-                              title={selectedItem.title}
-                              className="w-full h-full"
-                              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                              allowFullScreen
-                            />
-                          )}
-                        </div>
+              {selectedItem.isCollection && !activeCollectionSubItem ? (
+                <div className="w-full p-8 md:p-12 overflow-y-auto space-y-8">
+                  <div className="flex flex-wrap items-start justify-between gap-4 pr-12">
+                    <div>
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-accent/10 text-accent text-[10px] uppercase tracking-widest font-black mb-3">
+                        <Layers size={12} />
+                        <span>Samling · {selectedItem.collectionItems?.length || 0} titler</span>
                       </div>
-                    );
-                  }
-
-                  return (
-                    <>
-                      {canShowImg && (
-                        <div 
-                          className="absolute inset-0 opacity-20 blur-3xl scale-150 pointer-events-none"
-                          style={{ 
-                            backgroundImage: `url("${resolvedSrc}")`,
-                            backgroundPosition: 'center',
-                            backgroundSize: 'cover'
-                          }}
-                        />
+                      <h2 className="text-3xl md:text-5xl font-serif leading-tight">{selectedItem.title}</h2>
+                      {selectedItem.description && (
+                        <p className="mt-3 text-sm md:text-base text-ink/70 font-serif italic max-w-2xl">
+                          "{selectedItem.description}"
+                        </p>
                       )}
-
-                      <div
-                        onClick={() => {
-                          if (embedInfo) setIsPlayingMedia(true);
-                        }}
-                        className={`relative z-10 group/poster ${embedInfo ? 'cursor-pointer' : ''} ${
-                          isWidescreen
-                            ? 'w-full max-w-[340px] aspect-video rounded-2xl'
-                            : selectedItem.category === 'Apps' || selectedItem.category === 'Podcasts'
-                            ? 'w-48 md:w-full max-w-[240px] aspect-square rounded-[2.5rem]'
-                            : 'w-48 md:w-full max-w-[240px] aspect-[2/3] rounded-2xl'
-                        } overflow-hidden shadow-2xl border border-white/10`}
-                      >
-                        {canShowImg ? (
-                          <img
-                            src={resolvedSrc}
-                            alt={selectedItem.title}
-                            className="w-full h-full object-cover"
-                            referrerPolicy="no-referrer"
-                            onError={() => handleImageError(selectedItem.id, selectedItem.imageUrl || selectedItem.link)}
-                          />
-                        ) : (
-                          <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-surface">
-                            <div className="text-accent/20 mb-4">
-                              {getIcon(selectedItem.category)}
-                            </div>
-                            <h3 className="font-serif text-lg font-bold text-ink/80">{selectedItem.title}</h3>
-                          </div>
-                        )}
-                        {embedInfo && (
-                          <div className="absolute inset-0 bg-black/30 group-hover/poster:bg-black/45 transition-colors flex flex-col items-center justify-center gap-2">
-                            <div className="w-14 h-14 rounded-full bg-accent text-white flex items-center justify-center shadow-2xl group-hover/poster:scale-110 transition-transform">
-                              <Play size={22} className="fill-white ml-0.5" />
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </>
-                  );
-                })()}
-              </div>
-
-              {/* Right Side: Content */}
-              <div className="w-full md:w-3/5 p-8 md:p-14 flex flex-col justify-between overflow-y-auto">
-                <div className="space-y-8">
-                  <div>
-                    <div className="flex items-center space-x-2 text-accent text-[10px] uppercase tracking-[0.3em] font-black mb-4">
-                      {getIcon(selectedItem.category)}
-                      <span>{selectedItem.category}</span>
                     </div>
-                    <h2 className="text-3xl md:text-5xl font-serif leading-[1.1] tracking-tight mb-3">{selectedItem.title}</h2>
-                    <p className="text-sm md:text-base uppercase tracking-[0.2em] text-ink/40 font-black">{selectedItem.author}</p>
-                  </div>
 
-                  <div className="h-px w-16 bg-accent/20" />
-
-                  {selectedItem.description ? (
-                    <p className="text-ink/70 text-sm md:text-base leading-relaxed font-serif italic">
-                      "{selectedItem.description}"
-                    </p>
-                  ) : (
-                    <p className="text-ink/30 text-xs italic font-serif">No additional notes provided for this work.</p>
-                  )}
-                </div>
-
-                <div className="pt-12 mt-12 border-t border-ink/5 flex flex-wrap items-center justify-between gap-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    {(() => {
-                      const embedInfo = getEmbedMediaInfo(selectedItem.link);
-                      if (!embedInfo) return null;
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => setIsPlayingMedia((prev) => !prev)}
-                          className="inline-flex items-center space-x-2 px-6 py-4 rounded-2xl bg-accent text-white text-xs uppercase tracking-widest font-black shadow-lg shadow-accent/20 hover:opacity-90 transition-all"
-                        >
-                          <Play size={15} className="fill-white" />
-                          <span>{isPlayingMedia ? 'Hide Player' : 'Watch Here'}</span>
-                        </button>
-                      );
-                    })()}
-                    {selectedItem.link && (
-                      <a
-                        href={selectedItem.link}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className={`inline-flex items-center space-x-2 px-6 py-4 rounded-2xl text-xs uppercase tracking-widest font-black transition-all ${
-                          getEmbedMediaInfo(selectedItem.link)
-                            ? 'bg-paper border border-ink/10 hover:border-accent text-ink'
-                            : 'bg-accent text-white shadow-lg shadow-accent/20 hover:opacity-90'
-                        }`}
-                      >
-                        <span>
-                          {extractYouTubeVideoId(selectedItem.link)
-                            ? 'Watch on YouTube'
-                            : extractVimeoVideoId(selectedItem.link)
-                            ? 'Watch on Vimeo'
-                            : 'Explore Work'}
-                        </span>
-                        <ExternalLink size={16} />
-                      </a>
+                    {isAdmin && (
+                      <div className="flex items-center space-x-2">
+                        <Button
+                          variant="secondary"
+                          size="md"
+                          onClick={() => startEdit(selectedItem)}
+                          icon={Edit2}
+                          className="rounded-xl"
+                          title="Edit"
+                        />
+                        <Button
+                          variant="outline"
+                          size="md"
+                          onClick={() => setDeleteConfirmation(selectedItem.id)}
+                          icon={Trash2}
+                          className="rounded-xl text-red-500 border-red-500/20 hover:bg-red-500/10"
+                          title="Delete"
+                        />
+                      </div>
                     )}
                   </div>
 
-                  {isAdmin && (
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="secondary"
-                        size="md"
-                        onClick={() => startEdit(selectedItem)}
-                        icon={Edit2}
-                        className="rounded-xl"
-                        title="Edit"
-                      />
-                      <Button
-                        variant="outline"
-                        size="md"
-                        onClick={() => setDeleteConfirmation(selectedItem.id)}
-                        icon={Trash2}
-                        className="rounded-xl text-red-500 border-red-500/20 hover:bg-red-500/10"
-                        title="Delete"
-                      />
+                  {(!selectedItem.collectionItems || selectedItem.collectionItems.length === 0) ? (
+                    <div className="py-16 text-center rounded-2xl border border-dashed border-ink/15 text-ink/40 text-sm">
+                      Ingen elementer lagt til i denne samlingen ennå.
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest font-black text-ink/40 mb-4">
+                        Trykk på et cover for å se mer info
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-5">
+                        {selectedItem.collectionItems.map((sub, idx) => {
+                          const subId = sub.id || `${selectedItem.id}-sub-${idx}`;
+                          const imgKey = getImageKey(subId, sub.imageUrl || sub.link);
+                          const errorStage = brokenImages[imgKey] || 0;
+                          const resolvedSrc = getDisplayImageUrl(sub.imageUrl, errorStage, sub.link);
+                          return (
+                            <div
+                              key={subId}
+                              onClick={() => {
+                                setIsPlayingMedia(false);
+                                setActiveCollectionSubItem(sub);
+                              }}
+                              className="group/sub cursor-pointer flex flex-col"
+                            >
+                              <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden bg-paper border border-ink/10 shadow-sm group-hover/sub:shadow-xl group-hover/sub:border-accent/40 transition-all duration-300">
+                                {resolvedSrc && errorStage < 2 ? (
+                                  <img
+                                    src={resolvedSrc}
+                                    alt={sub.title}
+                                    className="w-full h-full object-cover group-hover/sub:scale-105 transition-transform duration-500"
+                                    referrerPolicy="no-referrer"
+                                    onError={() => handleImageError(subId, sub.imageUrl || sub.link)}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex flex-col items-center justify-center p-4 text-center bg-ink/[0.03]">
+                                    <div className="text-accent/30 mb-2">
+                                      {getIcon(sub.category || selectedItem.category)}
+                                    </div>
+                                    <span className="font-serif text-xs font-bold text-ink/70 line-clamp-3">{sub.title}</span>
+                                  </div>
+                                )}
+                                <div className="absolute top-2.5 left-2.5 z-10 px-2 py-0.5 rounded-full bg-black/65 backdrop-blur-md border border-white/10 text-white text-[7px] uppercase tracking-widest font-black flex items-center gap-1">
+                                  {getIcon(sub.category || selectedItem.category)}
+                                  <span>{sub.category || selectedItem.category}</span>
+                                </div>
+                                <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent opacity-0 group-hover/sub:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3.5">
+                                  <span className="text-white font-serif text-xs font-bold leading-snug line-clamp-2">{sub.title}</span>
+                                  {sub.author && (
+                                    <span className="text-white/60 text-[9px] uppercase tracking-wider mt-0.5 truncate">{sub.author}</span>
+                                  )}
+                                </div>
+                              </div>
+                              <h4 className="mt-2.5 font-serif text-xs md:text-sm font-medium text-ink/90 group-hover/sub:text-accent transition-colors truncate">
+                                {sub.title}
+                              </h4>
+                              <p className="text-[9px] uppercase tracking-widest text-ink/40 font-bold truncate">
+                                {sub.category || selectedItem.category}
+                                {sub.author ? ` · ${sub.author}` : ''}
+                              </p>
+                            </div>
+                          );
+                        })}
+                      </div>
                     </div>
                   )}
                 </div>
-              </div>
+              ) : (
+                (() => {
+                  const displayTarget = activeCollectionSubItem
+                    ? {
+                        id: activeCollectionSubItem.id || selectedItem.id,
+                        title: activeCollectionSubItem.title,
+                        author: activeCollectionSubItem.author || '',
+                        category: activeCollectionSubItem.category || selectedItem.category,
+                        description: activeCollectionSubItem.description || '',
+                        link: activeCollectionSubItem.link || '',
+                        imageUrl: activeCollectionSubItem.imageUrl || ''
+                      }
+                    : selectedItem;
+
+                  return (
+                    <>
+                      {/* Left Side: Visual or Embedded Player */}
+                      <div className={`w-full ${isPlayingMedia && getEmbedMediaInfo(displayTarget.link) ? 'md:w-1/2 p-6 md:p-8' : 'md:w-2/5 p-8 md:p-12'} bg-ink/[0.02] relative flex items-center justify-center overflow-hidden border-b md:border-b-0 md:border-r border-ink/5`}>
+                        {(() => {
+                          const imgKey = getImageKey(displayTarget.id, displayTarget.imageUrl || displayTarget.link);
+                          const errorStage = brokenImages[imgKey] || 0;
+                          const resolvedSrc = getDisplayImageUrl(displayTarget.imageUrl, errorStage, displayTarget.link);
+                          const canShowImg = Boolean(resolvedSrc && errorStage < 2);
+                          const embedInfo = getEmbedMediaInfo(displayTarget.link);
+                          const isWidescreen =
+                            displayTarget.category === 'Video & Media' ||
+                            Boolean(extractYouTubeVideoId(displayTarget.imageUrl)) ||
+                            Boolean(extractYouTubeVideoId(displayTarget.link)) ||
+                            Boolean(extractVimeoVideoId(displayTarget.link));
+
+                          if (isPlayingMedia && embedInfo) {
+                            return (
+                              <div className="w-full space-y-3 relative z-10">
+                                <div className="w-full aspect-video rounded-2xl overflow-hidden shadow-2xl border border-ink/10 bg-black">
+                                  {embedInfo.provider === 'video' ? (
+                                    <video src={embedInfo.embedUrl} controls autoPlay className="w-full h-full object-contain" />
+                                  ) : (
+                                    <iframe
+                                      src={embedInfo.embedUrl}
+                                      title={displayTarget.title}
+                                      className="w-full h-full"
+                                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                                      allowFullScreen
+                                    />
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <>
+                              {canShowImg && (
+                                <div 
+                                  className="absolute inset-0 opacity-20 blur-3xl scale-150 pointer-events-none"
+                                  style={{ 
+                                    backgroundImage: `url("${resolvedSrc}")`,
+                                    backgroundPosition: 'center',
+                                    backgroundSize: 'cover'
+                                  }}
+                                />
+                              )}
+
+                              <div
+                                onClick={() => {
+                                  if (embedInfo) setIsPlayingMedia(true);
+                                }}
+                                className={`relative z-10 group/poster ${embedInfo ? 'cursor-pointer' : ''} ${
+                                  isWidescreen
+                                    ? 'w-full max-w-[340px] aspect-video rounded-2xl'
+                                    : displayTarget.category === 'Apps' || displayTarget.category === 'Podcasts'
+                                    ? 'w-48 md:w-full max-w-[240px] aspect-square rounded-[2.5rem]'
+                                    : 'w-48 md:w-full max-w-[240px] aspect-[2/3] rounded-2xl'
+                                } overflow-hidden shadow-2xl border border-white/10`}
+                              >
+                                {canShowImg ? (
+                                  <img
+                                    src={resolvedSrc}
+                                    alt={displayTarget.title}
+                                    className="w-full h-full object-cover"
+                                    referrerPolicy="no-referrer"
+                                    onError={() => handleImageError(displayTarget.id, displayTarget.imageUrl || displayTarget.link)}
+                                  />
+                                ) : (
+                                  <div className="w-full h-full flex flex-col items-center justify-center p-8 text-center bg-surface">
+                                    <div className="text-accent/20 mb-4">
+                                      {getIcon(displayTarget.category)}
+                                    </div>
+                                    <h3 className="font-serif text-lg font-bold text-ink/80">{displayTarget.title}</h3>
+                                  </div>
+                                )}
+                                {embedInfo && (
+                                  <div className="absolute inset-0 bg-black/30 group-hover/poster:bg-black/45 transition-colors flex flex-col items-center justify-center gap-2">
+                                    <div className="w-14 h-14 rounded-full bg-accent text-white flex items-center justify-center shadow-2xl group-hover/poster:scale-110 transition-transform">
+                                      <Play size={22} className="fill-white ml-0.5" />
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Right Side: Content */}
+                      <div className="w-full md:w-3/5 p-8 md:p-14 flex flex-col justify-between overflow-y-auto">
+                        <div className="space-y-8">
+                          <div>
+                            {activeCollectionSubItem && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsPlayingMedia(false);
+                                  setActiveCollectionSubItem(null);
+                                }}
+                                className="inline-flex items-center gap-2 text-[10px] uppercase tracking-widest font-black text-accent hover:opacity-80 mb-4"
+                              >
+                                <ArrowLeft size={13} />
+                                <span>Tilbake til {selectedItem.title}</span>
+                              </button>
+                            )}
+                            <div className="flex items-center space-x-2 text-accent text-[10px] uppercase tracking-[0.3em] font-black mb-4">
+                              {getIcon(displayTarget.category)}
+                              <span>{displayTarget.category}</span>
+                            </div>
+                            <h2 className="text-3xl md:text-5xl font-serif leading-[1.1] tracking-tight mb-3">{displayTarget.title}</h2>
+                            {displayTarget.author && (
+                              <p className="text-sm md:text-base uppercase tracking-[0.2em] text-ink/40 font-black">{displayTarget.author}</p>
+                            )}
+                          </div>
+
+                          <div className="h-px w-16 bg-accent/20" />
+
+                          {displayTarget.description ? (
+                            <p className="text-ink/70 text-sm md:text-base leading-relaxed font-serif italic">
+                              "{displayTarget.description}"
+                            </p>
+                          ) : (
+                            <p className="text-ink/30 text-xs italic font-serif">No additional notes provided for this work.</p>
+                          )}
+                        </div>
+
+                        <div className="pt-12 mt-12 border-t border-ink/5 flex flex-wrap items-center justify-between gap-4">
+                          <div className="flex flex-wrap items-center gap-3">
+                            {(() => {
+                              const embedInfo = getEmbedMediaInfo(displayTarget.link);
+                              if (!embedInfo) return null;
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={() => setIsPlayingMedia((prev) => !prev)}
+                                  className="inline-flex items-center space-x-2 px-6 py-4 rounded-2xl bg-accent text-white text-xs uppercase tracking-widest font-black shadow-lg shadow-accent/20 hover:opacity-90 transition-all"
+                                >
+                                  <Play size={15} className="fill-white" />
+                                  <span>{isPlayingMedia ? 'Hide Player' : 'Watch Here'}</span>
+                                </button>
+                              );
+                            })()}
+                            {displayTarget.link && (
+                              <a
+                                href={displayTarget.link}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`inline-flex items-center space-x-2 px-6 py-4 rounded-2xl text-xs uppercase tracking-widest font-black transition-all ${
+                                  getEmbedMediaInfo(displayTarget.link)
+                                    ? 'bg-paper border border-ink/10 hover:border-accent text-ink'
+                                    : 'bg-accent text-white shadow-lg shadow-accent/20 hover:opacity-90'
+                                }`}
+                              >
+                                <span>
+                                  {extractYouTubeVideoId(displayTarget.link)
+                                    ? 'Watch on YouTube'
+                                    : extractVimeoVideoId(displayTarget.link)
+                                    ? 'Watch on Vimeo'
+                                    : 'Explore Work'}
+                                </span>
+                                <ExternalLink size={16} />
+                              </a>
+                            )}
+                          </div>
+
+                          {isAdmin && !activeCollectionSubItem && (
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="secondary"
+                                size="md"
+                                onClick={() => startEdit(selectedItem)}
+                                icon={Edit2}
+                                className="rounded-xl"
+                                title="Edit"
+                              />
+                              <Button
+                                variant="outline"
+                                size="md"
+                                onClick={() => setDeleteConfirmation(selectedItem.id)}
+                                icon={Trash2}
+                                className="rounded-xl text-red-500 border-red-500/20 hover:bg-red-500/10"
+                                title="Delete"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()
+              )}
             </motion.div>
           </div>
         )}
@@ -1170,8 +1415,36 @@ export default function Recommendations() {
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
               className="relative w-full max-w-2xl bg-surface border border-ink/10 rounded-[2.5rem] p-8 md:p-12 overflow-hidden shadow-2xl z-10 my-8 max-h-[90vh] overflow-y-auto"
             >
-              <div className="flex justify-between items-center mb-8">
-                <h2 className="text-3xl font-serif">{isEditing ? 'Edit Recommendation' : 'Add Recommendation'}</h2>
+              <div className="flex justify-between items-center mb-8 gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h2 className="text-3xl font-serif">
+                    {isEditing
+                      ? formData.isCollection
+                        ? 'Rediger samling'
+                        : 'Edit Recommendation'
+                      : formData.isCollection
+                      ? 'Ny samling'
+                      : 'Add Recommendation'}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        isCollection: !prev.isCollection,
+                        collectionItems: prev.collectionItems || []
+                      }))
+                    }
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] uppercase tracking-widest font-black border transition-all ${
+                      formData.isCollection
+                        ? 'bg-accent text-white border-accent shadow-sm'
+                        : 'bg-paper border-ink/15 text-ink/60 hover:text-ink hover:border-ink/30'
+                    }`}
+                  >
+                    <Layers size={12} />
+                    <span>{formData.isCollection ? 'Samling aktiv' : '+ Legg til som samling'}</span>
+                  </button>
+                </div>
                 <Button 
                   variant="ghost" 
                   size="sm" 
@@ -1191,8 +1464,13 @@ export default function Recommendations() {
                 </div>
               )}
 
-              {!isEditing && (
+              {(!isEditing || formData.isCollection) && (
                 <div className="mb-10 space-y-6">
+                  {formData.isCollection && (
+                    <p className="text-[10px] uppercase tracking-widest font-black text-accent">
+                      Søk opp serier, filmer eller bøker for å legge dem til i samlingen:
+                    </p>
+                  )}
                   <div className="flex flex-wrap gap-2">
                     {(['Books', 'Movies', 'Shows', 'Video & Media', 'Apps', 'Podcasts'] as const).map((type) => (
                       <Button
@@ -1201,7 +1479,9 @@ export default function Recommendations() {
                         size="sm"
                         onClick={() => {
                           setSearchType(type);
-                          setFormData(prev => ({ ...prev, category: type }));
+                          if (!formData.isCollection) {
+                            setFormData(prev => ({ ...prev, category: type }));
+                          }
                           setSearchResults([]);
                         }}
                         className="rounded-xl text-[9px] uppercase tracking-widest font-black"
@@ -1263,45 +1543,218 @@ export default function Recommendations() {
               <form onSubmit={handleSave} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">Title</label>
+                    <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">
+                      {formData.isCollection ? 'Navn på samling (f.eks. Star Trek)' : 'Title'}
+                    </label>
                     <input
                       type="text"
                       required
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                      placeholder={formData.isCollection ? 'Star Trek' : ''}
                       className="w-full px-5 py-3 bg-paper border border-ink/10 rounded-xl text-sm focus:outline-none focus:border-accent"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">Author / Creator / Year</label>
-                    <input
-                      type="text"
-                      required
-                      value={formData.author}
-                      onChange={(e) => setFormData({ ...formData, author: e.target.value })}
-                      className="w-full px-5 py-3 bg-paper border border-ink/10 rounded-xl text-sm focus:outline-none focus:border-accent"
-                    />
-                  </div>
+                  {!formData.isCollection ? (
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">Author / Creator / Year</label>
+                      <input
+                        type="text"
+                        required
+                        value={formData.author}
+                        onChange={(e) => setFormData({ ...formData, author: e.target.value })}
+                        className="w-full px-5 py-3 bg-paper border border-ink/10 rounded-xl text-sm focus:outline-none focus:border-accent"
+                      />
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">Category</label>
+                      <select
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+                        className="w-full px-5 py-3 bg-paper border border-ink/10 rounded-xl text-sm focus:outline-none focus:border-accent appearance-none"
+                      >
+                        <option value="Books">Books</option>
+                        <option value="Movies">Movies</option>
+                        <option value="Shows">Shows</option>
+                        <option value="Video & Media">Video & Media</option>
+                        <option value="Apps">Apps</option>
+                        <option value="Podcasts">Podcasts</option>
+                      </select>
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">Category</label>
-                    <select
-                      value={formData.category}
-                      onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
-                      className="w-full px-5 py-3 bg-paper border border-ink/10 rounded-xl text-sm focus:outline-none focus:border-accent appearance-none"
-                    >
-                      <option value="Books">Books</option>
-                      <option value="Movies">Movies</option>
-                      <option value="Shows">Shows</option>
-                      <option value="Video & Media">Video & Media</option>
-                      <option value="Apps">Apps</option>
-                      <option value="Podcasts">Podcasts</option>
-                    </select>
+                {formData.isCollection && (
+                  <div className="p-4 rounded-2xl bg-paper/70 border border-ink/10 space-y-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-[10px] uppercase tracking-widest font-black text-ink/60">
+                        Elementer i samlingen ({formData.collectionItems?.length || 0})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddingManualSubItem(prev => !prev)}
+                        className="text-[10px] uppercase tracking-widest font-black text-accent hover:underline flex items-center gap-1"
+                      >
+                        <Plus size={12} />
+                        <span>{isAddingManualSubItem ? 'Skjul manuelt felt' : 'Legg til manuelt'}</span>
+                      </button>
+                    </div>
+
+                    {isAddingManualSubItem && (
+                      <div className="p-3.5 rounded-xl bg-surface border border-ink/10 space-y-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          <input
+                            type="text"
+                            value={manualSubItem.title || ''}
+                            onChange={(e) => setManualSubItem(prev => ({ ...prev, title: e.target.value }))}
+                            placeholder="Tittel (f.eks. Star Trek: The Next Generation)"
+                            className="px-3.5 py-2 bg-paper border border-ink/10 rounded-lg text-xs focus:outline-none focus:border-accent"
+                          />
+                          <select
+                            value={manualSubItem.category || searchType}
+                            onChange={(e) => setManualSubItem(prev => ({ ...prev, category: e.target.value as any }))}
+                            className="px-3.5 py-2 bg-paper border border-ink/10 rounded-lg text-xs focus:outline-none focus:border-accent"
+                          >
+                            <option value="Books">Books</option>
+                            <option value="Movies">Movies</option>
+                            <option value="Shows">Shows</option>
+                            <option value="Video & Media">Video & Media</option>
+                            <option value="Apps">Apps</option>
+                            <option value="Podcasts">Podcasts</option>
+                          </select>
+                          <input
+                            type="text"
+                            value={manualSubItem.author || ''}
+                            onChange={(e) => setManualSubItem(prev => ({ ...prev, author: e.target.value }))}
+                            placeholder="År / Skaper (valgfritt)"
+                            className="px-3.5 py-2 bg-paper border border-ink/10 rounded-lg text-xs focus:outline-none focus:border-accent"
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                          <input
+                            type="text"
+                            value={manualSubItem.imageUrl || ''}
+                            onChange={(e) => setManualSubItem(prev => ({ ...prev, imageUrl: e.target.value }))}
+                            placeholder="Cover bilde-URL"
+                            className="px-3.5 py-2 bg-paper border border-ink/10 rounded-lg text-xs focus:outline-none focus:border-accent"
+                          />
+                          <input
+                            type="text"
+                            value={manualSubItem.link || ''}
+                            onChange={(e) => setManualSubItem(prev => ({ ...prev, link: e.target.value }))}
+                            placeholder="Lenke (valgfritt)"
+                            className="px-3.5 py-2 bg-paper border border-ink/10 rounded-lg text-xs focus:outline-none focus:border-accent"
+                          />
+                        </div>
+                        <textarea
+                          rows={2}
+                          value={manualSubItem.description || ''}
+                          onChange={(e) => setManualSubItem(prev => ({ ...prev, description: e.target.value }))}
+                          placeholder="Beskrivelse / notat om denne tittelen..."
+                          className="w-full px-3.5 py-2 bg-paper border border-ink/10 rounded-lg text-xs focus:outline-none focus:border-accent resize-none"
+                        />
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!manualSubItem.title?.trim()) return;
+                              const newSub: CollectionSubItem = {
+                                id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+                                title: manualSubItem.title.trim(),
+                                author: manualSubItem.author?.trim() || '',
+                                category: manualSubItem.category || searchType || formData.category || 'Shows',
+                                description: manualSubItem.description?.trim() || '',
+                                imageUrl: normalizeImageUrl(manualSubItem.imageUrl),
+                                link: manualSubItem.link?.trim() || ''
+                              };
+                              setFormData(prev => ({
+                                ...prev,
+                                imageUrl: prev.imageUrl || newSub.imageUrl || '',
+                                collectionItems: [...(prev.collectionItems || []), newSub]
+                              }));
+                              setManualSubItem({ title: '', author: '', category: searchType, description: '', imageUrl: '', link: '' });
+                              setIsAddingManualSubItem(false);
+                            }}
+                            className="px-4 py-2 rounded-lg bg-accent text-white text-[10px] uppercase tracking-widest font-black"
+                          >
+                            Legg til i samling
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {(!formData.collectionItems || formData.collectionItems.length === 0) ? (
+                      <p className="text-xs text-ink/40 italic py-2">
+                        Velg kategori (f.eks. Movies, deretter Shows) i søkefeltet over for å legge til forskjellige typer i samme samling.
+                      </p>
+                    ) : (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-60 overflow-y-auto p-1">
+                        {formData.collectionItems.map((sub, i) => (
+                          <div key={sub.id || i} className="relative group flex items-center gap-2.5 p-2 rounded-xl bg-surface border border-ink/10">
+                            {sub.imageUrl ? (
+                              <img src={sub.imageUrl} alt={sub.title} className="w-10 h-14 object-cover rounded-lg flex-shrink-0" referrerPolicy="no-referrer" />
+                            ) : (
+                              <div className="w-10 h-14 rounded-lg bg-ink/5 flex items-center justify-center flex-shrink-0 text-ink/30">
+                                {getIcon(sub.category || formData.category || 'Shows')}
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="text-xs font-serif font-bold truncate">{sub.title}</p>
+                              <p className="text-[8px] uppercase tracking-wider text-accent font-black truncate">
+                                {sub.category || formData.category}
+                              </p>
+                              {sub.author && <p className="text-[9px] uppercase tracking-wider text-ink/40 truncate">{sub.author}</p>}
+                              <button
+                                type="button"
+                                onClick={() => setFormData(prev => ({ ...prev, imageUrl: sub.imageUrl || prev.imageUrl }))}
+                                className="text-[8px] uppercase tracking-widest text-accent font-black hover:underline mt-1 block"
+                              >
+                                Bruk som forside
+                              </button>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setFormData(prev => ({
+                                  ...prev,
+                                  collectionItems: (prev.collectionItems || []).filter((_, idx) => idx !== i)
+                                }))
+                              }
+                              className="p-1 text-ink/30 hover:text-red-500 transition-colors"
+                              title="Fjern fra samling"
+                            >
+                              <X size={14} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">Cover Image URL</label>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {!formData.isCollection && (
+                    <div className="space-y-2">
+                      <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">Category</label>
+                      <select
+                        value={formData.category}
+                        onChange={(e) => setFormData({ ...formData, category: e.target.value as any })}
+                        className="w-full px-5 py-3 bg-paper border border-ink/10 rounded-xl text-sm focus:outline-none focus:border-accent appearance-none"
+                      >
+                        <option value="Books">Books</option>
+                        <option value="Movies">Movies</option>
+                        <option value="Shows">Shows</option>
+                        <option value="Video & Media">Video & Media</option>
+                        <option value="Apps">Apps</option>
+                        <option value="Podcasts">Podcasts</option>
+                      </select>
+                    </div>
+                  )}
+                  <div className={`space-y-2 ${formData.isCollection ? 'md:col-span-2' : ''}`}>
+                    <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">
+                      {formData.isCollection ? 'Forside-cover URL for samlingen (velges automatisk fra første element hvis tom)' : 'Cover Image URL'}
+                    </label>
                     <input
                       type="text"
                       value={formData.imageUrl}
@@ -1312,15 +1765,17 @@ export default function Recommendations() {
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">External Link</label>
-                  <input
-                    type="url"
-                    value={formData.link}
-                    onChange={(e) => setFormData({ ...formData, link: e.target.value })}
-                    className="w-full px-5 py-3 bg-paper border border-ink/10 rounded-xl text-sm focus:outline-none focus:border-accent"
-                  />
-                </div>
+                {!formData.isCollection && (
+                  <div className="space-y-2">
+                    <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">External Link</label>
+                    <input
+                      type="url"
+                      value={formData.link}
+                      onChange={(e) => setFormData({ ...formData, link: e.target.value })}
+                      className="w-full px-5 py-3 bg-paper border border-ink/10 rounded-xl text-sm focus:outline-none focus:border-accent"
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-[10px] uppercase tracking-widest text-ink/40 font-black">Personal Note / Description</label>
@@ -1340,7 +1795,7 @@ export default function Recommendations() {
                     icon={Save}
                     className="w-full py-4 rounded-2xl shadow-xl shadow-accent/20"
                   >
-                    {isEditing ? 'Update Recommendation' : 'Save to Library'}
+                    {isEditing ? 'Update Recommendation' : formData.isCollection ? 'Lagre samling' : 'Save to Library'}
                   </Button>
                 </div>
               </form>
