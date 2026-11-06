@@ -142,7 +142,7 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
               to="/" 
               className={`text-xl font-serif tracking-widest uppercase transition-all duration-500 ${isSectionHovered ? 'text-accent scale-110 shadow-sm' : 'text-ink'}`}
             >
-              {(profile.name || 'Kianosh F. Solheim').split(' ').map(n => n[0]).join('. ')}
+              K.F. Solheim
             </Link>
           </div>
           
