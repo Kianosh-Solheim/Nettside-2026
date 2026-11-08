@@ -262,7 +262,7 @@ export default function Writings() {
                   className="group"
                 >
                   <Link to={`/writings/${post.slug}`} className="block space-y-6">
-                    <div className="aspect-[4/3] rounded-[32px] overflow-hidden bg-ink/5 border border-ink/5 relative">
+                    <div className="aspect-[4/3] rounded-[28px] overflow-hidden bg-surface neu-card relative group-hover:scale-[1.02] transition-all duration-500">
                       {post.imageUrl ? (
                         <img 
                           src={post.imageUrl} 
@@ -275,7 +275,7 @@ export default function Writings() {
                         </div>
                       )}
                       <div className="absolute top-6 left-6">
-                        <div className="px-3 py-1 bg-surface/90 backdrop-blur-md rounded-full text-[8px] uppercase tracking-widest font-black text-ink shadow-sm">
+                        <div className="px-3.5 py-1.5 bg-surface/90 backdrop-blur-md rounded-full text-[8px] uppercase tracking-widest font-black text-ink neu-raised-sm">
                           {post.tags?.[0] || 'Writing'}
                         </div>
                       </div>

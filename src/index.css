@@ -1,5 +1,6 @@
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Montserrat:wght@100;200;300;400;500;600;700;800;900&display=swap');
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 @plugin "@tailwindcss/typography";
 
 @theme {
@@ -26,30 +27,137 @@
   .custom-scrollbar::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.2);
   }
+
+  /* Neumorphic Shadow & Surface Utilities */
+  .neu-raised {
+    box-shadow: 7px 7px 18px var(--neu-shadow-dark), -7px -7px 18px var(--neu-shadow-light);
+    border: 1px solid rgba(var(--ink-rgb), 0.04);
+  }
+
+  .neu-raised-sm {
+    box-shadow: 3px 3px 8px var(--neu-shadow-dark-sm), -3px -3px 8px var(--neu-shadow-light-sm);
+    border: 1px solid rgba(var(--ink-rgb), 0.04);
+  }
+
+  .neu-raised-lg {
+    box-shadow: 14px 14px 32px var(--neu-shadow-dark), -14px -14px 32px var(--neu-shadow-light);
+    border: 1px solid rgba(var(--ink-rgb), 0.05);
+  }
+
+  .neu-inset {
+    box-shadow: inset 4px 4px 8px var(--neu-inset-dark), inset -4px -4px 8px var(--neu-inset-light);
+    border: 1px solid rgba(var(--ink-rgb), 0.04);
+  }
+
+  .neu-inset-sm {
+    box-shadow: inset 2px 2px 5px var(--neu-inset-dark), inset -2px -2px 5px var(--neu-inset-light);
+    border: 1px solid rgba(var(--ink-rgb), 0.04);
+  }
+
+  /* Neumorphic Curvature & Surface Utilities */
+  .neu-convex {
+    background: linear-gradient(145deg, var(--neu-convex-from), var(--neu-convex-to));
+  }
+
+  .neu-concave {
+    background: linear-gradient(145deg, var(--neu-concave-from), var(--neu-concave-to));
+  }
+
+  .neu-accent-convex {
+    background: linear-gradient(145deg, var(--neu-accent-convex-from), var(--neu-accent-convex-to));
+  }
+
+  .neu-accent-concave {
+    background: linear-gradient(145deg, var(--neu-accent-concave-from), var(--neu-accent-concave-to));
+  }
+
+  .neu-button {
+    background-color: var(--surface);
+    box-shadow: 4px 4px 10px var(--neu-shadow-dark-sm), -4px -4px 10px var(--neu-shadow-light-sm);
+    border: 1px solid rgba(var(--ink-rgb), 0.04);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .neu-button:hover {
+    box-shadow: 6px 6px 14px var(--neu-shadow-dark), -6px -6px 14px var(--neu-shadow-light);
+    transform: translateY(-1px);
+  }
+
+  .neu-button:active {
+    box-shadow: inset 3px 3px 6px var(--neu-inset-dark), inset -3px -3px 6px var(--neu-inset-light);
+    transform: translateY(0);
+  }
+
+  .neu-card {
+    background-color: var(--surface);
+    box-shadow: 8px 8px 20px var(--neu-shadow-dark), -8px -8px 20px var(--neu-shadow-light);
+    border: 1px solid rgba(var(--ink-rgb), 0.04);
+    transition: box-shadow 0.3s ease, transform 0.3s ease, border-color 0.3s ease;
+  }
+
+  .neu-card:hover {
+    box-shadow: 12px 12px 28px var(--neu-shadow-dark), -12px -12px 28px var(--neu-shadow-light);
+  }
 }
 
 :root {
   color-scheme: light;
-  --paper: #f5f2ed;
-  --paper-rgb: 245, 242, 237;
-  --surface: #ffffff;
-  --surface-rgb: 255, 255, 255;
+  --paper: #ece7de;
+  --paper-rgb: 236, 231, 222;
+  --surface: #f2ede4;
+  --surface-rgb: 242, 237, 228;
   --ink: #1a1a1a;
   --ink-rgb: 26, 26, 26;
   --accent: #e31c28;
   --accent-rgb: 227, 28, 40;
+
+  /* Neumorphic Lighting - Light Mode */
+  --neu-shadow-dark: rgba(162, 151, 134, 0.45);
+  --neu-shadow-light: rgba(255, 255, 255, 0.95);
+  --neu-shadow-dark-sm: rgba(162, 151, 134, 0.35);
+  --neu-shadow-light-sm: rgba(255, 255, 255, 0.85);
+  --neu-inset-dark: rgba(162, 151, 134, 0.38);
+  --neu-inset-light: rgba(255, 255, 255, 0.95);
+
+  /* 145-degree Convex & Concave Curvature - Light Mode */
+  --neu-convex-from: #f8f4ec;
+  --neu-convex-to: #e6e0d6;
+  --neu-concave-from: #e6e0d6;
+  --neu-concave-to: #f8f4ec;
+  --neu-accent-convex-from: #f02d39;
+  --neu-accent-convex-to: #cc1420;
+  --neu-accent-concave-from: #cc1420;
+  --neu-accent-concave-to: #f02d39;
 }
 
 .dark {
   color-scheme: dark;
-  --paper: #121212;
-  --paper-rgb: 18, 18, 18;
-  --surface: #1e1e1e;
-  --surface-rgb: 30, 30, 30;
+  --paper: #141619;
+  --paper-rgb: 20, 22, 25;
+  --surface: #1a1d22;
+  --surface-rgb: 26, 29, 34;
   --ink: #e5e5e5;
   --ink-rgb: 229, 229, 229;
   --accent: #e31c28;
   --accent-rgb: 227, 28, 40;
+
+  /* Neumorphic Lighting - Dark Mode */
+  --neu-shadow-dark: rgba(0, 0, 0, 0.75);
+  --neu-shadow-light: rgba(255, 255, 255, 0.05);
+  --neu-shadow-dark-sm: rgba(0, 0, 0, 0.58);
+  --neu-shadow-light-sm: rgba(255, 255, 255, 0.04);
+  --neu-inset-dark: rgba(0, 0, 0, 0.82);
+  --neu-inset-light: rgba(255, 255, 255, 0.04);
+
+  /* 145-degree Convex & Concave Curvature - Dark Mode */
+  --neu-convex-from: #21252b;
+  --neu-convex-to: #15181c;
+  --neu-concave-from: #15181c;
+  --neu-concave-to: #21252b;
+  --neu-accent-convex-from: #f02d39;
+  --neu-accent-convex-to: #cc1420;
+  --neu-accent-concave-from: #cc1420;
+  --neu-accent-concave-to: #f02d39;
 }
 
 *:focus-visible {
@@ -144,7 +252,7 @@ html.retro .lucide {
   stroke-width: 2 !important;
 }
 
-html.retro [class*="blur"], html.retro .shadow-accent\/20:not(button):not(a), html.retro [class*="shadow"]:not(button):not(a):not(nav):not(footer) {
+html.retro [class*="blur"], html.retro .shadow-accent\/20:not(button):not(a), html.retro [class*="shadow"]:not(button):not(a):not(nav):not(footer), html.retro .neu-raised, html.retro .neu-raised-sm, html.retro .neu-raised-lg, html.retro .neu-inset, html.retro .neu-inset-sm, html.retro .neu-button, html.retro .neu-card, html.retro .neu-convex, html.retro .neu-concave, html.retro .neu-accent-convex, html.retro .neu-accent-concave {
   box-shadow: none !important;
   background: none !important;
   backdrop-filter: none !important;

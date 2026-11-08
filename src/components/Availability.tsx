@@ -51,9 +51,9 @@ export default function Availability() {
           initial={{ opacity: 0, scale: 0.98 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ delay: 0.3, duration: 0.6 }}
-          className="bg-surface rounded-none sm:rounded-[48px] border-y sm:border border-ink/5 p-0 sm:p-8 shadow-xl shadow-ink/5 overflow-hidden ring-1 ring-ink/5"
+          className="bg-surface rounded-none sm:rounded-[40px] p-0 sm:p-8 neu-card overflow-hidden"
         >
-          <div className="h-[75vh] sm:h-auto sm:aspect-video w-full rounded-none sm:rounded-[32px] overflow-hidden bg-ink/[0.02] relative">
+          <div className="h-[75vh] sm:h-auto sm:aspect-video w-full rounded-none sm:rounded-[28px] overflow-hidden bg-paper/70 neu-inset-sm relative">
             <div className="absolute inset-0 flex items-center justify-center -z-10">
               <div className="flex flex-col items-center gap-4 text-ink/20">
                 <Calendar size={48} className="animate-pulse" />

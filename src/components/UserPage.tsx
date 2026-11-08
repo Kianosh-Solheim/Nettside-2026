@@ -209,7 +209,7 @@ const UserPage = () => {
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-6 mb-8">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-full bg-ink/5 flex items-center justify-center">
+            <div className="w-16 h-16 rounded-full bg-surface neu-raised flex items-center justify-center border border-ink/5">
               <UserIcon className="text-ink/40" size={32} />
             </div>
             <div>
@@ -253,7 +253,7 @@ const UserPage = () => {
                       placeholder="Email"
                       value={contactForm.email}
                       onChange={(e) => setContactForm({ ...contactForm, email: e.target.value })}
-                      className="w-full p-3 rounded-xl border border-ink/10 bg-transparent focus:ring-1 focus:ring-accent outline-none transition-all text-sm text-ink"
+                      className="w-full p-3 rounded-xl border border-ink/10 bg-paper neu-inset-sm focus:ring-1 focus:ring-accent outline-none transition-all text-sm text-ink"
                     />
                   </div>
                   <div className="space-y-1">
@@ -263,7 +263,7 @@ const UserPage = () => {
                       placeholder="Phone"
                       value={contactForm.phone}
                       onChange={(e) => setContactForm({ ...contactForm, phone: e.target.value })}
-                      className="w-full p-3 rounded-xl border border-ink/10 bg-transparent focus:ring-1 focus:ring-accent outline-none transition-all text-sm text-ink"
+                      className="w-full p-3 rounded-xl border border-ink/10 bg-paper neu-inset-sm focus:ring-1 focus:ring-accent outline-none transition-all text-sm text-ink"
                     />
                   </div>
                   <div className="space-y-1">
@@ -273,7 +273,7 @@ const UserPage = () => {
                       placeholder="Address"
                       value={contactForm.address}
                       onChange={(e) => setContactForm({ ...contactForm, address: e.target.value })}
-                      className="w-full p-3 rounded-xl border border-ink/10 bg-transparent focus:ring-1 focus:ring-accent outline-none transition-all text-sm text-ink"
+                      className="w-full p-3 rounded-xl border border-ink/10 bg-paper neu-inset-sm focus:ring-1 focus:ring-accent outline-none transition-all text-sm text-ink"
                     />
                   </div>
                   <div className="space-y-1">
@@ -282,7 +282,7 @@ const UserPage = () => {
                       placeholder="Bio"
                       value={contactForm.bio}
                       onChange={(e) => setContactForm({ ...contactForm, bio: e.target.value })}
-                      className="w-full p-3 rounded-xl border border-ink/10 bg-transparent h-24 focus:ring-1 focus:ring-accent outline-none transition-all resize-none text-sm text-ink"
+                      className="w-full p-3 rounded-xl border border-ink/10 bg-paper neu-inset-sm h-24 focus:ring-1 focus:ring-accent outline-none transition-all resize-none text-sm text-ink"
                     />
                   </div>
                 </div>
@@ -300,7 +300,7 @@ const UserPage = () => {
                     <MapPin size={18} className="text-ink/30" />
                     <span className="text-sm">{pageData?.contactInfo.address || 'No address provided'}</span>
                   </div>
-                  <div className="p-4 bg-ink/5 rounded-2xl border border-ink/5">
+                  <div className="p-4 bg-surface neu-inset-sm rounded-2xl border border-ink/5">
                     <p className="text-sm italic text-ink/50 leading-relaxed">
                       {pageData?.contactInfo.bio || 'No bio provided'}
                     </p>
@@ -329,7 +329,7 @@ const UserPage = () => {
                   variant={isAddingMeeting ? "ghost" : "primary"}
                   size="sm"
                   magnetic={true}
-                  className={`shadow-lg ${isAddingMeeting ? 'bg-ink/10 text-ink' : 'bg-accent text-paper shadow-accent/20'}`}
+                  className={`shadow-lg ${isAddingMeeting ? 'bg-surface neu-inset-sm text-ink' : 'bg-accent text-white'}`}
                   icon={isAddingMeeting ? X : Plus}
                 />
               )}
@@ -343,7 +343,7 @@ const UserPage = () => {
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="p-4 bg-ink/5 rounded-2xl border border-ink/5 space-y-4 mb-6">
+                  <div className="p-5 bg-surface neu-raised rounded-2xl border border-ink/5 space-y-4 mb-6">
                     <h3 className="text-xs font-serif font-bold text-accent uppercase tracking-widest">
                       {editingMeetingIndex !== null ? 'Edit Meeting' : 'Schedule New Meeting'}
                     </h3>
@@ -394,7 +394,7 @@ const UserPage = () => {
                   const canRespond = !isSuggestedByMe && meeting.status === 'pending';
 
                   return (
-                    <div key={idx} className="p-4 border border-ink/5 rounded-2xl relative group hover:bg-ink/5 transition-colors">
+                    <div key={idx} className="p-4 bg-surface neu-raised-sm border border-ink/5 rounded-2xl relative group hover:neu-button transition-all">
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h3 className="font-semibold text-ink">{meeting.title}</h3>

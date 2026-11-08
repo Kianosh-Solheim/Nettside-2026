@@ -60,7 +60,7 @@ export default function Home() {
             size="lg"
             icon={ArrowRight}
             magnetic={true}
-            className="w-full sm:w-auto min-w-[220px] shadow-[0_20px_40px_-15px_rgba(var(--accent-rgb),0.3)]"
+            className="w-full sm:w-auto min-w-[220px] rounded-2xl"
           >
             View CV
           </Button>
@@ -69,7 +69,7 @@ export default function Home() {
             variant="outline"
             size="lg"
             magnetic={true}
-            className="w-full sm:w-auto min-w-[220px]"
+            className="w-full sm:w-auto min-w-[220px] rounded-2xl"
           >
             Recommendations
           </Button>
@@ -80,7 +80,7 @@ export default function Home() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ delay: 0.6, duration: 0.6 }}
-        className="absolute bottom-12 left-1/2 -translate-x-1/2 flex items-center space-x-4"
+        className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center space-x-3.5"
       >
         {socials.length > 0 ? (
           socials.map((social) => (
@@ -89,12 +89,12 @@ export default function Home() {
               href={social.href} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-ink/20 hover:text-accent transition-all duration-500 block p-4"
-              whileHover={{ scale: 1.2, rotate: 5 }}
-              whileTap={{ scale: 0.9 }}
+              className="w-11 h-11 rounded-full bg-surface neu-raised-sm hover:neu-button active:neu-inset-sm flex items-center justify-center text-ink/50 hover:text-accent border border-ink/5 transition-all duration-300"
+              whileHover={{ scale: 1.1, rotate: 2 }}
+              whileTap={{ scale: 0.94 }}
               aria-label={social.label}
             >
-              {getSocialIcon(social.icon)}
+              {getSocialIcon(social.icon, 18)}
             </motion.a>
           ))
         ) : (
@@ -102,12 +102,12 @@ export default function Home() {
             href="https://linkedin.com/in/kianoshsolheim" 
             target="_blank" 
             rel="noopener noreferrer"
-            className="text-ink/20 hover:text-accent transition-all duration-500 block p-4"
-            whileHover={{ scale: 1.2, rotate: 5 }}
-            whileTap={{ scale: 0.9 }}
+            className="w-11 h-11 rounded-full bg-surface neu-raised-sm hover:neu-button active:neu-inset-sm flex items-center justify-center text-ink/50 hover:text-accent border border-ink/5 transition-all duration-300"
+            whileHover={{ scale: 1.1, rotate: 2 }}
+            whileTap={{ scale: 0.94 }}
             aria-label="LinkedIn"
           >
-            <Linkedin size={24} strokeWidth={1.5} />
+            <Linkedin size={18} strokeWidth={1.5} />
           </motion.a>
         )}
       </motion.div>

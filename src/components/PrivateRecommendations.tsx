@@ -1939,9 +1939,9 @@ export default function PrivateRecommendations({
             isWidescreen
               ? 'aspect-video rounded-2xl'
               : isSquare
-              ? 'aspect-square rounded-[2.5rem]'
+              ? 'aspect-square rounded-[2.2rem]'
               : 'aspect-[2/3] rounded-2xl'
-          } w-full overflow-hidden bg-surface shadow-sm group-hover:shadow-2xl group-hover:shadow-accent/10 transition-all duration-700 border border-ink/5 group-hover:border-accent/20`}
+          } w-full overflow-hidden bg-surface neu-card group-hover:scale-[1.02] transition-all duration-500`}
         >
           {(() => {
             const coverSource = item.imageUrl || item.collectionItems?.[0]?.imageUrl || '';
@@ -2272,8 +2272,8 @@ export default function PrivateRecommendations({
             )}
           </AnimatePresence>
 
-          {/* Desktop Category Pill Bar (Hidden on mobile since it's inside the button above) */}
-          <div className="hidden sm:flex flex-wrap justify-center gap-2 p-2 bg-surface/40 backdrop-blur-xl rounded-[2rem] border border-ink/5 shadow-inner">
+          {/* Category Pill Bar - Matching Sort Style with Mobile Horizontal Scroll */}
+          <div className="w-full max-w-full flex items-center gap-1.5 p-1.5 bg-paper/80 rounded-2xl neu-inset-sm overflow-x-auto no-scrollbar sm:justify-center scroll-smooth">
             {visibleCategoryTabs.map((cat) => {
               const count = typeCounts[cat] || 0;
               const isSelected = selectedType === cat;
@@ -2282,23 +2282,18 @@ export default function PrivateRecommendations({
                   key={cat}
                   type="button"
                   onClick={() => setSelectedType(cat)}
-                  className={`group relative px-5 py-2.5 md:px-6 md:py-3 rounded-full text-[10px] uppercase tracking-[0.15em] font-black transition-all duration-500 flex items-center gap-2 ${
-                    isSelected ? 'text-white' : 'text-ink/45 hover:text-ink'
+                  className={`group relative px-3 py-1.5 rounded-xl text-[9px] uppercase tracking-widest font-black transition-all shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
+                    isSelected
+                      ? 'bg-accent text-white shadow-[0_0_12px_rgba(227,28,40,0.4)]'
+                      : 'text-ink/40 hover:text-ink hover:bg-surface/50 active:neu-inset-sm'
                   }`}
                 >
-                  {isSelected && (
-                    <motion.div
-                      layoutId="activePrivateCategory"
-                      className="absolute inset-0 bg-accent rounded-full shadow-lg shadow-accent/20"
-                      transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                    />
-                  )}
                   <span className="relative z-10 whitespace-nowrap">{getTypeLabelNo(cat)}</span>
                   <span
-                    className={`relative z-10 text-[8px] px-1.5 py-0.5 rounded-full transition-colors ${
+                    className={`relative z-10 text-[8px] font-mono px-1.5 py-0.5 rounded-md transition-colors leading-none ${
                       isSelected
                         ? 'bg-white/20 text-white'
-                        : 'bg-ink/5 text-ink/35 group-hover:text-ink/60'
+                        : 'bg-ink/5 text-ink/35 group-hover:text-ink/70'
                     }`}
                   >
                     {count}
@@ -2309,8 +2304,8 @@ export default function PrivateRecommendations({
           </div>
 
           {/* Recommender Filter Bar (Alle / Anbefalt av Kianosh / Anbefalt av Amund) */}
-          <div className="flex justify-center">
-            <div className="inline-flex flex-wrap justify-center gap-1 sm:gap-1.5 p-1 sm:p-1.5 bg-surface/40 backdrop-blur-xl rounded-2xl sm:rounded-full border border-ink/5 shadow-inner max-w-full">
+          <div className="flex justify-center w-full">
+            <div className="inline-flex items-center gap-1.5 p-1.5 bg-paper/80 rounded-2xl neu-inset-sm max-w-full overflow-x-auto no-scrollbar">
               {(
                 [
                   {
@@ -2339,21 +2334,14 @@ export default function PrivateRecommendations({
                     key={item.id}
                     type="button"
                     onClick={() => setSelectedRecommender(item.id)}
-                    className={`group relative px-3 py-1.5 sm:px-5 sm:py-2.5 rounded-full text-[8px] sm:text-[10px] uppercase tracking-wider sm:tracking-[0.15em] font-black transition-all duration-500 flex items-center gap-1.5 sm:gap-2 ${
-                      isSelected ? 'text-paper' : 'text-ink/45 hover:text-ink'
+                    className={`group relative px-3 py-1.5 rounded-xl text-[9px] uppercase tracking-widest font-black transition-all shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
+                      isSelected ? 'bg-ink text-paper shadow-sm' : 'text-ink/40 hover:text-ink hover:bg-surface/50'
                     }`}
                   >
-                    {isSelected && (
-                      <motion.div
-                        layoutId="activePrivateRecommender"
-                        className="absolute inset-0 bg-ink rounded-full shadow-md"
-                        transition={{ type: 'spring', bounce: 0.2, duration: 0.6 }}
-                      />
-                    )}
                     <span className="relative z-10 sm:hidden whitespace-nowrap">{item.shortLabel}</span>
                     <span className="relative z-10 hidden sm:inline whitespace-nowrap">{item.label}</span>
                     <span
-                      className={`relative z-10 text-[7px] sm:text-[8px] px-1.5 py-0.5 rounded-full transition-colors ${
+                      className={`relative z-10 text-[8px] font-mono px-1.5 py-0.5 rounded-md leading-none transition-colors ${
                         isSelected
                           ? 'bg-paper/20 text-paper'
                           : 'bg-ink/5 text-ink/35 group-hover:text-ink/60'

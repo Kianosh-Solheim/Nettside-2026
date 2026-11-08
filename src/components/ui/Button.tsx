@@ -26,10 +26,10 @@ export default function Button({
   ...props
 }: ButtonProps) {
   const variants = {
-    primary: 'bg-accent text-paper hover:bg-accent/90 shadow-lg shadow-accent/20',
-    secondary: 'bg-ink/5 text-ink hover:bg-ink/10',
-    outline: 'border border-ink/20 text-ink hover:bg-ink/5',
-    ghost: 'text-ink/60 hover:text-ink hover:bg-ink/5',
+    primary: 'bg-accent text-white hover:bg-accent/90 shadow-[0_0_20px_rgba(227,28,40,0.45),4px_4px_10px_var(--neu-shadow-dark-sm)] active:shadow-[inset_2px_2px_6px_rgba(0,0,0,0.4)] active:scale-[0.98]',
+    secondary: 'bg-surface text-ink neu-button active:scale-[0.98]',
+    outline: 'bg-surface/90 text-ink neu-raised-sm hover:neu-button active:scale-[0.98] border border-ink/5',
+    ghost: 'text-ink/70 hover:text-ink hover:bg-surface/60 hover:neu-raised-sm active:neu-inset-sm',
   };
 
   const sizes = {

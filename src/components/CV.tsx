@@ -171,23 +171,23 @@ export default function CV() {
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-            className="flex flex-wrap justify-center gap-4 sm:gap-6 md:gap-10 pt-2 sm:pt-4"
+            className="flex flex-wrap justify-center gap-3 sm:gap-4 pt-2 sm:pt-4"
           >
-            <div className="flex items-center space-x-2 group cursor-default">
-              <Mail size={13} className="text-accent opacity-60 group-hover:opacity-100 transition-opacity" />
-              <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-ink/60 font-medium group-hover:text-ink transition-colors">
+            <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-surface neu-raised-sm border border-ink/5 group cursor-default">
+              <Mail size={12} className="text-accent opacity-80" />
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-ink/70 font-semibold">
                 {profile?.email || 'kianosh@solheim.online'}
               </span>
             </div>
-            <div className="flex items-center space-x-2 group cursor-default">
-              <MapPin size={13} className="text-accent opacity-60 group-hover:opacity-100 transition-opacity" />
-              <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-ink/60 font-medium group-hover:text-ink transition-colors">
+            <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-surface neu-raised-sm border border-ink/5 group cursor-default">
+              <MapPin size={12} className="text-accent opacity-80" />
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-ink/70 font-semibold">
                 {profile?.location || 'Bergen, Norway'}
               </span>
             </div>
-            <div className="flex items-center space-x-2 group cursor-default">
-              <Globe size={13} className="text-accent opacity-60 group-hover:opacity-100 transition-opacity" />
-              <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-ink/60 font-medium group-hover:text-ink transition-colors">
+            <div className="flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-surface neu-raised-sm border border-ink/5 group cursor-default">
+              <Globe size={12} className="text-accent opacity-80" />
+              <span className="text-[10px] sm:text-[11px] uppercase tracking-widest text-ink/70 font-semibold">
                 {profile?.website || 'www.solheim.online'}
               </span>
             </div>
@@ -250,7 +250,7 @@ export default function CV() {
                       {/* Logo Column */}
                       {item.logoUrl && (
                         <div className="flex-shrink-0 pt-1">
-                          <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-xl bg-ink/[0.03] border border-ink/5 flex items-center justify-center overflow-hidden group-hover:border-accent/30 group-hover:bg-ink/[0.05] group-hover/section:border-accent/10 transition-all duration-500 p-2">
+                          <div className="w-10 h-10 sm:w-16 sm:h-16 rounded-2xl bg-surface neu-raised-sm border border-ink/5 flex items-center justify-center overflow-hidden group-hover:neu-button group-hover:border-accent/30 group-hover/section:border-accent/10 transition-all duration-500 p-2">
                             <img 
                               src={item.logoUrl || null} 
                               alt={item.subtitle} 

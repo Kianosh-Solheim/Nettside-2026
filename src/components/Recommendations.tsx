@@ -847,18 +847,18 @@ export default function Recommendations() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-6 px-4">
             {/* Search Input */}
             <div className="relative w-full md:w-96 group">
-              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-ink/20 group-focus-within:text-accent transition-colors" size={18} />
+              <Search className="absolute left-5 top-1/2 -translate-y-1/2 text-ink/30 group-focus-within:text-accent transition-colors" size={18} />
               <input
                 type="text"
                 value={filterSearch}
                 onChange={(e) => setFilterSearch(e.target.value)}
                 placeholder="Filter by title, author, or theme..."
-                className="w-full pl-14 pr-10 py-4 bg-surface/50 backdrop-blur-md border border-ink/5 rounded-2xl text-xs focus:outline-none focus:border-accent/30 transition-all shadow-sm"
+                className="w-full pl-14 pr-10 py-3.5 bg-paper/80 rounded-2xl text-xs neu-inset focus:outline-none focus:ring-1 focus:ring-accent/40 text-ink placeholder:text-ink/35 transition-all"
               />
               {filterSearch && (
                 <button 
                   onClick={() => setFilterSearch('')}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/20 hover:text-ink transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-ink/30 hover:text-ink transition-colors"
                 >
                   <X size={14} />
                 </button>
@@ -866,16 +866,16 @@ export default function Recommendations() {
             </div>
 
             {/* Sort Selector */}
-            <div className="flex items-center space-x-3 bg-surface/50 backdrop-blur-md p-1.5 rounded-2xl border border-ink/5 self-end md:self-auto">
-              <span className="text-[9px] uppercase tracking-widest font-black text-ink/30 pl-3">Sort:</span>
+            <div className="flex items-center space-x-2 bg-paper/80 p-1.5 rounded-2xl neu-inset-sm self-center sm:self-end md:self-auto shrink-0">
+              <span className="text-[9px] uppercase tracking-widest font-black text-ink/35 pl-3">Sort:</span>
               {(['newest', 'title', 'author'] as const).map((option) => (
                 <button
                   key={option}
                   onClick={() => setSortBy(option)}
                   className={`px-3 py-1.5 rounded-xl text-[9px] uppercase tracking-widest font-black transition-all ${
                     sortBy === option 
-                      ? 'bg-ink text-paper shadow-sm' 
-                      : 'text-ink/40 hover:text-ink'
+                      ? 'bg-accent text-white shadow-[0_0_12px_rgba(227,28,40,0.4)]' 
+                      : 'text-ink/40 hover:text-ink hover:bg-surface/50'
                   }`}
                 >
                   {option}
@@ -884,8 +884,8 @@ export default function Recommendations() {
             </div>
           </div>
 
-          {/* Categories */}
-          <div className="flex flex-wrap justify-center gap-2 p-2 bg-surface/40 backdrop-blur-xl rounded-[2rem] border border-ink/5 shadow-inner">
+          {/* Categories Bar - Matching Sort Style with Mobile Horizontal Scroll */}
+          <div className="w-full max-w-full flex items-center gap-1.5 p-1.5 bg-paper/80 rounded-2xl neu-inset-sm overflow-x-auto no-scrollbar sm:justify-center scroll-smooth">
             {categories.map((cat) => {
               const count = categoryCounts[cat] || 0;
               const isSelected = selectedCategory === cat;
@@ -893,22 +893,15 @@ export default function Recommendations() {
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`group relative px-6 py-3 rounded-full text-[10px] uppercase tracking-[0.15em] font-black transition-all duration-500 flex items-center gap-2.5 ${
+                  className={`group relative px-3 py-1.5 rounded-xl text-[9px] uppercase tracking-widest font-black transition-all shrink-0 whitespace-nowrap flex items-center gap-1.5 ${
                     isSelected 
-                      ? 'text-white' 
-                      : 'text-ink/40 hover:text-ink'
+                      ? 'bg-accent text-white shadow-[0_0_12px_rgba(227,28,40,0.4)]' 
+                      : 'text-ink/40 hover:text-ink hover:bg-surface/50 active:neu-inset-sm'
                   }`}
                 >
-                  {isSelected && (
-                    <motion.div
-                      layoutId="activeCategory"
-                      className="absolute inset-0 bg-accent rounded-full shadow-lg shadow-accent/20"
-                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                    />
-                  )}
-                  <span className="relative z-10">{cat}</span>
-                  <span className={`relative z-10 text-[8px] px-1.5 py-0.5 rounded-full transition-colors ${
-                    isSelected ? 'bg-white/20 text-white' : 'bg-ink/5 text-ink/30 group-hover:text-ink/60'
+                  <span>{cat}</span>
+                  <span className={`text-[8px] font-mono px-1.5 py-0.5 rounded-md leading-none transition-colors ${
+                    isSelected ? 'bg-white/20 text-white' : 'bg-ink/5 text-ink/35 group-hover:text-ink/70'
                   }`}>
                     {count}
                   </span>
@@ -970,9 +963,9 @@ export default function Recommendations() {
                   !item.isCollection && (item.category === 'Video & Media' || extractYouTubeVideoId(item.imageUrl) || extractYouTubeVideoId(item.link) || extractVimeoVideoId(item.link))
                     ? 'aspect-video rounded-2xl'
                     : item.category === 'Apps' || item.category === 'Podcasts'
-                    ? 'aspect-square rounded-[2.5rem]'
+                    ? 'aspect-square rounded-[2.2rem]'
                     : 'aspect-[2/3] rounded-2xl'
-                } w-full overflow-hidden bg-surface shadow-sm group-hover:shadow-2xl group-hover:shadow-accent/10 transition-all duration-700 border border-ink/5 group-hover:border-accent/20`}>
+                } w-full overflow-hidden bg-surface neu-card group-hover:scale-[1.02] transition-all duration-500`}>
                   {(() => {
                     const fallbackCover = item.imageUrl || (item.isCollection && item.collectionItems?.[0]?.imageUrl ? item.collectionItems[0].imageUrl : '');
                     const imgKey = getImageKey(item.id, fallbackCover || item.link);
@@ -1068,7 +1061,7 @@ export default function Recommendations() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 40 }}
               transition={{ type: "spring", damping: 25, stiffness: 300 }}
-              className="relative w-full max-w-4xl bg-surface border border-ink/10 rounded-[3rem] overflow-hidden shadow-2xl z-10 flex flex-col md:flex-row max-h-[90vh]"
+              className="relative w-full max-w-4xl bg-surface border border-ink/5 rounded-[2.5rem] overflow-hidden neu-raised-lg z-10 flex flex-col md:flex-row max-h-[90vh]"
             >
               <button
                 onClick={() => {
@@ -1143,7 +1136,7 @@ export default function Recommendations() {
                               }}
                               className="group/sub cursor-pointer flex flex-col"
                             >
-                              <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden bg-paper border border-ink/10 shadow-sm group-hover/sub:shadow-xl group-hover/sub:border-accent/40 transition-all duration-300">
+                              <div className="relative aspect-[2/3] w-full rounded-2xl overflow-hidden bg-paper border border-ink/5 neu-raised-sm group-hover/sub:neu-button transition-all duration-300">
                                 {resolvedSrc && errorStage < 2 ? (
                                   <img
                                     src={resolvedSrc}
@@ -1413,7 +1406,7 @@ export default function Recommendations() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl bg-surface border border-ink/10 rounded-[2.5rem] p-8 md:p-12 overflow-hidden shadow-2xl z-10 my-8 max-h-[90vh] overflow-y-auto"
+              className="relative w-full max-w-2xl bg-surface border border-ink/5 rounded-[2.5rem] p-8 md:p-12 overflow-hidden neu-raised-lg z-10 my-8 max-h-[90vh] overflow-y-auto"
             >
               <div className="flex justify-between items-center mb-8 gap-3">
                 <div className="flex items-center gap-3 flex-wrap">

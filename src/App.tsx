@@ -130,7 +130,7 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
   ];
 
   return (
-    <nav className="fixed top-0 w-full bg-paper/80 backdrop-blur-md border-b border-ink/5 z-50 print:hidden">
+    <nav className="fixed top-0 w-full bg-paper/85 backdrop-blur-md border-b border-ink/5 shadow-[0_4px_16px_var(--neu-shadow-dark-sm)] z-50 print:hidden">
       <motion.div
         className="absolute bottom-0 left-0 right-0 h-[2px] bg-accent origin-left"
         style={{ scaleX }}
@@ -169,7 +169,7 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
                 className="flex items-center space-x-2 focus:outline-none text-ink/60 hover:text-accent p-0 h-auto hover:bg-transparent"
                 magnetic={true}
               >
-                <div className="w-8 h-8 rounded-full bg-ink/5 flex items-center justify-center border border-ink/10 hover:border-accent transition-colors">
+                <div className="w-8 h-8 rounded-full bg-surface neu-raised-sm hover:neu-button active:neu-inset-sm flex items-center justify-center border border-ink/5 hover:border-accent transition-all">
                   <Wrench size={14} className="text-ink/60" />
                 </div>
               </Button>
@@ -181,7 +181,7 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: 5, scale: 0.98 }}
                     transition={{ duration: 0.15, ease: "easeOut" }}
-                    className="absolute right-0 mt-2 w-56 bg-paper border border-ink/10 rounded-xl shadow-xl overflow-hidden z-50"
+                    className="absolute right-0 mt-2 w-56 bg-surface border border-ink/5 rounded-2xl neu-raised-lg overflow-hidden z-50"
                   >
                     <div className="px-4 py-3 border-b border-ink/5">
                       <p className="text-[10px] font-black uppercase tracking-widest text-ink/40">Tools</p>
@@ -207,8 +207,9 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
               onClick={toggleTheme}
               aria-label="Toggle theme"
               magnetic={true}
+              className="w-8 h-8 !p-0 rounded-full bg-surface neu-raised-sm hover:neu-button active:neu-inset-sm flex items-center justify-center border border-ink/5 text-ink/70"
             >
-              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+              {theme === 'light' ? <Moon size={15} /> : <Sun size={15} />}
             </Button>
 
             {user ? (
@@ -224,12 +225,12 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
                     <img
                       src={user.photoURL}
                       alt={user.displayName || 'Profile'}
-                      className="w-8 h-8 rounded-full border border-ink/10 hover:border-accent transition-colors"
+                      className="w-8 h-8 rounded-full border border-ink/10 neu-raised-sm hover:border-accent transition-colors"
                       referrerPolicy="no-referrer"
                     />
                   ) : (
-                    <div className="w-8 h-8 rounded-full bg-ink/5 flex items-center justify-center border border-ink/10 hover:border-accent transition-colors">
-                      <User size={18} className="text-ink/60" />
+                    <div className="w-8 h-8 rounded-full bg-surface neu-raised-sm hover:neu-button active:neu-inset-sm flex items-center justify-center border border-ink/5 hover:border-accent transition-all">
+                      <User size={16} className="text-ink/60" />
                     </div>
                   )}
                 </Button>
@@ -241,7 +242,7 @@ const Navbar = ({ user, canViewAdminHealth, hasKiaplayAccess }: { user: any, can
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 5, scale: 0.98 }}
                       transition={{ duration: 0.15, ease: "easeOut" }}
-                      className="absolute right-0 mt-2 w-48 bg-paper border border-ink/10 rounded-xl shadow-xl overflow-hidden z-50"
+                      className="absolute right-0 mt-2 w-48 bg-surface border border-ink/5 rounded-2xl neu-raised-lg overflow-hidden z-50"
                     >
                       <div className="px-4 py-3 border-b border-ink/5">
                         <p className="text-xs font-semibold text-ink truncate">{user.displayName}</p>
