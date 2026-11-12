@@ -98,6 +98,27 @@
   .neu-card:hover {
     box-shadow: 12px 12px 28px var(--neu-shadow-dark), -12px -12px 28px var(--neu-shadow-light);
   }
+
+  /* 3D Media Artifacts */
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+}
+
+@keyframes vinyl-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-vinyl-spin {
+  animation: vinyl-spin 3.5s linear infinite;
 }
 
 :root {

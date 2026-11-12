@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Book, Film, Tv, ExternalLink, Video, Plus, Search, X, Check, Loader2, Edit2, Trash2, Save, RefreshCw, Sparkles, Podcast, Play, Layers, ArrowLeft } from 'lucide-react';
+import { Book, Film, Tv, ExternalLink, Video, Plus, Search, X, Check, Loader2, Edit2, Trash2, Save, RefreshCw, Sparkles, Podcast, Play, Layers, ArrowLeft, Smartphone } from 'lucide-react';
 import { db, collection, query, orderBy, handleFirestoreError, OperationType, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, auth, getDocs } from '../firebase';
 import Magnetic from './Magnetic';
 import Button from './ui/Button';
+import { MediaArtifactCard } from './MediaArtifactCard';
+import { IPhoneAppShowcase } from './IPhoneAppShowcase';
 
 interface CollectionSubItem {
   id: string;
@@ -769,13 +771,41 @@ export default function Recommendations() {
     return counts;
   }, [recommendations]);
 
+  const allRecommendedApps = useMemo(() => {
+    const directApps = recommendations.filter(r => r.category === 'Apps');
+    const subApps: Recommendation[] = [];
+    recommendations.forEach(r => {
+      if (r.isCollection && Array.isArray(r.collectionItems)) {
+        r.collectionItems.forEach((ci, idx) => {
+          if (ci.category === 'Apps') {
+            subApps.push({
+              id: ci.id || `${r.id}-sub-${idx}`,
+              title: ci.title,
+              author: ci.author || r.author,
+              category: 'Apps',
+              description: ci.description || r.description,
+              link: ci.link || r.link,
+              imageUrl: ci.imageUrl
+            });
+          }
+        });
+      }
+    });
+    // Merge without duplicates
+    const combined = [...directApps];
+    subApps.forEach(sa => {
+      if (!combined.some(c => c.id === sa.id)) combined.push(sa);
+    });
+    return combined;
+  }, [recommendations]);
+
   const getIcon = (category: string) => {
     switch (category) {
       case 'Books': return <Book size={18} />;
       case 'Movies': return <Film size={18} />;
       case 'Shows': return <Tv size={18} />;
       case 'Video & Media': return <Video size={18} />;
-      case 'Apps': return <Tv size={18} />;
+      case 'Apps': return <Smartphone size={18} />;
       case 'Podcasts': return <Podcast size={18} />;
       default: return <Book size={18} />;
     }
@@ -959,69 +989,29 @@ export default function Recommendations() {
                     : ''
                 }`}
               >
-                <div className={`relative ${
-                  !item.isCollection && (item.category === 'Video & Media' || extractYouTubeVideoId(item.imageUrl) || extractYouTubeVideoId(item.link) || extractVimeoVideoId(item.link))
-                    ? 'aspect-video rounded-2xl'
-                    : item.category === 'Apps' || item.category === 'Podcasts'
-                    ? 'aspect-square rounded-[2.2rem]'
-                    : 'aspect-[2/3] rounded-2xl'
-                } w-full overflow-hidden bg-surface neu-card group-hover:scale-[1.02] transition-all duration-500`}>
-                  {(() => {
-                    const fallbackCover = item.imageUrl || (item.isCollection && item.collectionItems?.[0]?.imageUrl ? item.collectionItems[0].imageUrl : '');
-                    const imgKey = getImageKey(item.id, fallbackCover || item.link);
-                    const errorStage = brokenImages[imgKey] || 0;
-                    const resolvedSrc = getDisplayImageUrl(fallbackCover, errorStage, item.link);
-                    return resolvedSrc && errorStage < 2 ? (
-                      <img
-                        src={resolvedSrc}
-                        alt={item.title}
-                        className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
-                        referrerPolicy="no-referrer"
-                        onError={() => handleImageError(item.id, fallbackCover || item.link)}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-ink/[0.02] to-ink/[0.08]">
-                        <div className="text-accent/20 mb-4 transform group-hover:scale-110 group-hover:text-accent/40 transition-all duration-500">
-                          {item.isCollection ? <Layers size={22} /> : getIcon(item.category)}
-                        </div>
-                        <h3 className="font-serif text-xs font-bold line-clamp-3 text-ink/60 px-2 leading-relaxed">{item.title}</h3>
-                        {!item.isCollection && (
-                          <p className="text-[8px] uppercase tracking-[0.2em] text-ink/30 mt-3 font-black">{item.author}</p>
-                        )}
-                      </div>
-                    );
-                  })()}
-                  
-                  {/* Subtle Top Badge */}
-                  <div className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    <div className="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-[7px] uppercase tracking-widest font-black flex items-center gap-1.5">
-                      {item.isCollection ? <Layers size={12} /> : getIcon(item.category)}
-                      <span>{item.isCollection ? `Samling (${item.collectionItems?.length || 0})` : item.category}</span>
-                    </div>
-                  </div>
+                {(() => {
+                  const fallbackCover = item.imageUrl || (item.isCollection && item.collectionItems?.[0]?.imageUrl ? item.collectionItems[0].imageUrl : '');
+                  const imgKey = getImageKey(item.id, fallbackCover || item.link);
+                  const errorStage = brokenImages[imgKey] || 0;
+                  const resolvedSrc = getDisplayImageUrl(fallbackCover, errorStage, item.link);
+                  const isPlayable = !item.isCollection && Boolean(getEmbedMediaInfo(item.link));
 
-                  {!item.isCollection && getEmbedMediaInfo(item.link) && (
-                    <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-                      <div className="w-12 h-12 rounded-full bg-black/65 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:bg-accent group-hover:border-accent transition-all duration-300">
-                        <Play size={18} className="fill-white ml-0.5" />
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Hover Overlay */}
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-5">
-                    <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-                      {!item.isCollection && (
-                        <p className="text-white/50 text-[8px] uppercase tracking-[0.2em] font-black mb-1">{item.author}</p>
-                      )}
-                      <h3 className="text-white font-serif text-sm font-bold leading-snug line-clamp-2">{item.title}</h3>
-                      <div className="mt-3 pt-3 border-t border-white/10 flex items-center justify-between text-white/40 text-[8px] uppercase tracking-widest font-black">
-                        <span>{item.isCollection ? 'Åpne samling' : 'View Details'}</span>
-                        {item.isCollection ? <Layers size={10} /> : <ExternalLink size={10} />}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  return (
+                    <MediaArtifactCard
+                      id={item.id}
+                      title={item.title}
+                      authorOrCreator={item.author}
+                      categoryOrType={item.category}
+                      imageUrl={resolvedSrc && errorStage < 2 ? resolvedSrc : undefined}
+                      fallbackIcon={item.isCollection ? <Layers size={22} /> : getIcon(item.category)}
+                      isCollection={item.isCollection}
+                      collectionCount={item.collectionItems?.length || 0}
+                      isPlayable={isPlayable}
+                      actionLabel={item.isCollection ? 'Åpne samling' : 'Se detaljer'}
+                      onImageError={() => handleImageError(item.id, fallbackCover || item.link)}
+                    />
+                  );
+                })()}
 
                 {/* Title below card for better scannability */}
                 <div className="mt-4 px-1 space-y-1">
@@ -1228,6 +1218,57 @@ export default function Recommendations() {
                             );
                           }
 
+                          if (displayTarget.category === 'Apps') {
+                            const appList = allRecommendedApps.length > 0 
+                              ? (allRecommendedApps.some(a => a.id === displayTarget.id)
+                                  ? allRecommendedApps
+                                  : [displayTarget as Recommendation, ...allRecommendedApps])
+                              : [displayTarget as Recommendation];
+
+                            const resolvedAppImages: Record<string, string> = {};
+                            appList.forEach(app => {
+                              const k = getImageKey(app.id, app.imageUrl || app.link);
+                              const st = brokenImages[k] || 0;
+                              const src = getDisplayImageUrl(app.imageUrl, st, app.link);
+                              if (src && st < 2) resolvedAppImages[app.id] = src;
+                            });
+
+                            return (
+                              <IPhoneAppShowcase
+                                currentAppId={displayTarget.id}
+                                apps={appList.map(a => ({
+                                  id: a.id,
+                                  title: a.title,
+                                  authorOrCreator: a.author,
+                                  categoryOrType: a.category,
+                                  imageUrl: a.imageUrl,
+                                  link: a.link,
+                                  description: a.description
+                                }))}
+                                onSelectApp={(clickedApp) => {
+                                  const fullRec = recommendations.find(r => r.id === clickedApp.id);
+                                  if (fullRec) {
+                                    setIsPlayingMedia(false);
+                                    setActiveCollectionSubItem(null);
+                                    setSelectedItem(fullRec);
+                                  } else {
+                                    setActiveCollectionSubItem(null);
+                                    setSelectedItem({
+                                      id: clickedApp.id,
+                                      title: clickedApp.title,
+                                      author: clickedApp.authorOrCreator || '',
+                                      category: 'Apps',
+                                      description: clickedApp.description,
+                                      link: clickedApp.link,
+                                      imageUrl: clickedApp.imageUrl
+                                    });
+                                  }
+                                }}
+                                resolvedImages={resolvedAppImages}
+                              />
+                            );
+                          }
+
                           return (
                             <>
                               {canShowImg && (
@@ -1248,7 +1289,7 @@ export default function Recommendations() {
                                 className={`relative z-10 group/poster ${embedInfo ? 'cursor-pointer' : ''} ${
                                   isWidescreen
                                     ? 'w-full max-w-[340px] aspect-video rounded-2xl'
-                                    : displayTarget.category === 'Apps' || displayTarget.category === 'Podcasts'
+                                    : displayTarget.category === 'Podcasts'
                                     ? 'w-48 md:w-full max-w-[240px] aspect-square rounded-[2.5rem]'
                                     : 'w-48 md:w-full max-w-[240px] aspect-[2/3] rounded-2xl'
                                 } overflow-hidden shadow-2xl border border-white/10`}

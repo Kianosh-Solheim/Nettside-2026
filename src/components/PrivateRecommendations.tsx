@@ -39,7 +39,8 @@ import {
   Play,
   Link2,
   Layers,
-  ArrowLeft
+  ArrowLeft,
+  Smartphone
 } from 'lucide-react';
 import {
   db,
@@ -58,6 +59,8 @@ import {
   auth
 } from '../firebase';
 import Button from './ui/Button';
+import { MediaArtifactCard } from './MediaArtifactCard';
+import { IPhoneAppShowcase } from './IPhoneAppShowcase';
 
 export type RecommendationType =
   | 'Movie'
@@ -69,6 +72,7 @@ export type RecommendationType =
   | 'Podcast'
   | 'Music'
   | 'Website'
+  | 'App'
   | 'Other';
 
 export type RecommendationStatus =
@@ -132,6 +136,7 @@ export const RECOMMENDATION_TYPES: RecommendationType[] = [
   'Music',
   'Article',
   'Website',
+  'App',
   'Other'
 ];
 
@@ -158,6 +163,7 @@ export const TYPE_LABELS_NO: Record<string, string> = {
   Music: 'Musikk',
   Article: 'Artikkel',
   Website: 'Nettside',
+  App: 'App',
   Other: 'Annet'
 };
 
@@ -1589,6 +1595,39 @@ export default function PrivateRecommendations({
     return counts;
   }, [recommendations]);
 
+  // All recommended Apps for the iPhone showcase
+  const allPrivateApps = useMemo(() => {
+    const direct = recommendations.filter((r) => r.type === 'App');
+    const subApps: PrivateRecommendationItem[] = [];
+    recommendations.forEach((r) => {
+      if (r.isCollection && Array.isArray(r.collectionItems)) {
+        r.collectionItems.forEach((ci, idx) => {
+          if (ci.type === 'App') {
+            subApps.push({
+              id: `${r.id}-sub-${ci.id || idx}`,
+              title: ci.title,
+              creator: ci.creator || r.creator,
+              type: 'App',
+              description: ci.description || r.description,
+              link: ci.link || r.link,
+              imageUrl: ci.imageUrl,
+              recommendedBy: r.recommendedBy,
+              dateRecommended: r.dateRecommended || '',
+              callDate: r.callDate || '',
+              status: r.status,
+              createdAt: r.createdAt
+            });
+          }
+        });
+      }
+    });
+    const combined = [...direct];
+    subApps.forEach((sa) => {
+      if (!combined.some((c) => c.id === sa.id)) combined.push(sa);
+    });
+    return combined;
+  }, [recommendations]);
+
   // Recommender Counts (respecting selected media type, including sub-items in collections)
   const recommenderCounts = useMemo(() => {
     const base =
@@ -1801,6 +1840,8 @@ export default function PrivateRecommendations({
         return <Music size={size} />;
       case 'Website':
         return <Globe size={size} />;
+      case 'App':
+        return <Smartphone size={size} />;
       default:
         return <Sparkles size={size} />;
     }
@@ -1934,60 +1975,15 @@ export default function PrivateRecommendations({
         }}
         className={`group cursor-pointer flex flex-col ${isWidescreen ? 'col-span-2' : ''}`}
       >
-        <div
-          className={`relative ${
-            isWidescreen
-              ? 'aspect-video rounded-2xl'
-              : isSquare
-              ? 'aspect-square rounded-[2.2rem]'
-              : 'aspect-[2/3] rounded-2xl'
-          } w-full overflow-hidden bg-surface neu-card group-hover:scale-[1.02] transition-all duration-500`}
-        >
-          {(() => {
-            const coverSource = item.imageUrl || item.collectionItems?.[0]?.imageUrl || '';
-            const imgKey = getImageKey(item.id, coverSource || item.link);
-            const errorStage = brokenImages[imgKey] || 0;
-            const resolvedSrc = getDisplayImageUrl(coverSource, errorStage, item.link);
-            return resolvedSrc && errorStage < 2 ? (
-              <img
-                src={resolvedSrc}
-                alt={item.title}
-                className="w-full h-full object-cover transition-transform duration-1000 ease-out group-hover:scale-110"
-                referrerPolicy="no-referrer"
-                onError={() => handleImageError(item.id, coverSource || item.link)}
-              />
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-ink/[0.02] to-ink/[0.08]">
-                <div className="text-accent/25 mb-4 transform group-hover:scale-110 group-hover:text-accent/50 transition-all duration-500">
-                  {isCollectionCard ? <Layers size={24} /> : getTypeIcon(item.type, 24)}
-                </div>
-                <h3 className="font-serif text-xs font-bold line-clamp-3 text-ink/70 px-2 leading-relaxed">
-                  {item.title}
-                </h3>
-                {!isCollectionCard && (
-                  <p className="text-[8px] uppercase tracking-[0.2em] text-ink/35 mt-3 font-black">
-                    {item.creator || `Fra ${getPersonName(item.recommendedBy)}`}
-                  </p>
-                )}
-              </div>
-            );
-          })()}
+        {(() => {
+          const coverSource = item.imageUrl || item.collectionItems?.[0]?.imageUrl || '';
+          const imgKey = getImageKey(item.id, coverSource || item.link);
+          const errorStage = brokenImages[imgKey] || 0;
+          const resolvedSrc = getDisplayImageUrl(coverSource, errorStage, item.link);
+          const isPlayable = !isCollectionCard && Boolean(getEmbedMediaInfo(item.link));
 
-          {/* Top Left Hover Badge: Type or Collection */}
-          <div className="absolute top-3 left-3 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            <div className="px-2.5 py-1 rounded-full bg-black/60 backdrop-blur-md border border-white/10 text-white text-[7px] uppercase tracking-widest font-black flex items-center gap-1.5">
-              {isCollectionCard ? <Layers size={11} /> : getTypeIcon(item.type, 11)}
-              <span>
-                {isCollectionCard
-                  ? `Samling (${item.collectionItems?.length || 0})`
-                  : getTypeLabelNo(item.type)}
-              </span>
-            </div>
-          </div>
-
-          {/* Top Right Persistent Badge: Completed / Rating / Planning */}
-          {(isCompleted || isPlanning || item.rating) && (
-            <div className="absolute top-3 right-3 z-10 flex items-center gap-1">
+          const statusBadge = (isCompleted || isPlanning || item.rating) ? (
+            <div className="flex items-center gap-1">
               {item.rating && (
                 <div className="px-2 py-1 rounded-full bg-black/65 backdrop-blur-md border border-white/10 text-amber-400 text-[8px] font-mono font-bold flex items-center gap-1">
                   <Star size={9} className="fill-amber-400 text-amber-400" />
@@ -2010,58 +2006,28 @@ export default function PrivateRecommendations({
                 </div>
               ) : null}
             </div>
-          )}
+          ) : undefined;
 
-          {/* Center Play Button Overlay if item has a playable YouTube/Vimeo/video link */}
-          {!isCollectionCard && getEmbedMediaInfo(item.link) && (
-            <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
-              <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-black/65 backdrop-blur-md border border-white/25 text-white flex items-center justify-center shadow-xl group-hover:scale-110 group-hover:bg-accent group-hover:border-accent transition-all duration-300">
-                <Play size={18} className="fill-white ml-0.5" />
-              </div>
-            </div>
-          )}
-
-          {/* Hover Overlay (matches public Recommendations) */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/30 to-transparent opacity-0 group-hover:opacity-100 transition-all duration-500 flex flex-col justify-end p-5">
-            <div className="transform translate-y-4 group-hover:translate-y-0 transition-transform duration-500">
-              {!isCollectionCard && (
-                <p className="text-white/60 text-[8px] uppercase tracking-[0.2em] font-black mb-1">
-                  {hasDate
-                    ? `Fra ${getPersonName(item.recommendedBy)} · Samtale ${formatReadableDate(item.callDate)}`
-                    : `Fra ${getPersonName(item.recommendedBy)}`}
-                </p>
-              )}
-              <h3 className="text-white font-serif text-sm font-bold leading-snug line-clamp-2">
-                {item.title}
-              </h3>
-              {item.review && (
-                <p className="text-white/75 font-serif italic text-[11px] line-clamp-2 mt-1.5">
-                  «{item.review}»
-                </p>
-              )}
-              <div className="mt-3 pt-3 border-t border-white/15 flex items-center justify-between gap-2 text-white/60 text-[8px] uppercase tracking-widest font-black">
-                {isCollectionCard ? (
-                  <span className="flex items-center gap-1.5 text-white/90">
-                    <Layers size={11} />
-                    <span>Åpne samling ({item.collectionItems?.length || 0})</span>
-                  </span>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={(e) => openReviewModal(item, e)}
-                    className="px-2.5 py-1.5 rounded-lg bg-white/15 hover:bg-accent text-white transition-colors"
-                  >
-                    {isCompleted ? 'Oppdater vurdering' : 'Fullfør & vurder'}
-                  </button>
-                )}
-                <span className="flex items-center gap-1">
-                  <span>{isCollectionCard ? 'Utforsk' : 'Detaljer'}</span>
-                  <ExternalLink size={10} />
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+          return (
+            <MediaArtifactCard
+              id={item.id}
+              title={item.title}
+              authorOrCreator={subtitle}
+              categoryOrType={item.type}
+              imageUrl={resolvedSrc && errorStage < 2 ? resolvedSrc : undefined}
+              fallbackIcon={isCollectionCard ? <Layers size={22} /> : getTypeIcon(item.type, 22)}
+              isCollection={isCollectionCard}
+              collectionCount={item.collectionItems?.length || 0}
+              isPlayable={isPlayable}
+              rating={item.rating}
+              statusBadge={statusBadge}
+              review={item.review}
+              actionLabel={isCollectionCard ? 'Åpne samling' : isCompleted ? 'Oppdater' : 'Fullfør & vurder'}
+              onReviewClick={(e) => openReviewModal(item, e)}
+              onImageError={() => handleImageError(item.id, coverSource || item.link)}
+            />
+          );
+        })()}
 
         {/* Title & Subtitle below card: for collections, ONLY show the title as requested */}
         <div className="mt-2.5 sm:mt-4 px-1 space-y-0.5 sm:space-y-1">
@@ -2864,6 +2830,83 @@ export default function PrivateRecommendations({
                               </a>
                             </div>
                           </div>
+                        );
+                      }
+
+                      if (targetType === 'App') {
+                        const appList = allPrivateApps.length > 0
+                          ? (allPrivateApps.some(a => a.id === targetId || a.id === selectedItem.id)
+                              ? allPrivateApps
+                              : [{
+                                  id: targetId,
+                                  title: targetTitle,
+                                  creator: selectedItem.creator,
+                                  type: 'App' as RecommendationType,
+                                  description: selectedItem.description,
+                                  link: targetLink,
+                                  imageUrl: targetImg,
+                                  recommendedBy: selectedItem.recommendedBy,
+                                  status: selectedItem.status,
+                                  createdAt: selectedItem.createdAt
+                                }, ...allPrivateApps])
+                          : [{
+                              id: targetId,
+                              title: targetTitle,
+                              creator: selectedItem.creator,
+                              type: 'App' as RecommendationType,
+                              description: selectedItem.description,
+                              link: targetLink,
+                              imageUrl: targetImg,
+                              recommendedBy: selectedItem.recommendedBy,
+                              status: selectedItem.status,
+                              createdAt: selectedItem.createdAt
+                            }];
+
+                        const resolvedAppImages: Record<string, string> = {};
+                        appList.forEach(app => {
+                          const k = getImageKey(app.id, app.imageUrl || app.link);
+                          const st = brokenImages[k] || 0;
+                          const src = getDisplayImageUrl(app.imageUrl, st, app.link);
+                          if (src && st < 2) resolvedAppImages[app.id] = src;
+                        });
+
+                        return (
+                          <IPhoneAppShowcase
+                            currentAppId={targetId}
+                            apps={appList.map(a => ({
+                              id: a.id,
+                              title: a.title,
+                              authorOrCreator: a.creator,
+                              categoryOrType: a.type,
+                              imageUrl: a.imageUrl,
+                              link: a.link,
+                              description: a.description
+                            }))}
+                            onSelectApp={(clickedApp) => {
+                              const fullRec = recommendations.find(r => r.id === clickedApp.id);
+                              if (fullRec) {
+                                setIsPlayingMedia(false);
+                                setActiveCollectionSubItem(null);
+                                setSelectedItem(fullRec);
+                              } else {
+                                setActiveCollectionSubItem(null);
+                                setSelectedItem({
+                                  id: clickedApp.id,
+                                  title: clickedApp.title,
+                                  creator: clickedApp.authorOrCreator,
+                                  type: 'App' as RecommendationType,
+                                  description: clickedApp.description,
+                                  link: clickedApp.link,
+                                  imageUrl: clickedApp.imageUrl,
+                                  recommendedBy: selectedItem.recommendedBy,
+                                  dateRecommended: selectedItem.dateRecommended,
+                                  callDate: selectedItem.callDate,
+                                  status: 'Not Seen'
+                                });
+                              }
+                            }}
+                            resolvedImages={resolvedAppImages}
+                          />
                         );
                       }
 
